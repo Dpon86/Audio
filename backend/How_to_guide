@@ -1,0 +1,18 @@
+Have docker running 
+
+cd backend
+
+Type:
+docker run -p 6379:6379 redis
+
+Then
+python manage.py runserver
+
+Then:
+celery -A myproject worker --loglevel=info --pool=solo
+
+cd frontend
+
+cd audio-waveform-visualizer
+
+npm start
