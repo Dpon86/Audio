@@ -129,8 +129,20 @@ Audio repetative detection/
 
 ### Frontend (Node.js)
 - **React 19.1.0**: UI framework
-- **react-router-dom 7.6.0**: Routing
-- **react-scripts 5.0.1**: Build tools
+- **react-dom 19.1.0**: React DOM utilities
+- **react-router-dom 7.6.0**: Client-side routing
+- **react-scripts 5.0.1**: Build tools and dev server
+- **@testing-library/react 16.3.0**: React testing utilities
+- **web-vitals 2.1.4**: Performance monitoring
+
+## Frontend Dependencies
+
+For detailed information about JavaScript/Node.js dependencies, see:
+- **[Frontend Dependencies Guide](frontend/FRONTEND_DEPENDENCIES.md)** - Complete dependency documentation
+- **[Frontend Setup Guide](frontend/SETUP_GUIDE.md)** - Installation and development workflow
+- **Package Templates:**
+  - `frontend/package-template.json` - Enhanced package.json with additional scripts
+  - `frontend/package-minimal.json` - Minimal dependencies for clean setup
 
 ## Development Notes
 
