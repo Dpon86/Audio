@@ -1,0 +1,18 @@
+
+
+.FrontPage-container {
+  min-height: 100vh;
+  background: #f4f6fc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.FrontPage-title {
+  margin-top: 3rem;
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: #232946;
+  letter-spacing: 1px;
+  text-align: center;
+}

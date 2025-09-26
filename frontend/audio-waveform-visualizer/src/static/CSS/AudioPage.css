@@ -1,0 +1,108 @@
+.audiopage-container {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.audiopage-processing-box {
+  text-align: center;
+  margin: 2rem auto;
+  font-size: 1.2rem;
+  max-width: 500px;
+  background: #f6f6f6;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px #0001;
+  padding: 2rem 1.5rem;
+}
+
+.audiopage-uploading-text {
+  margin-bottom: 1rem;
+  font-weight: bold;
+}
+
+.audiopage-progress-bar-bg {
+  width: 80%;
+  margin: 1rem auto;
+  background: #eee;
+  border-radius: 8px;
+  height: 16px;
+  overflow: hidden;
+}
+
+.audiopage-progress-bar {
+  height: 100%;
+  background: #232946;
+  border-radius: 8px;
+  transition: width 0.2s;
+}
+
+.audiopage-waiting-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+  font-size: 1.1rem;
+  color: #232946;
+}
+
+.audiopage-spinner {
+  width: 40px;
+  height: 40px;
+  border: 5px solid #b8c1ec;
+  border-top: 5px solid #232946;
+  border-radius: 50%;
+  animation: audiopage-spin 1s linear infinite;
+  margin-bottom: 0.5rem;
+}
+
+@keyframes audiopage-spin {
+  0% { transform: rotate(0deg);}
+  100% { transform: rotate(360deg);}
+}
+
+.audiopage-edit-btn {
+  margin-top: 2rem;
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  background: #232946;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.audiopage-edit-btn:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
+
+.audiopage-infinity-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.infinity-svg {
+  display: block;
+}
+
+.infinity-path {
+  stroke-dasharray: 220;
+  stroke-dashoffset: 220;
+  animation: infinity-draw 1.5s linear infinite;
+}
+
+@keyframes infinity-draw {
+  0% {
+    stroke-dashoffset: 220;
+  }
+  50% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -220;
+  }
+}

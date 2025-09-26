@@ -1,0 +1,84 @@
+.awfd-container {
+  width: 100%;
+}
+
+.awfd-time-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-family: monospace;
+  font-size: 1.1em;
+  justify-content: flex-end;
+}
+
+.awfd-waveform {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.awfd-current-time,
+.awfd-duration {
+  min-width: 40px;
+  text-align: right;
+}
+
+.awfd-divider {
+  color: #888;
+}
+
+.awfd-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.awfd-play-btn {
+  padding: 0.4rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background: #232946;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1.3em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.awfd-zoom-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.awfd-zoom-slider {
+  width: 120px;
+}
+
+.awfd-zoom-value {
+  min-width: 40px;
+  display: inline-block;
+}
+
+.awfd-speed-label {
+  margin-right: 0.5rem;
+}
+
+.awfd-speed-btn {
+  font-weight: normal;
+  background: #eee;
+  color: #232946;
+  border: none;
+  border-radius: 4px;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  margin-right: 0.3rem;
+}
+
+.awfd-speed-btn-active {
+  font-weight: bold;
+  background: #232946;
+  color: #fff;
+}

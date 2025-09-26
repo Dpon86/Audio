@@ -1,0 +1,78 @@
+/* FinalAudioPlayer.css */
+
+.final-audio-container {
+  margin-top: 2rem;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.final-audio-title {
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.final-audio-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.final-audio-player {
+  width: 100%;
+  border-radius: 5px;
+}
+
+.download-button-container {
+  display: flex;
+  justify-content: center;
+}
+
+.download-button {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.download-button:hover {
+  background: linear-gradient(135deg, #45a049, #3d8b40);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.download-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.download-button:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.no-audio-message {
+  color: #666;
+  font-style: italic;
+  text-align: center;
+  padding: 2rem;
+}
+
+/* Download icon using CSS */
+.download-icon::before {
+  content: "⬇";
+  font-size: 14px;
+}

@@ -1,0 +1,133 @@
+.regionlist-container {
+  width: 100%;
+}
+
+.regionlist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.regionlist-deleteall-btn {
+  background: #c00;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  margin-left: 1rem;
+  opacity: 1;
+  transition: opacity 0.2s;
+}
+.regionlist-deleteall-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.regionlist-scrollbox {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 0.5rem;
+  margin-top: 0.5rem;
+  background: #f8f8f8;
+}
+
+.regionlist-ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.regionlist-li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  justify-content: space-between;
+}
+
+.regionlist-keep {
+  color: green;
+}
+
+.regionlist-delete {
+  color: red;
+}
+
+.regionlist-info {
+  display: flex;
+  align-items: center;
+}
+
+.regionlist-play-btn {
+  margin-right: 0.5rem;
+}
+
+.regionlist-switch {
+  display: flex;
+  align-items: center;
+  margin-left: 0.5rem;
+}
+
+.regionlist-switch-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.regionlist-switch-label input[type="checkbox"] {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.regionlist-slider {
+  width: 48px;
+  height: 24px;
+  border-radius: 12px;
+  background: #c00;
+  position: relative;
+  transition: background 0.2s;
+  margin-right: 0.5rem;
+  display: inline-block;
+}
+.regionlist-slider-keep {
+  background: green;
+}
+.regionlist-slider-delete {
+  background: #c00;
+}
+.regionlist-slider-knob {
+  position: absolute;
+  top: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.2s;
+}
+.regionlist-slider::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.2s;
+}
+.regionlist-switch-label input[type="checkbox"]:checked + .regionlist-slider::before {
+  left: 26px;
+}
+.regionlist-switch-text {
+  font-weight: bold;
+}
+.regionlist-keep-label {
+  color: green;
+}
+.regionlist-delete-label {
+  color: #c00;
+}
