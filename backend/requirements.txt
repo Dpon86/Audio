@@ -1,0 +1,48 @@
+# Django Framework
+Django==5.2.1
+djangorestframework==3.16.0
+
+# Celery for background tasks
+celery==5.5.2
+redis==6.1.0
+
+# Audio processing
+openai-whisper==20240930
+pydub==0.25.1
+ffmpeg-python==0.2.0
+
+# Data processing and ML
+numpy==2.2.6
+torch==2.7.0
+tiktoken==0.9.0
+
+# Text processing
+nltk==3.9.1
+regex==2024.11.6
+
+# HTTP requests
+requests==2.32.3
+
+# File processing
+openpyxl==3.1.5
+PyPDF2==3.0.1
+
+# Core dependencies (automatically installed with above, but listed for clarity)
+asgiref==3.8.1
+sqlparse==0.5.3
+tzdata==2025.2
+
+# Celery dependencies
+amqp==5.3.1
+billiard==4.2.1
+kombu==5.5.3
+vine==5.1.0
+click==8.2.1
+click-didyoumean==0.3.1
+click-plugins==1.1.1
+click-repl==0.3.0
+
+# Additional utilities
+colorama==0.4.6
+tqdm==4.67.1
+more-itertools==10.6.0

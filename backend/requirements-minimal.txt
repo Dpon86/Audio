@@ -1,0 +1,21 @@
+# Core Django Framework
+Django==5.2.1
+djangorestframework==3.16.0
+
+# Background task processing
+celery==5.5.2
+redis==6.1.0
+
+# Audio processing and AI
+openai-whisper==20240930
+pydub==0.25.1
+ffmpeg-python==0.2.0
+
+# Data processing
+numpy==2.2.6
+
+# Text processing for fuzzy matching
+# (difflib is built-in to Python, no need to install)
+
+# HTTP requests (if needed for external APIs)
+requests==2.32.3
