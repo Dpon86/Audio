@@ -135,7 +135,11 @@ class Command(BaseCommand):
         self.stdout.write('🚀 Starting Celery worker...')
         
         try:
-            celery_cmd = ['celery', '-A', 'myproject', 'worker', '--loglevel=info']
+            # Generate unique worker name to avoid conflicts
+            import time
+            worker_name = f"worker-{int(time.time())}"
+            
+            celery_cmd = ['celery', '-A', 'myproject', 'worker', '--loglevel=info', '-n', worker_name]
             
             # Add pool=solo for Windows
             if platform.system() == 'Windows':
@@ -148,7 +152,7 @@ class Command(BaseCommand):
                 # Don't capture output - let it show in console
                 celery_process = subprocess.Popen(celery_cmd)
                 self.stdout.write(
-                    self.style.SUCCESS('✅ Celery worker started in verbose mode (output will show below)')
+                    self.style.SUCCESS(f'✅ Celery worker started in verbose mode (name: {worker_name})')
                 )
             else:
                 # Capture output as before
@@ -158,7 +162,7 @@ class Command(BaseCommand):
                     stderr=subprocess.PIPE
                 )
                 self.stdout.write(
-                    self.style.SUCCESS('✅ Celery worker started successfully')
+                    self.style.SUCCESS(f'✅ Celery worker started successfully (name: {worker_name})')
                 )
             
             self.processes.append(('celery', celery_process))
