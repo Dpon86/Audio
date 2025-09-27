@@ -22960,3 +22960,5 @@ django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: '192.168.148.11
 [2025-09-27 16:24:43,606] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
 [2025-09-27 16:25:02,614] INFO django.utils.autoreload: Watching for file changes with StatReloader
 [2025-09-27 16:25:02,614] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 16:25:18,712] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:25:18,712] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
