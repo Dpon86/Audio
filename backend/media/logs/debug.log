@@ -1223,3 +1223,257 @@
 [2025-09-27 21:18:47,936] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
 [2025-09-27 21:19:07,675] INFO django.utils.autoreload: Watching for file changes with StatReloader
 [2025-09-27 21:19:07,675] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 21:19:08,241] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:08,241] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:10,137] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:10,137] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:12,138] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:12,138] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:14,097] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:14,097] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:16,108] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:16,108] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:18,091] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:18,091] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:20,093] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:20,093] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:22,080] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:22,080] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:24,104] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:24,104] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:26,099] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:26,099] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:28,087] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:28,087] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:30,089] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:30,089] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:32,096] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:32,096] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:34,094] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:34,094] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:36,087] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:36,087] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:38,082] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:38,082] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:40,096] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:40,096] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:42,094] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:42,094] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:44,103] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:44,103] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:46,079] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:46,079] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:48,094] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:48,094] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:50,081] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:50,081] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:52,097] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:52,097] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:54,094] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:54,094] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:56,082] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:19:56,082] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:20:18,403] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:20:18,403] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:21:18,099] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:21:18,099] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 202 37
+[2025-09-27 21:21:40,081] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 1.94
+[2025-09-27 21:21:40,081] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 3.82
+[2025-09-27 21:21:40,081] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 5.38
+[2025-09-27 21:21:40,081] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 6.14
+[2025-09-27 21:21:40,081] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 7.58
+[2025-09-27 21:21:40,081] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 9.52
+[2025-09-27 21:21:40,083] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 14.24
+[2025-09-27 21:21:40,083] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 15.06
+[2025-09-27 21:21:40,083] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 19.94
+[2025-09-27 21:21:40,083] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 26.14
+[2025-09-27 21:21:40,083] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 31.20
+[2025-09-27 21:21:40,083] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 33.80
+[2025-09-27 21:21:40,084] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 39.02
+[2025-09-27 21:21:40,084] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 40.98
+[2025-09-27 21:21:40,084] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 43.42
+[2025-09-27 21:21:40,084] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 48.90
+[2025-09-27 21:21:40,084] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 50.42
+[2025-09-27 21:21:40,084] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 53.88
+[2025-09-27 21:21:40,085] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 57.54
+[2025-09-27 21:21:40,085] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 62.26
+[2025-09-27 21:21:40,085] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 68.10
+[2025-09-27 21:21:40,085] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 74.22
+[2025-09-27 21:21:40,085] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 81.12
+[2025-09-27 21:21:40,085] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 86.62
+[2025-09-27 21:21:40,086] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 90.58
+[2025-09-27 21:21:40,086] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 94.44
+[2025-09-27 21:21:40,086] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 99.06
+[2025-09-27 21:21:40,087] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 101.44
+[2025-09-27 21:21:40,087] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 108.26
+[2025-09-27 21:21:40,087] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 114.94
+[2025-09-27 21:21:40,087] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 117.90
+[2025-09-27 21:21:40,087] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 120.56
+[2025-09-27 21:21:40,087] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 127.40
+[2025-09-27 21:21:40,088] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 131.82
+[2025-09-27 21:21:40,088] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 133.48
+[2025-09-27 21:21:40,088] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 136.34
+[2025-09-27 21:21:40,088] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 138.88
+[2025-09-27 21:21:40,088] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 142.64
+[2025-09-27 21:21:40,088] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 144.56
+[2025-09-27 21:21:40,089] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 147.20
+[2025-09-27 21:21:40,089] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 149.54
+[2025-09-27 21:21:40,089] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 152.32
+[2025-09-27 21:21:40,089] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 154.10
+[2025-09-27 21:21:40,089] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 158.40
+[2025-09-27 21:21:40,089] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 160.14
+[2025-09-27 21:21:40,090] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 163.14
+[2025-09-27 21:21:40,090] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 184.08
+[2025-09-27 21:21:40,090] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 188.36
+[2025-09-27 21:21:40,090] INFO audioDiagnostic.tasks: Sentence 1/3: 'My mom makes me do my own laundry now.' | Start: 187.86, End: 190.52 (last word end: 190.02, buffer: 0.5) | First word:  My, Last word:  laundry
+[2025-09-27 21:21:40,090] INFO audioDiagnostic.tasks: Sentence 2/3: 'Hey, Kami.' | Start: 190.02, End: 194.60 (last word end: 194.1, buffer: 0.5) | First word:  now., Last word:  my
+[2025-09-27 21:21:40,090] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'I'm tired of getting my regular clothes sweaty from running to the field.' | Start: 194.10, End: 196.50 (using seg['end']: 196.5) | First word:  regular, Last word:  field.
+[2025-09-27 21:21:40,091] INFO audioDiagnostic.tasks: Sentence 1/4: 'My mom makes me do my own laundry now.' | Start: 196.50, End: 203.58 (last word end: 203.08, buffer: 0.5) | First word:  My, Last word:  do
+[2025-09-27 21:21:40,091] INFO audioDiagnostic.tasks: Sentence 2/4: 'Hey, Kami.' | Start: 203.08, End: 205.66 (last word end: 205.16, buffer: 0.5) | First word:  my, Last word:  Hey,
+[2025-09-27 21:21:40,091] INFO audioDiagnostic.tasks: Sentence 3/4: 'Hey, Kami.' | Start: 205.34, End: 209.10 (last word end: 208.6, buffer: 0.5) | First word:  Kami., Last word:  the
+[2025-09-27 21:21:40,091] INFO audioDiagnostic.tasks: Sentence 4/4 (LAST): 'What the hell are you doing, man?' | Start: 208.60, End: 209.44 (using seg['end']: 209.44) | First word:  hell, Last word:  man?
+[2025-09-27 21:21:40,091] INFO audioDiagnostic.tasks: Sentence 1/5: 'Hey, Kami.' | Start: 210.72, End: 213.04 (last word end: 212.54, buffer: 0.5) | First word:  Hey,, Last word:  hell
+[2025-09-27 21:21:40,092] INFO audioDiagnostic.tasks: Sentence 2/5: 'What the hell are you doing, man?' | Start: 212.54, End: 219.28 (last word end: 218.78, buffer: 0.5) | First word:  are, Last word:  I'm
+[2025-09-27 21:21:40,092] INFO audioDiagnostic.tasks: Sentence 3/5: 'I'm just grabbing a cool rock I spotted.' | Start: 218.78, End: 220.40 (last word end: 219.9, buffer: 0.5) | First word:  just, Last word:  rock
+[2025-09-27 21:21:40,092] INFO audioDiagnostic.tasks: Sentence 4/5: 'I'm just grabbing a cool rock I spotted.' | Start: 219.90, End: 222.14 (last word end: 221.64, buffer: 0.5) | First word:  I, Last word:  grabbing
+[2025-09-27 21:21:40,092] INFO audioDiagnostic.tasks: Sentence 5/5 (LAST): 'I'll be quick.' | Start: 221.64, End: 223.64 (using seg['end']: 223.64) | First word:  a, Last word:  quick.
+[2025-09-27 21:21:40,092] INFO audioDiagnostic.tasks: Sentence 1/4: 'Kami, we're gonna be late, man.' | Start: 229.92, End: 232.34 (last word end: 231.84, buffer: 0.5) | First word:  Kami,, Last word:  man.
+[2025-09-27 21:21:40,092] INFO audioDiagnostic.tasks: Sentence 2/4: 'Kami, we're gonna be late, man.' | Start: 232.20, End: 234.78 (last word end: 234.28, buffer: 0.5) | First word:  Kami,, Last word:  man.
+[2025-09-27 21:21:40,092] INFO audioDiagnostic.tasks: Sentence 3/4: 'Coach will give us extra laps.' | Start: 234.62, End: 236.34 (last word end: 235.84, buffer: 0.5) | First word:  Coach, Last word:  laps.
+[2025-09-27 21:21:40,092] INFO audioDiagnostic.tasks: Sentence 4/4 (LAST): 'Can't you grab it on the way back?' | Start: 236.30, End: 237.82 (using seg['end']: 237.82) | First word:  Can't, Last word:  back?
+[2025-09-27 21:21:40,092] INFO audioDiagnostic.tasks: Sentence 1/4: 'Kami, we're gonna...' | Start: 239.22, End: 244.30 (last word end: 243.8, buffer: 0.5) | First word:  Kami,, Last word:  we're
+[2025-09-27 21:21:40,092] INFO audioDiagnostic.tasks: Sentence 2/4: 'Kami, Kami, we're gonna be late, man.' | Start: 243.80, End: 246.22 (last word end: 245.72, buffer: 0.5) | First word:  gonna, Last word:  will
+[2025-09-27 21:21:40,093] INFO audioDiagnostic.tasks: Sentence 3/4: 'Coach will give us extra laps.' | Start: 245.72, End: 248.22 (last word end: 247.72, buffer: 0.5) | First word:  give, Last word:  you
+[2025-09-27 21:21:40,093] INFO audioDiagnostic.tasks: Sentence 4/4 (LAST): 'Can't you grab it on the way back?' | Start: 247.72, End: 248.94 (using seg['end']: 248.94) | First word:  grab, Last word:  back?
+[2025-09-27 21:21:40,093] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 266.26
+[2025-09-27 21:21:40,093] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 279.14
+[2025-09-27 21:21:40,093] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 285.98
+[2025-09-27 21:21:40,093] INFO audioDiagnostic.tasks: Sentence 1/3: 'The students knew feeding the nane was illegal.' | Start: 287.34, End: 291.78 (last word end: 291.28, buffer: 0.5) | First word:  The, Last word:  always
+[2025-09-27 21:21:40,093] INFO audioDiagnostic.tasks: Sentence 2/3: 'That didn't always stop the occasional soft-hearted student, however.' | Start: 291.28, End: 296.22 (last word end: 295.72, buffer: 0.5) | First word:  stop, Last word:  small,
+[2025-09-27 21:21:40,095] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'At present, the small, at present, the smell of adolescent male sweat was a deterrent.' | Start: 296.18, End: 300.14 (using seg['end']: 300.14) | First word:  at, Last word:  deterrent.
+[2025-09-27 21:21:40,095] INFO audioDiagnostic.tasks: Sentence 1/4: 'lava rock was plentiful on the big island, also called the island of Hawaii, and was created over time by the eruptions of multiple volcanoes.' | Start: 303.54, End: 308.36 (last word end: 307.86, buffer: 0.5) | First word:  lava, Last word:  of
+[2025-09-27 21:21:40,095] INFO audioDiagnostic.tasks: Sentence 2/4: 'Kami, Kona, loved rocks.' | Start: 307.86, End: 314.10 (last word end: 313.6, buffer: 0.5) | First word:  Hawaii,, Last word:  Kami,
+[2025-09-27 21:21:40,095] INFO audioDiagnostic.tasks: Sentence 3/4: 'He had as long as he could remember.' | Start: 313.76, End: 318.74 (last word end: 318.24, buffer: 0.5) | First word:  Kona,, Last word:  whatever
+[2025-09-27 21:21:40,095] INFO audioDiagnostic.tasks: Sentence 4/4 (LAST): 'For whatever reason, probably because he lived in a state of Hawaii, he loved volcanic rock the most.' | Start: 318.24, End: 323.42 (using seg['end']: 323.42) | First word:  reason,, Last word:  most.
+[2025-09-27 21:21:40,095] INFO audioDiagnostic.tasks: Sentence 1/2: 'Across the eight, across the eight major Hawaiian islands were multiple types of volcanic rock, and Kami Kona had samples of nearly all of them.' | Start: 327.26, End: 336.08 (last word end: 335.58, buffer: 0.5) | First word:  Across, Last word:  had
+[2025-09-27 21:21:40,096] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'He bent down to pick up a particular sample of a-a-a.' | Start: 335.58, End: 340.46 (using seg['end']: 340.46) | First word:  samples, Last word: -a.
+[2025-09-27 21:21:40,096] INFO audioDiagnostic.tasks: Sentence 1/5: 'He bent down to pick up a particular sample of a-a-a.' | Start: 342.88, End: 346.04 (last word end: 345.54, buffer: 0.5) | First word:  He, Last word:  of
+[2025-09-27 21:21:40,096] INFO audioDiagnostic.tasks: Sentence 2/5: 'He bent down to pick up a particular sample of a-a-laver.' | Start: 345.54, End: 349.94 (last word end: 349.44, buffer: 0.5) | First word:  a, Last word:  a
+[2025-09-27 21:21:40,096] INFO audioDiagnostic.tasks: Sentence 3/5: 'He bent down to pick up a particular sample of a-a-laver.' | Start: 349.44, End: 353.82 (last word end: 353.32, buffer: 0.5) | First word:  particular, Last word:  to
+[2025-09-27 21:21:40,096] INFO audioDiagnostic.tasks: Sentence 4/5: 'He'd spotted from the sidewalk.' | Start: 353.32, End: 356.56 (last word end: 356.06, buffer: 0.5) | First word:  pick, Last word:  He'd
+[2025-09-27 21:21:40,096] INFO audioDiagnostic.tasks: Sentence 5/5 (LAST): 'He was drawn to it somehow.' | Start: 356.06, End: 359.46 (using seg['end']: 359.46) | First word:  spotted, Last word:  somehow.
+[2025-09-27 21:21:40,097] INFO audioDiagnostic.tasks: Sentence 1/4: 'He couldn't explain why this particular rock sample mattered.' | Start: 375.30, End: 380.86 (last word end: 380.36, buffer: 0.5) | First word:  He, Last word:  Kona
+[2025-09-27 21:21:40,097] INFO audioDiagnostic.tasks: Sentence 2/4: 'Kami Kona was used to occurrences like this.' | Start: 380.36, End: 384.06 (last word end: 383.56, buffer: 0.5) | First word:  was, Last word:  the
+[2025-09-27 21:21:40,097] INFO audioDiagnostic.tasks: Sentence 3/4: 'It was as if the rock spoke to him which he knew was ridiculous.' | Start: 383.56, End: 387.86 (last word end: 387.36, buffer: 0.5) | First word:  rock, Last word:  was
+[2025-09-27 21:21:40,097] INFO audioDiagnostic.tasks: Sentence 4/4 (LAST): 'He was relieved his friends accepted his particular sample of a-a-a-laver.' | Start: 387.36, End: 389.44 (using seg['end']: 389.44) | First word:  relieved, Last word: -laver.
+[2025-09-27 21:21:40,097] INFO audioDiagnostic.tasks: Sentence 1/7: 'He was relieved his friends accepted his particular hobby and rarely teased him about it.' | Start: 390.30, End: 394.32 (last word end: 393.82, buffer: 0.5) | First word:  He, Last word:  rarely
+[2025-09-27 21:21:40,097] INFO audioDiagnostic.tasks: Sentence 2/7: 'He did feel a tinge of guilt grabbing the sample now.' | Start: 393.82, End: 397.58 (last word end: 397.08, buffer: 0.5) | First word:  teased, Last word:  guilt
+[2025-09-27 21:21:40,098] INFO audioDiagnostic.tasks: Sentence 3/7: 'After practice he could find that space.' | Start: 397.08, End: 400.90 (last word end: 400.4, buffer: 0.5) | First word:  grabbing, Last word:  space.
+[2025-09-27 21:21:40,098] INFO audioDiagnostic.tasks: Sentence 4/7: 'He did feel a tinge of guilt grabbing the sample now.' | Start: 401.22, End: 405.10 (last word end: 404.6, buffer: 0.5) | First word:  He, Last word:  now.
+[2025-09-27 21:21:40,098] INFO audioDiagnostic.tasks: Sentence 5/7: 'After practice he could find that specific piece un-airingly since it had caught his attention.' | Start: 405.22, End: 408.98 (last word end: 408.48, buffer: 0.5) | First word:  After, Last word:  since
+[2025-09-27 21:21:40,098] INFO audioDiagnostic.tasks: Sentence 6/7: 'He couldn't-he shouldn't risk all of them being late to football.' | Start: 408.48, End: 412.68 (last word end: 412.18, buffer: 0.5) | First word:  it, Last word:  all
+[2025-09-27 21:21:40,098] INFO audioDiagnostic.tasks: Sentence 7/7 (LAST): 'That was a crappy thing to do.' | Start: 412.18, End: 415.56 (using seg['end']: 415.56) | First word:  of, Last word:  do.
+[2025-09-27 21:21:40,098] INFO audioDiagnostic.tasks: Sentence 1/2: 'He turned back and ran to his teammates.' | Start: 417.38, End: 420.88 (last word end: 420.38, buffer: 0.5) | First word:  He, Last word:  In
+[2025-09-27 21:21:40,099] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'In truth he'd only delayed them by another few seconds.' | Start: 420.38, End: 422.48 (using seg['end']: 422.48) | First word:  truth, Last word:  seconds.
+[2025-09-27 21:21:40,099] INFO audioDiagnostic.tasks: Sentence 1/4: 'All right, all right, I got it.' | Start: 424.04, End: 427.82 (last word end: 427.32, buffer: 0.5) | First word:  All, Last word:  Sorry,
+[2025-09-27 21:21:40,099] INFO audioDiagnostic.tasks: Sentence 2/4: 'Sorry, I'll take the heat from coach of her late.' | Start: 427.80, End: 429.58 (last word end: 429.08, buffer: 0.5) | First word:  I'll, Last word:  her
+[2025-09-27 21:21:40,099] INFO audioDiagnostic.tasks: Sentence 3/4: 'All right, I got it.' | Start: 429.08, End: 433.42 (last word end: 432.92, buffer: 0.5) | First word:  late., Last word:  I'll
+[2025-09-27 21:21:40,099] INFO audioDiagnostic.tasks: Sentence 4/4 (LAST): 'Sorry, I'll take the heat from coach of her late.' | Start: 432.92, End: 434.36 (using seg['end']: 434.36) | First word:  take, Last word:  late.
+[2025-09-27 21:21:40,099] INFO audioDiagnostic.tasks: Sentence 1/4: 'Kami Kona, Kami Kona, look down at the sample.' | Start: 437.86, End: 443.64 (last word end: 443.14, buffer: 0.5) | First word:  Kami, Last word:  grazed
+[2025-09-27 21:21:40,099] INFO audioDiagnostic.tasks: Sentence 2/4: 'His fingers grazed over the prickly, pumice texture of the rock.' | Start: 443.14, End: 447.86 (last word end: 447.36, buffer: 0.5) | First word:  over, Last word:  and
+[2025-09-27 21:21:40,099] INFO audioDiagnostic.tasks: Sentence 3/4: 'It was sharp and could easily lacerate human flesh if not handled carefully.' | Start: 447.36, End: 452.48 (last word end: 451.98, buffer: 0.5) | First word:  could, Last word:  however,
+[2025-09-27 21:21:40,099] INFO audioDiagnostic.tasks: Sentence 4/4 (LAST): 'To him however, it was a comfortable presence sitting in the palm of his hand.' | Start: 452.62, End: 456.06 (using seg['end']: 456.06) | First word:  it, Last word:  hand.
+[2025-09-27 21:21:40,099] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 465.96
+[2025-09-27 21:21:40,099] INFO audioDiagnostic.tasks: Sentence 1/5: 'He smiled and his teeth were bright white against his smooth mocha complexion.' | Start: 469.72, End: 472.88 (last word end: 472.38, buffer: 0.5) | First word:  He, Last word:  bright
+[2025-09-27 21:21:40,101] INFO audioDiagnostic.tasks: Sentence 2/5: 'Kami Kona was half-native Hawaiian.' | Start: 472.38, End: 476.32 (last word end: 475.82, buffer: 0.5) | First word:  white, Last word:  Kami
+[2025-09-27 21:21:40,101] INFO audioDiagnostic.tasks: Sentence 3/5: 'Kami Kona was half-native Hawaiian.' | Start: 475.82, End: 479.04 (last word end: 478.54, buffer: 0.5) | First word:  Kona, Last word:  Kona
+[2025-09-27 21:21:40,101] INFO audioDiagnostic.tasks: Sentence 4/5: 'His father, a Black U.S.' | Start: 478.54, End: 481.68 (last word end: 481.18, buffer: 0.5) | First word:  was, Last word:  a
+[2025-09-27 21:21:40,101] INFO audioDiagnostic.tasks: Sentence 5/5 (LAST): 'Navy officer, had been stationed at naval base.' | Start: 481.18, End: 484.26 (using seg['end']: 484.26) | First word:  Black, Last word:  base.
+[2025-09-27 21:21:40,101] INFO audioDiagnostic.tasks: Sentence 1/2: 'Perl Harbor years ago.' | Start: 488.90, End: 494.86 (last word end: 494.36, buffer: 0.5) | First word:  Perl, Last word:  falling
+[2025-09-27 21:21:40,101] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'After injuring himself at work, he wound up falling in love with his civilian nurse, a native Hawaiian from the big island.' | Start: 494.36, End: 498.16 (using seg['end']: 498.16) | First word:  in, Last word:  island.
+[2025-09-27 21:21:40,101] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 507.98
+[2025-09-27 21:21:40,102] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 520.96
+[2025-09-27 21:21:40,102] INFO audioDiagnostic.tasks: Sentence 1/3: 'What's so big a deal about the rock Kami?' | Start: 521.38, End: 525.52 (last word end: 525.02, buffer: 0.5) | First word:  What's, Last word:  a
+[2025-09-27 21:21:40,102] INFO audioDiagnostic.tasks: Sentence 2/3: 'What's so big a deal about the rock Kami that is worth risking coaches wrath?' | Start: 525.02, End: 530.12 (last word end: 529.62, buffer: 0.5) | First word:  deal, Last word:  so
+[2025-09-27 21:21:40,102] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'What's so big a deal about this rock Kami that it's worth risking coaches wrath?' | Start: 529.62, End: 533.38 (using seg['end']: 533.38) | First word:  big, Last word:  wrath?
+[2025-09-27 21:21:40,102] INFO audioDiagnostic.tasks: Sentence 1/2: 'Question 8.' | Start: 534.10, End: 537.70 (last word end: 537.2, buffer: 0.5) | First word:  Question, Last word:  plus,
+[2025-09-27 21:21:40,102] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'Plus, plus, joke Alex, their other teammate.' | Start: 537.74, End: 539.46 (using seg['end']: 539.46) | First word:  joke, Last word:  teammate.
+[2025-09-27 21:21:40,103] INFO audioDiagnostic.tasks: Sentence 1/2: 'It's illegal to take that stuff home, you know, school staff might get mad or worse.' | Start: 540.24, End: 543.78 (last word end: 543.28, buffer: 0.5) | First word:  It's, Last word:  might
+[2025-09-27 21:21:40,103] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'It's illegal to take that stuff home, you know.' | Start: 543.28, End: 546.96 (using seg['end']: 546.96) | First word:  get, Last word:  know.
+[2025-09-27 21:21:40,103] INFO audioDiagnostic.tasks: Sentence 1/3: 'School staff might get mad or worse, Lady Pelley may come after you, man.' | Start: 547.30, End: 550.74 (last word end: 550.24, buffer: 0.5) | First word:  School, Last word:  may
+[2025-09-27 21:21:40,103] INFO audioDiagnostic.tasks: Sentence 2/3: 'She'd be worse than any pissed off school administrator.' | Start: 550.24, End: 553.22 (last word end: 552.72, buffer: 0.5) | First word:  come, Last word:  pissed
+[2025-09-27 21:21:40,103] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'She'd be worse than any pissed off school administrator.' | Start: 552.72, End: 557.10 (using seg['end']: 557.1) | First word:  off, Last word:  administrator.
+[2025-09-27 21:21:40,103] INFO audioDiagnostic.tasks: Sentence 1/2: 'Yeah, I never take my samples off the islands, dude.' | Start: 558.16, End: 561.16 (last word end: 560.66, buffer: 0.5) | First word:  Yeah,, Last word:  off
+[2025-09-27 21:21:40,103] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'They're all at home.' | Start: 560.66, End: 562.76 (using seg['end']: 562.76) | First word:  the, Last word:  home.
+[2025-09-27 21:21:40,104] INFO audioDiagnostic.tasks: Sentence 1/3: 'Yeah, I never take my samples off the islands.' | Start: 563.58, End: 566.30 (last word end: 565.8, buffer: 0.5) | First word:  Yeah,, Last word:  off
+[2025-09-27 21:21:40,104] INFO audioDiagnostic.tasks: Sentence 2/3: 'Yeah, I never take my samples off the islands, dude.' | Start: 565.80, End: 569.42 (last word end: 568.92, buffer: 0.5) | First word:  the, Last word:  my
+[2025-09-27 21:21:40,104] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'They're all at home.' | Start: 568.92, End: 571.60 (using seg['end']: 571.6) | First word:  samples, Last word:  home.
+[2025-09-27 21:21:40,104] INFO audioDiagnostic.tasks: Sentence 1/2: 'Yeah, I never take my samples off the islands, dude.' | Start: 572.28, End: 575.88 (last word end: 575.38, buffer: 0.5) | First word:  Yeah,, Last word:  off
+[2025-09-27 21:21:40,104] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'They're all at home.' | Start: 575.38, End: 577.48 (using seg['end']: 577.48) | First word:  the, Last word:  home.
+[2025-09-27 21:21:40,104] INFO audioDiagnostic.tasks: Sentence 1/2: 'Yeah, I never take my samples off the islands, dude.' | Start: 578.56, End: 582.60 (last word end: 582.1, buffer: 0.5) | First word:  Yeah,, Last word:  off
+[2025-09-27 21:21:40,104] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'They're all at home.' | Start: 582.10, End: 584.22 (using seg['end']: 584.22) | First word:  the, Last word:  home.
+[2025-09-27 21:21:40,104] INFO audioDiagnostic.tasks: Sentence 1/4: 'While still jogging along, Jake held out his hand.' | Start: 585.48, End: 588.18 (last word end: 587.68, buffer: 0.5) | First word:  While, Last word:  Jake
+[2025-09-27 21:21:40,104] INFO audioDiagnostic.tasks: Sentence 2/4: 'Toss it over, Kami.' | Start: 587.68, End: 590.12 (last word end: 589.62, buffer: 0.5) | First word:  held, Last word:  Toss
+[2025-09-27 21:21:40,105] INFO audioDiagnostic.tasks: Sentence 3/4: 'Toss it over, Kami.' | Start: 589.62, End: 591.64 (last word end: 591.14, buffer: 0.5) | First word:  it, Last word:  it
+[2025-09-27 21:21:40,105] INFO audioDiagnostic.tasks: Sentence 4/4 (LAST): 'Toss it over, Kami.' | Start: 591.14, End: 593.50 (using seg['end']: 593.5) | First word:  over,, Last word:  Kami.
+[2025-09-27 21:21:40,105] INFO audioDiagnostic.tasks: Sentence 1/2: 'Kami Kona, Kami Kona wiped the sweat off his face.' | Start: 594.80, End: 601.02 (last word end: 600.52, buffer: 0.5) | First word:  Kami, Last word:  sweat
+[2025-09-27 21:21:40,105] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'Kami Kona swiped the sweat off his face and smoothed back his shoulder length hair gathered in a small ponytail today.' | Start: 600.52, End: 605.56 (using seg['end']: 605.56) | First word:  off, Last word:  today.
+[2025-09-27 21:21:40,105] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 611.60
+[2025-09-27 21:21:40,105] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 624.18
+[2025-09-27 21:21:40,105] INFO audioDiagnostic.tasks: Sentence 1/3: 'While they were frequently annoying, he could deny them almost nothing.' | Start: 624.84, End: 628.36 (last word end: 627.86, buffer: 0.5) | First word:  While, Last word:  almost
+[2025-09-27 21:21:40,106] INFO audioDiagnostic.tasks: Sentence 2/3: 'He partly kept it long for them truth be told.' | Start: 627.86, End: 631.32 (last word end: 630.82, buffer: 0.5) | First word:  nothing., Last word:  be
+[2025-09-27 21:21:40,106] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'He partly kept it long for them truth told.' | Start: 630.82, End: 633.78 (using seg['end']: 633.78) | First word:  told., Last word:  told.
+[2025-09-27 21:21:40,106] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 649.56
+[2025-09-27 21:21:40,106] INFO audioDiagnostic.tasks: Sentence 1/4: 'Jake did catch it.' | Start: 649.86, End: 653.48 (last word end: 652.98, buffer: 0.5) | First word:  Jake, Last word:  did
+[2025-09-27 21:21:40,106] INFO audioDiagnostic.tasks: Sentence 2/4: 'Jake did catch it.' | Start: 652.98, End: 657.50 (last word end: 657.0, buffer: 0.5) | First word:  catch, Last word:  stopped
+[2025-09-27 21:21:40,106] INFO audioDiagnostic.tasks: Sentence 3/4: 'And screamed.' | Start: 657.00, End: 659.90 (last word end: 659.4, buffer: 0.5) | First word:  running,, Last word:  clutched
+[2025-09-27 21:21:40,106] INFO audioDiagnostic.tasks: Sentence 4/4 (LAST): 'He stopped running, dropped the sample, and clutched his hand to his chest, confused.' | Start: 659.40, End: 661.04 (using seg['end']: 661.04) | First word:  his, Last word:  confused.
+[2025-09-27 21:21:40,108] INFO audioDiagnostic.tasks: Sentence 1/8: 'Crap!' | Start: 662.20, End: 664.12 (last word end: 663.62, buffer: 0.5) | First word:  Crap!, Last word:  rock
+[2025-09-27 21:21:40,108] INFO audioDiagnostic.tasks: Sentence 2/8: 'That rock cut my hand!' | Start: 663.62, End: 664.86 (last word end: 664.36, buffer: 0.5) | First word:  cut, Last word:  hand!
+[2025-09-27 21:21:40,108] INFO audioDiagnostic.tasks: Sentence 3/8: 'Dude, it really frickin' hurts!' | Start: 664.70, End: 665.94 (last word end: 665.44, buffer: 0.5) | First word:  Dude,, Last word:  really
+[2025-09-27 21:21:40,108] INFO audioDiagnostic.tasks: Sentence 4/8: 'Crap!' | Start: 665.44, End: 667.96 (last word end: 667.46, buffer: 0.5) | First word:  frickin', Last word:  Crap!
+[2025-09-27 21:21:40,108] INFO audioDiagnostic.tasks: Sentence 5/8: 'That rock cut!' | Start: 667.96, End: 669.06 (last word end: 668.56, buffer: 0.5) | First word:  That, Last word:  cut!
+[2025-09-27 21:21:40,108] INFO audioDiagnostic.tasks: Sentence 6/8: 'Crap!' | Start: 668.88, End: 670.72 (last word end: 670.22, buffer: 0.5) | First word:  Crap!, Last word:  rock
+[2025-09-27 21:21:40,108] INFO audioDiagnostic.tasks: Sentence 7/8: 'That rock cut my hand!' | Start: 670.22, End: 671.48 (last word end: 670.98, buffer: 0.5) | First word:  cut, Last word:  hand!
+[2025-09-27 21:21:40,109] INFO audioDiagnostic.tasks: Sentence 8/8 (LAST): 'Dude, it really frickin' hurts!' | Start: 671.32, End: 673.34 (using seg['end']: 673.34) | First word:  Dude,, Last word:  hurts!
+[2025-09-27 21:21:40,109] INFO audioDiagnostic.tasks: Sentence 1/3: 'Crap!' | Start: 674.28, End: 676.30 (last word end: 675.8, buffer: 0.5) | First word:  Crap!, Last word:  rock
+[2025-09-27 21:21:40,109] INFO audioDiagnostic.tasks: Sentence 2/3: 'That rock cut my hand!' | Start: 675.80, End: 677.18 (last word end: 676.68, buffer: 0.5) | First word:  cut, Last word:  hand!
+[2025-09-27 21:21:40,109] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'Dude, it really frickin' hurts!' | Start: 677.22, End: 679.46 (using seg['end']: 679.46) | First word:  Dude,, Last word:  hurts!
+[2025-09-27 21:21:40,109] INFO audioDiagnostic.tasks: Sentence 1/4: 'Nate and the others raced over to him.' | Start: 681.08, End: 683.02 (last word end: 682.52, buffer: 0.5) | First word:  Nate, Last word:  to
+[2025-09-27 21:21:40,109] INFO audioDiagnostic.tasks: Sentence 2/4: 'Nate and the others raced over to him.' | Start: 682.52, End: 685.70 (last word end: 685.2, buffer: 0.5) | First word:  him., Last word:  over
+[2025-09-27 21:21:40,110] INFO audioDiagnostic.tasks: Sentence 3/4: 'Nate and the others raced over to him.' | Start: 685.20, End: 687.86 (last word end: 687.36, buffer: 0.5) | First word:  to, Last word:  raced
+[2025-09-27 21:21:40,110] INFO audioDiagnostic.tasks: Sentence 4/4 (LAST): 'Jake, man, let me see it.' | Start: 687.36, End: 690.54 (using seg['end']: 690.54) | First word:  over, Last word:  it.
+[2025-09-27 21:21:40,110] INFO audioDiagnostic.tasks: Sentence 1/7: 'And coach is gonna be pissed.' | Start: 690.54, End: 692.68 (last word end: 692.18, buffer: 0.5) | First word:  And, Last word:  pissed.
+[2025-09-27 21:21:40,110] INFO audioDiagnostic.tasks: Sentence 2/7: 'How can you play this Friday with an injured hand?' | Start: 692.72, End: 694.36 (last word end: 693.86, buffer: 0.5) | First word:  How, Last word:  Friday
+[2025-09-27 21:21:40,110] INFO audioDiagnostic.tasks: Sentence 3/7: 'Jake, man, let me see it.' | Start: 693.86, End: 697.10 (last word end: 696.6, buffer: 0.5) | First word:  with, Last word:  man,
+[2025-09-27 21:21:40,110] INFO audioDiagnostic.tasks: Sentence 4/7: 'Let me see it.' | Start: 696.90, End: 698.74 (last word end: 698.24, buffer: 0.5) | First word:  let, Last word:  me
+[2025-09-27 21:21:40,110] INFO audioDiagnostic.tasks: Sentence 5/7: 'Jake, man, let me see it.' | Start: 698.24, End: 700.76 (last word end: 700.26, buffer: 0.5) | First word:  see, Last word:  me
+[2025-09-27 21:21:40,111] INFO audioDiagnostic.tasks: Sentence 6/7: 'Coach is gonna be pissed.' | Start: 700.26, End: 702.48 (last word end: 701.98, buffer: 0.5) | First word:  see, Last word:  be
+[2025-09-27 21:21:40,111] INFO audioDiagnostic.tasks: Sentence 7/7 (LAST): 'How can you play this Friday with an injured hand?' | Start: 701.98, End: 705.18 (using seg['end']: 705.18) | First word:  pissed., Last word:  hand?
+[2025-09-27 21:21:40,111] INFO audioDiagnostic.tasks: Sentence 1/5: 'Nate queried.' | Start: 706.00, End: 709.48 (last word end: 708.98, buffer: 0.5) | First word:  Nate, Last word:  his
+[2025-09-27 21:21:40,111] INFO audioDiagnostic.tasks: Sentence 2/5: 'Jake outstretched his palm for his friends to examine.' | Start: 708.98, End: 710.52 (last word end: 710.02, buffer: 0.5) | First word:  palm, Last word:  to
+[2025-09-27 21:21:40,111] INFO audioDiagnostic.tasks: Sentence 3/5: 'Jake outstretched his palm for his friends to examine.' | Start: 710.02, End: 713.00 (last word end: 712.5, buffer: 0.5) | First word:  examine., Last word:  palm
+[2025-09-27 21:21:40,111] INFO audioDiagnostic.tasks: Sentence 4/5: 'Jake, Jake, your hand isn't cut, dude.' | Start: 712.50, End: 714.20 (last word end: 713.7, buffer: 0.5) | First word:  for, Last word:  examine.
+[2025-09-27 21:21:40,111] INFO audioDiagnostic.tasks: Sentence 5/5 (LAST): 'It's burned!' | Start: 715.12, End: 719.50 (using seg['end']: 719.5) | First word:  Jake,, Last word:  burned!
+[2025-09-27 21:21:40,112] INFO audioDiagnostic.tasks: Sentence 1/6: 'You have a second degree burn!' | Start: 719.50, End: 721.38 (last word end: 720.88, buffer: 0.5) | First word:  You, Last word:  second
+[2025-09-27 21:21:40,112] INFO audioDiagnostic.tasks: Sentence 2/6: 'What the hell?' | Start: 720.88, End: 723.20 (last word end: 722.7, buffer: 0.5) | First word:  degree, Last word:  the
+[2025-09-27 21:21:40,112] INFO audioDiagnostic.tasks: Sentence 3/6: 'Jake, Jake, your hand isn't cut, dude.' | Start: 722.70, End: 726.80 (last word end: 726.3, buffer: 0.5) | First word:  hell?, Last word:  your
+[2025-09-27 21:21:40,112] INFO audioDiagnostic.tasks: Sentence 4/6: 'It's burned!' | Start: 726.30, End: 728.12 (last word end: 727.62, buffer: 0.5) | First word:  hand, Last word:  dude.
+[2025-09-27 21:21:40,112] INFO audioDiagnostic.tasks: Sentence 5/6: 'You have a second degree burn!' | Start: 728.12, End: 730.30 (last word end: 729.8, buffer: 0.5) | First word:  It's, Last word:  have
+[2025-09-27 21:21:40,112] INFO audioDiagnostic.tasks: Sentence 6/6 (LAST): 'What the hell?' | Start: 729.80, End: 732.54 (using seg['end']: 732.54) | First word:  a, Last word:  hell?
+[2025-09-27 21:21:40,112] INFO audioDiagnostic.tasks: Sentence 1/3: 'All eyes shifted to Comicona.' | Start: 733.26, End: 736.84 (last word end: 736.34, buffer: 0.5) | First word:  All, Last word:  held
+[2025-09-27 21:21:40,113] INFO audioDiagnostic.tasks: Sentence 2/3: 'He held out his own palms and looked at them perplexed.' | Start: 736.34, End: 738.20 (last word end: 737.7, buffer: 0.5) | First word:  out, Last word:  at
+[2025-09-27 21:21:40,113] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'He wasn't burned from holding the rock.' | Start: 737.70, End: 741.52 (using seg['end']: 741.52) | First word:  them, Last word:  rock.
+[2025-09-27 21:21:40,113] INFO audioDiagnostic.tasks: Sentence 1/2: 'They felt pleasantly warm when he picked up an outdoor sample and the warming sensation increased only slightly after the rock.' | Start: 743.64, End: 752.96 (last word end: 752.46, buffer: 0.5) | First word:  They, Last word:  warm
+[2025-09-27 21:21:40,113] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'They felt pleasantly warm when he picked up an outdoor sample and the warming sensation increased only slightly after the rock sat in his hand for a few minutes.' | Start: 752.46, End: 759.44 (using seg['end']: 759.44) | First word:  when, Last word:  minutes.
+[2025-09-27 21:21:40,113] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 764.36
+[2025-09-27 21:22:18,426] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 200 231181
+[2025-09-27 21:22:18,426] INFO django.server: "GET /api/audio/status/bb7b8bc3-0f3d-4c30-9795-aa7101fdf2e1/ HTTP/1.1" 200 231181
+[2025-09-27 21:26:43,342] INFO django.server: "GET /api/audio/download/07_KOTR_DR_Nick_20250927_211802.wav HTTP/1.1" 301 0
+[2025-09-27 21:26:43,342] INFO django.server: "GET /api/audio/download/07_KOTR_DR_Nick_20250927_211802.wav HTTP/1.1" 301 0
+[2025-09-27 21:26:45,570] INFO django.server: "GET /api/audio/download/07_KOTR_DR_Nick_20250927_211802.wav/ HTTP/1.1" 200 67431956
+[2025-09-27 21:26:45,570] INFO django.server: "GET /api/audio/download/07_KOTR_DR_Nick_20250927_211802.wav/ HTTP/1.1" 200 67431956
+[2025-09-27 21:26:45,787] INFO django.server: "GET /api/audio/download/07_KOTR_DR_Nick_20250927_211802.wav/ HTTP/1.1" 200 67431956
+[2025-09-27 21:26:45,787] INFO django.server: "GET /api/audio/download/07_KOTR_DR_Nick_20250927_211802.wav/ HTTP/1.1" 200 67431956
+[2025-09-27 21:26:55,947] INFO django.server: "POST /api/audio/cut/ HTTP/1.1" 200 55196838
+[2025-09-27 21:26:55,947] INFO django.server: "POST /api/audio/cut/ HTTP/1.1" 200 55196838
