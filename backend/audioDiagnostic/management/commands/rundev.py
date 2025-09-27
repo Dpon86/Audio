@@ -38,6 +38,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Also start React frontend (npm start)',
         )
+        parser.add_argument(
+            '--celery-verbose',
+            action='store_true',
+            help='Show Celery worker output in console',
+        )
 
     def handle(self, *args, **options):
         self.stdout.write(
@@ -51,6 +56,9 @@ class Command(BaseCommand):
         try:
             if not options['skip_docker']:
                 self.start_redis()
+            
+            # Store verbose celery option for start_celery method
+            self._verbose_celery = options.get('celery_verbose', False)
             
             if not options['skip_celery']:
                 self.start_celery()
@@ -133,21 +141,32 @@ class Command(BaseCommand):
             if platform.system() == 'Windows':
                 celery_cmd.append('--pool=solo')
             
-            celery_process = subprocess.Popen(
-                celery_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
+            # Check if verbose mode is requested
+            verbose_celery = getattr(self, '_verbose_celery', False)
+            
+            if verbose_celery:
+                # Don't capture output - let it show in console
+                celery_process = subprocess.Popen(celery_cmd)
+                self.stdout.write(
+                    self.style.SUCCESS('✅ Celery worker started in verbose mode (output will show below)')
+                )
+            else:
+                # Capture output as before
+                celery_process = subprocess.Popen(
+                    celery_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+                self.stdout.write(
+                    self.style.SUCCESS('✅ Celery worker started successfully')
+                )
+            
             self.processes.append(('celery', celery_process))
             
             # Wait a moment for Celery to start
             time.sleep(2)
             
-            if celery_process.poll() is None:  # Still running
-                self.stdout.write(
-                    self.style.SUCCESS('✅ Celery worker started successfully')
-                )
-            else:
+            if celery_process.poll() is not None:  # Process ended unexpectedly
                 raise Exception('Celery worker failed to start')
                 
         except Exception as e:

@@ -45,6 +45,28 @@ cd frontend/audio-waveform-visualizer
 npm start
 ```
 
+## Debugging Celery
+
+### See Celery Output:
+```bash
+# Option 1: Verbose mode (shows Celery logs)
+python manage.py rundev --frontend --celery-verbose
+
+# Option 2: Run Celery separately for full visibility
+python manage.py rundev --skip-celery --frontend
+# Then in another terminal:
+celery -A myproject worker --loglevel=debug --pool=solo
+
+# Option 3: Check Django logs (Celery tasks are logged there too)
+# Look in: backend/media/logs/debug.log and error.log
+```
+
+### Common Celery Issues:
+- **Redis connection errors**: Check if Redis container is running
+- **Import errors**: Check if all Python packages are installed
+- **Task failures**: Look in Django logs or use --celery-verbose
+- **Windows issues**: Always use --pool=solo on Windows
+
 ## Service URLs
 
 - 🌐 **Django Backend**: http://127.0.0.1:8000
