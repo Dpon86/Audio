@@ -26,3 +26,7 @@ Traceback (most recent call last):
   File "C:\Users\user\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\http\request.py", line 186, in get_host
     raise DisallowedHost(msg)
 django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: '192.168.148.110:8000'. You may need to add '192.168.148.110' to ALLOWED_HOSTS.
+[2025-09-27 15:37:18,995] ERROR django.request: Internal Server Error: /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/
+[2025-09-27 15:37:18,995] ERROR django.request: Internal Server Error: /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/
+[2025-09-27 15:37:18,997] ERROR django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 500 71
+[2025-09-27 15:37:18,997] ERROR django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 500 71

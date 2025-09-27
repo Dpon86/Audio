@@ -22289,3 +22289,203 @@ django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: '192.168.148.11
 [2025-07-19 20:17:37,301] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 764.40
 [2025-09-23 20:04:31,726] INFO django.utils.autoreload: Watching for file changes with StatReloader
 [2025-09-23 20:04:31,726] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:01:11,478] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:01:11,478] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:03:07,849] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:03:07,849] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:06:49,296] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
+[2025-09-27 15:06:49,296] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
+[2025-09-27 15:07:01,972] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:07:01,972] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:07:59,334] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:07:59,334] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:09:47,017] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:09:47,017] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:11:08,617] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
+[2025-09-27 15:11:08,617] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
+[2025-09-27 15:11:22,671] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:11:22,671] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:11:40,913] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
+[2025-09-27 15:11:40,913] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
+[2025-09-27 15:11:53,226] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:11:53,226] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:11:59,209] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
+[2025-09-27 15:11:59,209] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
+[2025-09-27 15:12:11,559] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:12:11,559] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:23:42,093] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
+[2025-09-27 15:23:42,093] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
+[2025-09-27 15:23:57,526] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:23:57,526] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:26:56,856] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:26:56,856] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:32:40,924] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:40,924] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:41,008] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:41,008] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:41,104] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:41,104] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:41,186] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:41,186] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:41,353] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:41,353] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:41,536] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:41,536] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:41,780] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:41,780] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:41,943] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:41,943] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:42,177] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:42,177] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:42,379] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:42,379] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:42,541] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:42,541] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:42,707] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:42,707] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:42,789] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:42,789] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:32:43,469] INFO django.server: "POST /api/audio/assemble-chunks/ HTTP/1.1" 200 102
+[2025-09-27 15:32:43,469] INFO django.server: "POST /api/audio/assemble-chunks/ HTTP/1.1" 200 102
+[2025-09-27 15:32:45,535] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 36
+[2025-09-27 15:32:45,535] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 36
+[2025-09-27 15:32:47,526] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:32:47,526] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:32:49,541] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:32:49,541] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:32:51,528] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:32:51,528] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:32:54,084] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:32:54,084] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:32:56,106] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:32:56,106] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:32:58,113] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:32:58,113] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:00,189] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:00,189] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:02,102] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:02,102] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:04,121] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:04,121] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:06,139] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:06,139] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:08,095] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:08,095] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:10,170] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:10,170] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:14,534] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:14,534] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:19,689] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:19,689] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:22,188] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:22,188] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:24,099] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:24,099] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:26,104] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:26,104] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:28,093] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:28,093] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:30,095] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:30,095] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:32,363] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:32,363] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:34,101] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:34,101] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:36,090] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:36,090] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:38,099] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:38,099] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:40,103] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:40,103] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:42,142] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:42,142] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:44,100] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:44,100] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:46,104] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:46,104] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:48,201] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:48,201] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:50,123] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:50,123] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:56,029] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:56,029] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:57,584] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:33:57,584] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:00,129] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:00,129] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:02,103] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:02,103] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:04,107] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:04,107] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:06,105] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:06,105] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:08,096] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:08,096] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:10,102] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:10,102] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:12,147] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:12,147] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:14,096] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:14,096] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:16,096] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:16,096] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:18,122] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:18,122] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:20,104] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:20,104] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:22,083] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:22,083] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:24,094] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:24,094] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:26,095] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:26,095] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:28,080] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:28,080] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:30,087] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:30,087] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:32,096] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:32,096] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:34,098] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:34,098] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:36,297] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:36,297] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:38,086] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:38,086] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:40,098] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:40,098] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:42,087] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:42,087] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:44,089] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:44,089] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:46,085] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:46,085] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:48,094] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:48,094] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:50,095] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:50,095] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:52,088] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:52,088] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:54,098] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:54,098] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:56,136] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:56,136] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:58,102] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:34:58,102] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:35:18,421] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:35:18,421] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:35:44,349] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
+[2025-09-27 15:35:44,349] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
+[2025-09-27 15:36:00,805] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:36:00,805] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:36:18,307] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:36:18,307] INFO django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 202 37
+[2025-09-27 15:36:27,015] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
+[2025-09-27 15:36:27,015] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
+[2025-09-27 15:36:44,975] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:36:44,975] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:37:18,995] ERROR django.request: Internal Server Error: /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/
+[2025-09-27 15:37:18,995] ERROR django.request: Internal Server Error: /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/
+[2025-09-27 15:37:18,997] ERROR django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 500 71
+[2025-09-27 15:37:18,997] ERROR django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 500 71
+[2025-09-27 15:38:19,118] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:38:19,118] INFO django.utils.autoreload: Watching for file changes with StatReloader

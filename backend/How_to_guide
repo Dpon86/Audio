@@ -1,18 +1,61 @@
-Have docker running 
+# Audio Repetitive Detection - Setup Guide
 
+## Quick Start (Automated - Recommended)
+
+### Option 1: Use Django Management Command
+```bash
 cd backend
 
-Type:
+# Start backend services only
+python manage.py rundev
+
+# Start backend + frontend together
+python manage.py rundev --frontend
+```
+
+### Option 2: Use Startup Scripts
+**Windows:**
+```bash
+cd backend
+start-dev.bat
+# Will ask if you want to start frontend too
+```
+
+**Mac/Linux:**
+```bash
+cd backend
+chmod +x start-dev.sh
+./start-dev.sh
+# Will ask if you want to start frontend too
+```
+
+## Manual Setup (Original Method)
+
+### Backend:
+```bash
+cd backend
 docker run -p 6379:6379 redis
-
-Then
 python manage.py runserver
-
-Then:
 celery -A myproject worker --loglevel=info --pool=solo
+```
 
-cd frontend
-
-cd audio-waveform-visualizer
-
+### Frontend:
+```bash
+cd frontend/audio-waveform-visualizer
 npm start
+```
+
+## Service URLs
+
+- 🌐 **Django Backend**: http://127.0.0.1:8000
+- ⚛️ **React Frontend**: http://localhost:3000
+- 📊 **Redis**: localhost:6379
+- ⚡ **Celery**: Background worker
+
+## Notes
+
+- **Frontend is required** for the full application to work
+- The automated methods can optionally start frontend for you
+- If you skip frontend in automation, start it manually later
+- Press Ctrl+C to stop Django server
+- Close other service windows when done
