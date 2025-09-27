@@ -22489,3 +22489,472 @@ django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: '192.168.148.11
 [2025-09-27 15:37:18,997] ERROR django.server: "GET /api/audio/status/f84d3593-9f19-4414-8e7a-039c27df7fe4/ HTTP/1.1" 500 71
 [2025-09-27 15:38:19,118] INFO django.utils.autoreload: Watching for file changes with StatReloader
 [2025-09-27 15:38:19,118] INFO django.utils.autoreload: Watching for file changes with StatReloader
+[2025-09-27 15:38:32,520] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:32,520] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:32,642] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:32,642] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:32,776] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:32,776] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:32,912] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:32,912] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:33,156] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:33,156] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:33,701] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:33,701] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:34,285] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:34,285] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:34,432] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:34,432] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:34,541] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:34,541] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:34,669] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:34,669] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:34,775] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:34,775] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:34,941] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:34,941] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:35,221] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:35,221] INFO django.server: "POST /api/audio/upload-chunk/ HTTP/1.1" 200 28
+[2025-09-27 15:38:36,437] INFO django.server: "POST /api/audio/assemble-chunks/ HTTP/1.1" 200 102
+[2025-09-27 15:38:36,437] INFO django.server: "POST /api/audio/assemble-chunks/ HTTP/1.1" 200 102
+[2025-09-27 15:38:39,098] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 36
+[2025-09-27 15:38:39,098] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 36
+[2025-09-27 15:38:41,094] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:41,094] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:43,096] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:43,096] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:45,100] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:45,100] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:47,084] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:47,084] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:49,104] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:49,104] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:51,102] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:51,102] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:53,095] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:53,095] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:55,112] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:55,112] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:57,091] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:57,091] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:59,090] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:38:59,090] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:01,090] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:01,090] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:03,091] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:03,091] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:05,244] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:05,244] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:07,090] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:07,090] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:09,098] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:09,098] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:11,104] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:11,104] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:13,091] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:13,091] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:15,102] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:15,102] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:17,117] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:17,117] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:19,098] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:19,098] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:21,091] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:21,091] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:23,095] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:23,095] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:25,100] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:25,100] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:27,087] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:27,087] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:29,086] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:29,086] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:31,103] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:31,103] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:33,087] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:33,087] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:35,137] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:35,137] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:37,120] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:39:37,120] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:40:18,401] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:40:18,401] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:41:18,101] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:41:18,101] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:42:18,532] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:42:18,532] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 37
+[2025-09-27 15:42:40,796] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 1.94
+[2025-09-27 15:42:40,796] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 3.82
+[2025-09-27 15:42:40,796] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 5.38
+[2025-09-27 15:42:40,796] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 6.14
+[2025-09-27 15:42:40,797] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 7.58
+[2025-09-27 15:42:40,797] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 9.52
+[2025-09-27 15:42:40,797] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 14.24
+[2025-09-27 15:42:40,797] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 15.06
+[2025-09-27 15:42:40,797] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 19.94
+[2025-09-27 15:42:40,798] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 26.14
+[2025-09-27 15:42:40,798] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 31.20
+[2025-09-27 15:42:40,798] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 33.80
+[2025-09-27 15:42:40,798] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 39.02
+[2025-09-27 15:42:40,798] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 40.98
+[2025-09-27 15:42:40,798] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 43.42
+[2025-09-27 15:42:40,799] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 48.90
+[2025-09-27 15:42:40,799] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 50.42
+[2025-09-27 15:42:40,799] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 53.88
+[2025-09-27 15:42:40,799] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 57.54
+[2025-09-27 15:42:40,800] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 62.26
+[2025-09-27 15:42:40,800] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 68.10
+[2025-09-27 15:42:40,800] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 74.22
+[2025-09-27 15:42:40,800] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 81.12
+[2025-09-27 15:42:40,800] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 86.62
+[2025-09-27 15:42:40,800] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 90.58
+[2025-09-27 15:42:40,801] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 94.44
+[2025-09-27 15:42:40,801] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 99.06
+[2025-09-27 15:42:40,801] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 101.44
+[2025-09-27 15:42:40,801] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 108.26
+[2025-09-27 15:42:40,801] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 114.94
+[2025-09-27 15:42:40,801] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 117.90
+[2025-09-27 15:42:40,801] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 120.56
+[2025-09-27 15:42:40,802] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 127.40
+[2025-09-27 15:42:40,802] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 131.82
+[2025-09-27 15:42:40,802] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 133.48
+[2025-09-27 15:42:40,802] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 136.34
+[2025-09-27 15:42:40,802] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 141.46
+[2025-09-27 15:42:40,803] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 143.54
+[2025-09-27 15:42:40,803] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 144.58
+[2025-09-27 15:42:40,803] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 147.20
+[2025-09-27 15:42:40,803] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 154.10
+[2025-09-27 15:42:40,803] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 156.48
+[2025-09-27 15:42:40,803] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 163.14
+[2025-09-27 15:42:40,803] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 164.36
+[2025-09-27 15:42:40,803] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 165.98
+[2025-09-27 15:42:40,803] INFO audioDiagnostic.tasks: Sentence 1/3: 'day.' | Start: 165.48, End: 168.24 (last word end: 167.74, buffer: 0.5) | First word:  day., Last word:  there
+[2025-09-27 15:42:40,804] INFO audioDiagnostic.tasks: Sentence 2/3: 'Sides, we get there on time almost every day.' | Start: 167.74, End: 169.62 (last word end: 169.12, buffer: 0.5) | First word:  on, Last word:  day.
+[2025-09-27 15:42:40,804] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'Sides, we get there on time almost' | Start: 169.86, End: 171.78 (using seg['end']: 171.78) | First word:  Sides,, Last word:  almost
+[2025-09-27 15:42:40,804] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 172.88
+[2025-09-27 15:42:40,804] INFO audioDiagnostic.tasks: Sentence 1/2: 'I'm tired of getting my regular clothes sweaty from running to the field.' | Start: 179.82, End: 182.30 (last word end: 181.8, buffer: 0.5) | First word:  I'm, Last word:  clothes
+[2025-09-27 15:42:40,804] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'I'm tired' | Start: 181.80, End: 184.76 (using seg['end']: 184.76) | First word:  sweaty, Last word:  tired
+[2025-09-27 15:42:40,804] INFO audioDiagnostic.tasks: Sentence 1/2: 'of getting my regular clothes sweaty from running to the field.' | Start: 184.76, End: 187.64 (last word end: 187.14, buffer: 0.5) | First word:  of, Last word:  running
+[2025-09-27 15:42:40,805] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'My mom makes me do my' | Start: 187.14, End: 189.42 (using seg['end']: 189.42) | First word:  to, Last word:  my
+[2025-09-27 15:42:40,805] INFO audioDiagnostic.tasks: Sentence 1/2: 'own laundry now.' | Start: 189.42, End: 194.04 (last word end: 193.54, buffer: 0.5) | First word:  own, Last word:  tired
+[2025-09-27 15:42:40,805] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'Hey, Kami, I'm tired of getting my regular clothes sweaty from running' | Start: 193.54, End: 195.72 (using seg['end']: 195.72) | First word:  of, Last word:  running
+[2025-09-27 15:42:40,805] INFO audioDiagnostic.tasks: Sentence 1/2: 'to the field.' | Start: 195.72, End: 199.22 (last word end: 198.72, buffer: 0.5) | First word:  to, Last word:  of
+[2025-09-27 15:42:40,805] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'My mom, I'm tired of getting my regular clothes sweaty from running to' | Start: 198.72, End: 201.02 (using seg['end']: 201.02) | First word:  getting, Last word:  to
+[2025-09-27 15:42:40,806] INFO audioDiagnostic.tasks: Sentence 1/3: 'the field.' | Start: 201.02, End: 203.46 (last word end: 202.96, buffer: 0.5) | First word:  the, Last word:  me
+[2025-09-27 15:42:40,806] INFO audioDiagnostic.tasks: Sentence 2/3: 'My mom makes me do my own laundry now.' | Start: 202.96, End: 205.66 (last word end: 205.16, buffer: 0.5) | First word:  do, Last word:  Hey,
+[2025-09-27 15:42:40,806] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'Hey, Kami, hey, Kami, what the hell are' | Start: 205.40, End: 208.84 (using seg['end']: 208.84) | First word:  Kami,, Last word:  are
+[2025-09-27 15:42:40,806] INFO audioDiagnostic.tasks: Sentence 1/3: 'you doing, man?' | Start: 208.84, End: 212.00 (last word end: 211.5, buffer: 0.5) | First word:  you, Last word:  Kami,
+[2025-09-27 15:42:40,806] INFO audioDiagnostic.tasks: Sentence 2/3: 'Hey, Kami, what the hell are you doing, man?' | Start: 212.16, End: 213.26 (last word end: 212.76, buffer: 0.5) | First word:  what, Last word:  you
+[2025-09-27 15:42:40,806] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'I'm just grabbing a cool' | Start: 212.76, End: 219.72 (using seg['end']: 219.72) | First word:  doing,, Last word:  cool
+[2025-09-27 15:42:40,807] INFO audioDiagnostic.tasks: Sentence 1/4: 'rock I spotted.' | Start: 219.72, End: 221.64 (last word end: 221.14, buffer: 0.5) | First word:  rock, Last word:  I'm
+[2025-09-27 15:42:40,807] INFO audioDiagnostic.tasks: Sentence 2/4: 'I'm just grabbing a cool rock I spotted.' | Start: 221.14, End: 222.44 (last word end: 221.94, buffer: 0.5) | First word:  just, Last word:  cool
+[2025-09-27 15:42:40,807] INFO audioDiagnostic.tasks: Sentence 3/4: 'I'll be quick.' | Start: 221.94, End: 223.80 (last word end: 223.3, buffer: 0.5) | First word:  rock, Last word:  I'll
+[2025-09-27 15:42:40,807] INFO audioDiagnostic.tasks: Sentence 4/4 (LAST): 'I'm just grabbing' | Start: 223.30, End: 225.02 (using seg['end']: 225.02) | First word:  be, Last word:  grabbing
+[2025-09-27 15:42:40,807] INFO audioDiagnostic.tasks: Sentence 1/4: 'a cool rock I spotted.' | Start: 225.02, End: 226.26 (last word end: 225.76, buffer: 0.5) | First word:  a, Last word:  I
+[2025-09-27 15:42:40,807] INFO audioDiagnostic.tasks: Sentence 2/4: 'I'll be quick.' | Start: 225.76, End: 227.52 (last word end: 227.02, buffer: 0.5) | First word:  spotted., Last word:  quick.
+[2025-09-27 15:42:40,808] INFO audioDiagnostic.tasks: Sentence 3/4: 'Kami, we're going to be late, man.' | Start: 230.02, End: 231.60 (last word end: 231.1, buffer: 0.5) | First word:  Kami,, Last word:  to
+[2025-09-27 15:42:40,808] INFO audioDiagnostic.tasks: Sentence 4/4 (LAST): 'Kami, we're' | Start: 231.10, End: 233.20 (using seg['end']: 233.2) | First word:  be, Last word:  we're
+[2025-09-27 15:42:40,808] INFO audioDiagnostic.tasks: Sentence 1/3: 'going to be late, man.' | Start: 233.20, End: 235.30 (last word end: 234.8, buffer: 0.5) | First word:  going, Last word:  Coach
+[2025-09-27 15:42:40,808] INFO audioDiagnostic.tasks: Sentence 2/3: 'Coach will give us extra laps.' | Start: 234.80, End: 237.02 (last word end: 236.52, buffer: 0.5) | First word:  will, Last word:  Can
+[2025-09-27 15:42:40,808] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'Can you grab it on the way back?' | Start: 236.52, End: 237.92 (using seg['end']: 237.92) | First word:  you, Last word:  back?
+[2025-09-27 15:42:40,808] INFO audioDiagnostic.tasks: Sentence 1/3: 'Kami, we're gone.' | Start: 239.18, End: 243.92 (last word end: 243.42, buffer: 0.5) | First word:  Kami,, Last word:  Kami,
+[2025-09-27 15:42:40,809] INFO audioDiagnostic.tasks: Sentence 2/3: 'Kami, Kami, we're going to be late, man.' | Start: 243.68, End: 244.98 (last word end: 244.48, buffer: 0.5) | First word:  we're, Last word:  late,
+[2025-09-27 15:42:40,809] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'Coach will give us extra' | Start: 244.50, End: 246.40 (using seg['end']: 246.4) | First word:  man., Last word:  extra
+[2025-09-27 15:42:40,809] INFO audioDiagnostic.tasks: Sentence 1/3: 'laps.' | Start: 246.40, End: 248.66 (last word end: 248.16, buffer: 0.5) | First word:  laps., Last word:  it
+[2025-09-27 15:42:40,809] INFO audioDiagnostic.tasks: Sentence 2/3: 'Can't you grab it on the way back?' | Start: 248.16, End: 255.48 (last word end: 254.98, buffer: 0.5) | First word:  on, Last word:  Kami,
+[2025-09-27 15:42:40,809] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'Kami, Kona Johnson, known by his friends as' | Start: 255.10, End: 257.32 (using seg['end']: 257.32) | First word:  Kona, Last word:  as
+[2025-09-27 15:42:40,809] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 263.60
+[2025-09-27 15:42:40,810] INFO audioDiagnostic.tasks: Sentence 1/2: 'a gaggle of Nene Geese resting a few yards away.' | Start: 263.10, End: 265.60 (last word end: 265.1, buffer: 0.5) | First word:  a, Last word:  few
+[2025-09-27 15:42:40,810] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'Disrupting a gaggle of Nene Geese resting' | Start: 265.10, End: 270.02 (using seg['end']: 270.02) | First word:  yards, Last word:  resting
+[2025-09-27 15:42:40,810] INFO audioDiagnostic.tasks: Sentence 1/2: 'a few yards away.' | Start: 270.02, End: 273.98 (last word end: 273.48, buffer: 0.5) | First word:  a, Last word:  displeasure,
+[2025-09-27 15:42:40,810] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'They honked in great displeasure, as if to say, sweaty human boy, don't you' | Start: 273.74, End: 276.78 (using seg['end']: 276.78) | First word:  as, Last word:  you
+[2025-09-27 15:42:40,810] INFO audioDiagnostic.tasks: Sentence 1/2: 'know with the rarest geese in the world?' | Start: 276.78, End: 279.68 (last word end: 279.18, buffer: 0.5) | First word:  know, Last word:  Get
+[2025-09-27 15:42:40,810] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'Get off our lava patch and leave us alone, unless' | Start: 279.18, End: 281.84 (using seg['end']: 281.84) | First word:  off, Last word:  unless
+[2025-09-27 15:42:40,811] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 285.98
+[2025-09-27 15:42:40,811] INFO audioDiagnostic.tasks: Sentence 1/2: 'The students knew feeding the Nene was illegal.' | Start: 287.54, End: 290.16 (last word end: 289.66, buffer: 0.5) | First word:  The, Last word:  was
+[2025-09-27 15:42:40,811] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'That didn't always stop the occasional' | Start: 289.66, End: 292.12 (using seg['end']: 292.12) | First word:  illegal., Last word:  occasional
+[2025-09-27 15:42:40,811] INFO audioDiagnostic.tasks: Sentence 1/2: 'soft-hearted student, however.' | Start: 292.12, End: 295.96 (last word end: 295.46, buffer: 0.5) | First word:  soft, Last word:  the
+[2025-09-27 15:42:40,811] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'At present, the small, at present, the smell of adolescent' | Start: 295.46, End: 298.14 (using seg['end']: 298.14) | First word:  small,, Last word:  adolescent
+[2025-09-27 15:42:40,811] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 300.62
+[2025-09-27 15:42:40,812] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 309.58
+[2025-09-27 15:42:40,812] INFO audioDiagnostic.tasks: Sentence 1/3: 'created over time by the eruptions of multiple volcanoes.' | Start: 309.08, End: 310.92 (last word end: 310.42, buffer: 0.5) | First word:  created, Last word:  the
+[2025-09-27 15:42:40,812] INFO audioDiagnostic.tasks: Sentence 2/3: 'Kami, Kona, loved rocks.' | Start: 310.42, End: 314.10 (last word end: 313.6, buffer: 0.5) | First word:  eruptions, Last word:  Kami,
+[2025-09-27 15:42:40,812] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'He had' | Start: 313.76, End: 316.14 (using seg['end']: 316.14) | First word:  Kona,, Last word:  had
+[2025-09-27 15:42:40,812] INFO audioDiagnostic.tasks: Sentence 1/2: 'as long as he could remember.' | Start: 316.14, End: 318.74 (last word end: 318.24, buffer: 0.5) | First word:  as, Last word:  whatever
+[2025-09-27 15:42:40,812] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'For whatever reason, probably because he lived in a state of' | Start: 318.24, End: 320.40 (using seg['end']: 320.4) | First word:  reason,, Last word:  of
+[2025-09-27 15:42:40,813] INFO audioDiagnostic.tasks: Sentence 1/2: 'Hawaii, he loved volcanic rock the most.' | Start: 320.58, End: 328.44 (last word end: 327.94, buffer: 0.5) | First word:  Hawaii,, Last word:  Across
+[2025-09-27 15:42:40,813] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'Across the eight, across the eight major Hawaiian islands' | Start: 327.94, End: 331.30 (using seg['end']: 331.3) | First word:  the, Last word:  islands
+[2025-09-27 15:42:40,813] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 337.50
+[2025-09-27 15:42:40,813] INFO audioDiagnostic.tasks: Sentence 1/2: 'He bent down to pick up a particular sample of A-A.' | Start: 337.70, End: 340.58 (last word end: 340.08, buffer: 0.5) | First word:  He, Last word:  of
+[2025-09-27 15:42:40,813] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'He bent down to pick up a particular' | Start: 340.08, End: 349.98 (using seg['end']: 349.98) | First word:  A, Last word:  particular
+[2025-09-27 15:42:40,813] INFO audioDiagnostic.tasks: Sentence 1/3: 'sample of A-A Lava.' | Start: 349.98, End: 353.22 (last word end: 352.72, buffer: 0.5) | First word:  sample, Last word:  He
+[2025-09-27 15:42:40,813] INFO audioDiagnostic.tasks: Sentence 2/3: 'He bent down to pick up a particular sample of A-A lava.' | Start: 352.72, End: 354.30 (last word end: 353.8, buffer: 0.5) | First word:  bent, Last word:  a
+[2025-09-27 15:42:40,813] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'He'd spotted' | Start: 353.80, End: 356.30 (using seg['end']: 356.3) | First word:  particular, Last word:  spotted
+[2025-09-27 15:42:40,813] INFO audioDiagnostic.tasks: Sentence 1/3: 'from the sidewalk.' | Start: 356.30, End: 359.22 (last word end: 358.72, buffer: 0.5) | First word:  from, Last word:  drawn
+[2025-09-27 15:42:40,815] INFO audioDiagnostic.tasks: Sentence 2/3: 'He was drawn to it somehow.' | Start: 358.72, End: 362.38 (last word end: 361.88, buffer: 0.5) | First word:  to, Last word:  drawn,
+[2025-09-27 15:42:40,815] INFO audioDiagnostic.tasks: Sentence 3/3 (LAST): 'He was drawn, he bent down to pick up a particular' | Start: 362.20, End: 365.80 (using seg['end']: 365.8) | First word:  he, Last word:  particular
+[2025-09-27 15:42:40,815] INFO audioDiagnostic.tasks: Sentence 1/4: 'sample of A-A lava.' | Start: 365.80, End: 367.54 (last word end: 367.04, buffer: 0.5) | First word:  sample, Last word: -A
+[2025-09-27 15:42:40,815] INFO audioDiagnostic.tasks: Sentence 2/4: 'He'd spotted from the sidewalk.' | Start: 367.04, End: 368.90 (last word end: 368.4, buffer: 0.5) | First word:  lava., Last word:  from
+[2025-09-27 15:42:40,815] INFO audioDiagnostic.tasks: Sentence 3/4: 'He was drawn to it somehow.' | Start: 368.40, End: 370.58 (last word end: 370.08, buffer: 0.5) | First word:  the, Last word:  was
+[2025-09-27 15:42:40,815] INFO audioDiagnostic.tasks: Sentence 4/4 (LAST): 'He couldn't' | Start: 370.08, End: 376.24 (using seg['end']: 376.24) | First word:  drawn, Last word:  couldn't
+[2025-09-27 15:42:40,815] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 379.42
+[2025-09-27 15:42:40,815] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 382.54
+[2025-09-27 15:42:40,815] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 386.50
+[2025-09-27 15:42:40,816] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 392.76
+[2025-09-27 15:42:40,816] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 395.28
+[2025-09-27 15:42:40,816] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 400.68
+[2025-09-27 15:42:40,817] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 410.24
+[2025-09-27 15:42:40,817] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 413.80
+[2025-09-27 15:42:40,817] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 416.06
+[2025-09-27 15:42:40,817] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 420.08
+[2025-09-27 15:42:40,817] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 422.96
+[2025-09-27 15:42:40,817] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 427.28
+[2025-09-27 15:42:40,817] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 429.84
+[2025-09-27 15:42:40,818] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 432.06
+[2025-09-27 15:42:40,818] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 434.88
+[2025-09-27 15:42:40,818] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 441.84
+[2025-09-27 15:42:40,818] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 445.92
+[2025-09-27 15:42:40,818] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 450.84
+[2025-09-27 15:42:40,818] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 456.56
+[2025-09-27 15:42:40,819] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 462.06
+[2025-09-27 15:42:40,819] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 465.94
+[2025-09-27 15:42:40,819] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 475.40
+[2025-09-27 15:42:40,819] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 477.80
+[2025-09-27 15:42:40,819] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 480.26
+[2025-09-27 15:42:40,819] INFO audioDiagnostic.tasks: Sentence 1/2: 'His father, a black U.S.' | Start: 480.42, End: 482.50 (last word end: 482.0, buffer: 0.5) | First word:  His, Last word:  Navy
+[2025-09-27 15:42:40,820] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'Navy officer, had been stationed at Naval Base.' | Start: 482.00, End: 484.20 (using seg['end']: 484.2) | First word:  officer,, Last word:  Base.
+[2025-09-27 15:42:40,820] INFO audioDiagnostic.tasks: Sentence 1/2: 'His father, a black U.S.' | Start: 485.72, End: 488.48 (last word end: 487.98, buffer: 0.5) | First word:  His, Last word:  officer,
+[2025-09-27 15:42:40,820] INFO audioDiagnostic.tasks: Sentence 2/2 (LAST): 'Navy officer, had been stationed at Naval Base Pearl Harbor' | Start: 488.28, End: 490.16 (using seg['end']: 490.16) | First word:  had, Last word:  Harbor
+[2025-09-27 15:42:40,820] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 491.38
+[2025-09-27 15:42:40,820] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 496.40
+[2025-09-27 15:42:40,820] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 498.66
+[2025-09-27 15:42:40,820] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 505.50
+[2025-09-27 15:42:40,821] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 511.34
+[2025-09-27 15:42:40,821] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 519.42
+[2025-09-27 15:42:40,821] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 520.96
+[2025-09-27 15:42:40,821] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 524.16
+[2025-09-27 15:42:40,821] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 528.84
+[2025-09-27 15:42:40,822] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 533.92
+[2025-09-27 15:42:40,822] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 535.50
+[2025-09-27 15:42:40,822] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 539.92
+[2025-09-27 15:42:40,822] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 542.72
+[2025-09-27 15:42:40,822] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 544.68
+[2025-09-27 15:42:40,822] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 547.44
+[2025-09-27 15:42:40,822] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 549.64
+[2025-09-27 15:42:40,823] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 551.62
+[2025-09-27 15:42:40,823] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 554.22
+[2025-09-27 15:42:40,823] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 557.64
+[2025-09-27 15:42:40,823] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 561.92
+[2025-09-27 15:42:40,823] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 563.24
+[2025-09-27 15:42:40,823] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 566.76
+[2025-09-27 15:42:40,824] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 570.96
+[2025-09-27 15:42:40,824] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 572.08
+[2025-09-27 15:42:40,824] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 576.64
+[2025-09-27 15:42:40,824] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 577.92
+[2025-09-27 15:42:40,824] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 589.30
+[2025-09-27 15:42:40,824] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 590.76
+[2025-09-27 15:42:40,824] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 592.24
+[2025-09-27 15:42:40,825] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 594.00
+[2025-09-27 15:42:40,825] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 598.70
+[2025-09-27 15:42:40,825] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 604.60
+[2025-09-27 15:42:40,826] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 606.08
+[2025-09-27 15:42:40,826] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 611.58
+[2025-09-27 15:42:40,826] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 618.80
+[2025-09-27 15:42:40,826] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 624.18
+[2025-09-27 15:42:40,826] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 628.78
+[2025-09-27 15:42:40,826] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 631.58
+[2025-09-27 15:42:40,827] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 634.26
+[2025-09-27 15:42:40,827] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 641.22
+[2025-09-27 15:42:40,827] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 646.56
+[2025-09-27 15:42:40,827] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 649.54
+[2025-09-27 15:42:40,827] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 651.80
+[2025-09-27 15:42:40,827] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 654.08
+[2025-09-27 15:42:40,828] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 656.16
+[2025-09-27 15:42:40,828] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 661.54
+[2025-09-27 15:42:40,828] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 666.78
+[2025-09-27 15:42:40,828] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 673.82
+[2025-09-27 15:42:40,828] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 680.00
+[2025-09-27 15:42:40,828] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 683.22
+[2025-09-27 15:42:40,828] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 686.10
+[2025-09-27 15:42:40,829] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 688.50
+[2025-09-27 15:42:40,829] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 691.04
+[2025-09-27 15:42:40,829] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 692.58
+[2025-09-27 15:42:40,829] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 695.48
+[2025-09-27 15:42:40,829] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 698.12
+[2025-09-27 15:42:40,829] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 699.24
+[2025-09-27 15:42:40,830] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 701.20
+[2025-09-27 15:42:40,830] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 702.92
+[2025-09-27 15:42:40,830] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 705.66
+[2025-09-27 15:42:40,830] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 707.24
+[2025-09-27 15:42:40,831] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 710.88
+[2025-09-27 15:42:40,831] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 714.20
+[2025-09-27 15:42:40,831] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 715.92
+[2025-09-27 15:42:40,831] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 717.24
+[2025-09-27 15:42:40,831] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 720.02
+[2025-09-27 15:42:40,832] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 722.16
+[2025-09-27 15:42:40,832] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 723.54
+[2025-09-27 15:42:40,832] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 729.38
+[2025-09-27 15:42:40,832] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 731.64
+[2025-09-27 15:42:40,832] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 733.00
+[2025-09-27 15:42:40,832] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 735.70
+[2025-09-27 15:42:40,833] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 739.42
+[2025-09-27 15:42:40,833] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 742.02
+[2025-09-27 15:42:40,833] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 748.42
+[2025-09-27 15:42:40,833] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 750.50
+[2025-09-27 15:42:40,833] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 756.30
+[2025-09-27 15:42:40,833] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 759.94
+[2025-09-27 15:42:40,833] INFO audioDiagnostic.tasks: Only one sentence or no words. Returning segment as is, but with padded end: 764.38
+[2025-09-27 15:43:18,090] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 15:43:18,090] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 15:44:18,394] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 15:44:18,394] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 15:45:18,269] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 15:45:18,269] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 15:46:18,417] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 15:46:18,417] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 15:47:18,115] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 15:47:18,115] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:47,151] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:47,151] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:47,207] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:47,207] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:48,509] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:48,509] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:50,511] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:50,511] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:52,609] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:52,609] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:54,504] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:54,504] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:56,484] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:56,484] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:58,518] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:20:58,518] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:00,485] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:00,485] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:02,491] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:02,491] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:04,483] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:04,483] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:06,497] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:06,497] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:08,496] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:08,496] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:10,492] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:10,492] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:12,490] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:12,490] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:14,488] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:14,488] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:16,495] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:16,495] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:18,482] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:18,482] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:20,490] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:20,490] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:22,484] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:22,484] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:24,494] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:24,494] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:26,516] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:26,516] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:28,501] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:28,501] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:30,485] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:30,485] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:32,490] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:32,490] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:34,486] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:34,486] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:36,480] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:36,480] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:38,492] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:38,492] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:40,501] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:40,501] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:42,484] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:42,484] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:44,493] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:44,493] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:46,496] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:46,496] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:48,513] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:48,513] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:50,503] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:50,503] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:52,504] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:52,504] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:54,504] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:54,504] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:56,493] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:56,493] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:58,499] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:21:58,499] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:00,491] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:00,491] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:02,507] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:02,507] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:05,088] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:05,088] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:07,205] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:07,205] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:09,116] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:09,116] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:11,108] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:11,108] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:13,098] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:13,098] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:15,105] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:15,105] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:17,094] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:17,094] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:19,107] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:19,107] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:21,091] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:21,091] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:23,102] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:23,102] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:25,075] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:25,075] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:27,102] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:27,102] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:29,090] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:29,090] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:31,095] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:31,095] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:33,094] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:33,094] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:35,106] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:35,106] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:37,104] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:37,104] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:39,102] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:39,102] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:41,093] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:41,093] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:43,102] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:43,102] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:45,084] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:45,084] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:47,087] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:47,087] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:49,094] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:49,094] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:51,083] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:51,083] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:53,089] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:53,089] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:55,085] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:55,085] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:57,091] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:57,091] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:59,101] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:22:59,101] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:23:01,087] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:23:01,087] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:23:18,445] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:23:18,445] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:24:18,095] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:24:18,095] INFO django.server: "GET /api/audio/status/44c6e61d-e602-4b5c-9650-7f737ff67b91/ HTTP/1.1" 202 38
+[2025-09-27 16:24:43,606] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
+[2025-09-27 16:24:43,606] INFO django.utils.autoreload: C:\Users\user\Documents\GitHub\Audio repetative detection\backend\audioDiagnostic\management\commands\rundev.py changed, reloading.
