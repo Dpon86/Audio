@@ -3,6 +3,9 @@ backend/media/Downloads/
 backend/media/assembled/
 backend/media/chunks/
 backend/media/logs/
+backend/media/audio/
+backend/media/pdfs/
+backend/media/processed/
 
 # Python cache files
 __pycache__/
