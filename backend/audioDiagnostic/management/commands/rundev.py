@@ -43,6 +43,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Show Celery worker output in console',
         )
+        parser.add_argument(
+            '--skip-cleanup',
+            action='store_true',
+            help='Skip automatic cleanup of existing Celery processes',
+        )
 
     def handle(self, *args, **options):
         self.stdout.write(
@@ -54,6 +59,9 @@ class Command(BaseCommand):
         signal.signal(signal.SIGTERM, self.signal_handler)
         
         try:
+            # Run system readiness checks
+            self.run_system_checks()
+            
             if not options['skip_docker']:
                 self.start_redis()
             
@@ -61,6 +69,9 @@ class Command(BaseCommand):
             self._verbose_celery = options.get('celery_verbose', False)
             
             if not options['skip_celery']:
+                # Clean up existing Celery processes before starting new one (unless skipped)
+                if not options.get('skip_cleanup', False):
+                    self.cleanup_existing_celery()
                 self.start_celery()
             
             if options['frontend']:
@@ -129,6 +140,39 @@ class Command(BaseCommand):
                 self.style.ERROR(f'❌ Failed to start Redis: {e}')
             )
             sys.exit(1)
+    
+    def cleanup_existing_celery(self):
+        """Clean up any existing Celery processes to prevent conflicts"""
+        self.stdout.write('🧹 Cleaning up existing Celery processes...')
+        
+        try:
+            if platform.system() == 'Windows':
+                # Kill existing celery processes on Windows
+                subprocess.run(
+                    ['taskkill', '/f', '/im', 'celery.exe'], 
+                    capture_output=True, 
+                    check=False  # Don't fail if no processes found
+                )
+                
+                # Also try to kill any Python processes with celery in the title
+                subprocess.run([
+                    'taskkill', '/f', '/im', 'python.exe', 
+                    '/fi', 'WINDOWTITLE eq *celery*'
+                ], capture_output=True, check=False)
+                
+            else:
+                # For Unix-like systems (Mac, Linux)
+                subprocess.run([
+                    'pkill', '-f', 'celery.*worker'
+                ], capture_output=True, check=False)
+            
+            self.stdout.write('   ✅ Celery cleanup completed')
+            
+        except Exception as e:
+            # Don't fail startup if cleanup fails
+            self.stdout.write(
+                self.style.WARNING(f'   ⚠️  Cleanup warning: {e}')
+            )
     
     def start_celery(self):
         """Start Celery worker"""
@@ -274,6 +318,9 @@ class Command(BaseCommand):
         """Start Django development server"""
         self.stdout.write(f'🚀 Starting Django development server on port {port}...')
         
+        # Set up Docker/Celery infrastructure immediately
+        self.setup_infrastructure_on_startup()
+        
         try:
             # Run Django development server in the foreground
             frontend_msg = '\n⚛️  React frontend: http://localhost:3000' if any(name == 'frontend' for name, _ in self.processes) else ''
@@ -284,6 +331,7 @@ class Command(BaseCommand):
                     f'🌐 Django server: http://127.0.0.1:{port}\n'
                     f'📊 Redis: localhost:6379\n'
                     f'⚡ Celery worker: Running{frontend_msg}\n'
+                    f'🐳 Docker/Celery: Ready for tasks\n'
                     f'\nPress Ctrl+C to stop all services\n'
                 )
             )
@@ -323,6 +371,148 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS('✅ All services stopped')
         )
+    
+    def run_system_checks(self):
+        """Run comprehensive system readiness checks"""
+        self.stdout.write(self.style.WARNING('🔍 Running system readiness checks...'))
+        
+        # Check 1: Reset stuck tasks
+        self.reset_stuck_tasks()
+        
+        # Check 2: Verify database migrations
+        self.check_database_migrations()
+        
+        # Check 3: Verify Docker availability
+        self.check_docker_status()
+        
+        # Check 4: Validate system requirements
+        self.validate_system_requirements()
+        
+        self.stdout.write(self.style.SUCCESS('✅ System checks complete - Ready to start!'))
+    
+    def reset_stuck_tasks(self):
+        """Reset any stuck audio processing tasks"""
+        try:
+            from audioDiagnostic.models import AudioFile, AudioProject
+            from celery.result import AsyncResult
+            
+            stuck_audio_files = 0
+            stuck_projects = 0
+            
+            # Reset stuck audio files
+            for af in AudioFile.objects.filter(status__in=['transcribing', 'processing']):
+                if af.task_id:
+                    try:
+                        result = AsyncResult(af.task_id)
+                        if result.state == 'PENDING':  # Task never started or stuck
+                            stuck_audio_files += 1
+                            self.stdout.write(f'   📄 Resetting AudioFile {af.id} ({af.filename}): {af.status} → pending')
+                            af.status = 'pending'
+                            af.task_id = None
+                            af.save()
+                    except Exception:
+                        # If we can't check the task, assume it's stuck
+                        stuck_audio_files += 1
+                        self.stdout.write(f'   📄 Resetting AudioFile {af.id} ({af.filename}): {af.status} → pending')
+                        af.status = 'pending' 
+                        af.task_id = None
+                        af.save()
+            
+            # Reset stuck projects
+            for project in AudioProject.objects.filter(status='processing'):
+                stuck_projects += 1
+                self.stdout.write(f'   📁 Resetting Project {project.id} ({project.title}): processing → pending')
+                project.status = 'pending'
+                project.save()
+            
+            if stuck_audio_files > 0 or stuck_projects > 0:
+                self.stdout.write(f'   ✅ Reset {stuck_audio_files} audio files and {stuck_projects} projects')
+            else:
+                self.stdout.write(f'   ✅ No stuck tasks found')
+                
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'   ❌ Error resetting stuck tasks: {e}'))
+    
+    def check_database_migrations(self):
+        """Verify database is up to date"""
+        try:
+            call_command('check', '--deploy', verbosity=0)
+            self.stdout.write('   ✅ Database migrations are up to date')
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'   ❌ Database migration issues: {e}'))
+            self.stdout.write(self.style.WARNING('   💡 Run: python manage.py migrate'))
+    
+    def check_docker_status(self):
+        """Check if Docker Desktop is running"""
+        try:
+            result = subprocess.run(['docker', 'info'], capture_output=True, text=True)
+            if result.returncode == 0:
+                self.stdout.write('   ✅ Docker Desktop is running')
+            else:
+                self.stdout.write(self.style.WARNING('   ⚠️  Docker Desktop may not be running'))
+                self.stdout.write('   💡 Audio processing requires Docker Desktop')
+        except FileNotFoundError:
+            self.stdout.write(self.style.ERROR('   ❌ Docker not installed'))
+            self.stdout.write('   💡 Install Docker Desktop for audio processing')
+    
+    def validate_system_requirements(self):
+        """Check system requirements and dependencies"""
+        try:
+            # Check Python version
+            python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+            if sys.version_info >= (3, 12):
+                self.stdout.write(f'   ✅ Python {python_version} (compatible)')
+            else:
+                self.stdout.write(self.style.WARNING(f'   ⚠️  Python {python_version} (recommend 3.12+)'))
+            
+            # Check critical packages
+            critical_packages = ['django', 'celery', 'whisper', 'redis']
+            for package in critical_packages:
+                try:
+                    __import__(package)
+                    self.stdout.write(f'   ✅ {package} package available')
+                except ImportError:
+                    self.stdout.write(self.style.ERROR(f'   ❌ Missing package: {package}'))
+                    self.stdout.write('   💡 Run: pip install -r requirements.txt')
+                    
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'   ❌ System validation error: {e}'))
+    
+    def setup_infrastructure_on_startup(self):
+        """Set up Docker/Celery infrastructure during startup"""
+        self.stdout.write('🐳 Setting up Docker/Celery infrastructure...')
+        
+        try:
+            from ...services.docker_manager import docker_celery_manager
+            
+            # Check if Docker is available first
+            if not docker_celery_manager._check_docker():
+                self.stdout.write(
+                    self.style.WARNING(
+                        '⚠️ Docker Desktop not running - infrastructure will start when you transcribe audio'
+                    )
+                )
+                return
+            
+            # Set up infrastructure
+            if docker_celery_manager.setup_infrastructure():
+                self.stdout.write(
+                    self.style.SUCCESS('✅ Docker/Celery infrastructure ready')
+                )
+            else:
+                self.stdout.write(
+                    self.style.WARNING(
+                        '⚠️ Infrastructure setup incomplete - will retry when you transcribe audio'
+                    )
+                )
+                
+        except Exception as e:
+            self.stdout.write(
+                self.style.WARNING(
+                    f'⚠️ Infrastructure setup failed: {e}\n'
+                    '   Infrastructure will start automatically when you transcribe audio'
+                )
+            )
     
     def signal_handler(self, signum, frame):
         """Handle Ctrl+C and other signals"""

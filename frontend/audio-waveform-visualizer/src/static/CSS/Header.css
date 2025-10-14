@@ -1,48 +1,61 @@
+/* Header Styles */
 .Hd-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  background: #232946;
-  color: #fff;
-  padding: 0.75rem 2rem;
-  height: 60px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  align-items: center;
+  padding: 15px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
   position: relative;
-  z-index: 10;
+  z-index: 1000;
+}
+
+.Hd-left-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
 .Hd-hamburger-menu {
   display: flex;
   flex-direction: column;
-  justify-content: center;
   cursor: pointer;
-  margin-right: 1.5rem;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.Hd-hamburger-menu:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .Hd-line {
-  width: 28px;
-  height: 4px;
-  background: #fff;
+  width: 25px;
+  height: 3px;
+  background-color: white;
   margin: 3px 0;
+  transition: 0.3s;
   border-radius: 2px;
 }
 
-.Hd-header-title-container {
-  display: flex;
-  align-items: center;
+.Hd-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.3s;
+  color: white;
+  text-decoration: none;
 }
 
-.Hd-title {
-  font-size: 1.7rem;
-  font-weight: bold;
-  letter-spacing: 1px;
-  margin-left: 0.5rem;
+.Hd-title:hover {
+  opacity: 0.9;
 }
 
 .Hd-header-right {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: 15px;
 }
 
 .Hd-User-button,

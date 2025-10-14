@@ -22,10 +22,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-t(b3z_-m$j5c(yf!9tce2ea3scijrtynm9a%&v1k)hut!989oz'
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-t(b3z_-m$j5c(yf!9tce2ea3scijrtynm9a%&v1k)hut!989oz')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
 
 ALLOWED_HOSTS = [
@@ -44,11 +48,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'audioDiagnostic',  # Add your app if not present
-    'rest_framework',   # Add this line
+    'corsheaders',      # Add CORS headers
+    'rest_framework',   # DRF for API
+    'rest_framework.authtoken',  # Token authentication
+    'audioDiagnostic',  # Main app
+    'accounts',         # User management and billing
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # Add CORS middleware first
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -85,9 +93,46 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100 MB
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+# Dynamic Redis host based on environment
+def get_redis_host():
+    """Get the appropriate Redis host based on environment"""
+    import os
+    is_docker = os.path.exists('/.dockerenv') or os.environ.get('CONTAINER_ENV') == 'true'
+    return 'redis' if is_docker else 'localhost'
 
+REDIS_HOST = get_redis_host()
+CELERY_BROKER_URL = f'redis://{REDIS_HOST}:6379/0'
+CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:6379/0'
+
+# Django REST Framework Configuration
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20
+}
+
+# CORS Configuration
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+CORS_ALLOW_CREDENTIALS = True
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -184,3 +229,91 @@ LOGGING = {
         'level': 'WARNING',
     },
 }
+
+# CORS settings for frontend communication
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_ALL_ORIGINS = True  # Only for development
+
+# Allow specific headers for file uploads
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# Authentication settings - merged with main REST_FRAMEWORK config above
+
+# Stripe configuration
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY', 'pk_test_...')  # Add your test key
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY', 'sk_test_...')  # Add your test key
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', 'whsec_...')  # Add your webhook secret
+
+# Email configuration (for user registration emails)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # Development - prints to console
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # Production
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+
+# Site configuration
+SITE_URL = os.getenv('SITE_URL', 'http://localhost:3000')
+SITE_NAME = 'Audio Duplicate Detection'
+
+# Trial period settings
+FREE_TRIAL_DAYS = 7
+DEFAULT_CURRENCY = 'GBP'
+DEFAULT_PLAN_LIMITS = {
+    'free': {
+        'max_projects_per_month': 0,  # Trial uses only
+        'max_audio_duration_minutes': 60,
+        'max_file_size_mb': 100,
+        'max_storage_gb': 1.0,
+    }
+}
+
+# Security Settings for Production SaaS
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+# HTTPS and Security Headers (enable in production)
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Session Security
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_AGE = 86400  # 24 hours
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_SAVE_EVERY_REQUEST = True
+
+# CSRF Security
+CSRF_COOKIE_HTTPONLY = True
+CSRF_USE_SESSIONS = True
+
+# Content Security Policy (for production)
+if not DEBUG:
+    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'

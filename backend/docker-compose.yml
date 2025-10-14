@@ -1,0 +1,30 @@
+# Development Docker Compose - Only Redis for local development
+# Celery workers run locally for better debugging visibility
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: audio-redis-dev
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - audio_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  redis_data:
+    name: audio_redis_data
+
+networks:
+  audio_network:
+    driver: bridge
+    name: audio_dev_network
