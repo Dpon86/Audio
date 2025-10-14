@@ -1358,3 +1358,70 @@
     justify-content: center;
   }
 }
+
+/* Progress Bar for Background Tasks */
+.progress-container {
+  margin: 15px 0;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 20px;
+  background: #f0f0f0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #ddd;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #45a049);
+  transition: width 0.3s ease;
+  border-radius: 10px;
+}
+
+.progress-text {
+  font-weight: bold;
+  color: #333;
+  min-width: 40px;
+  text-align: right;
+}
+
+/* Enhanced processing status styles */
+.processing-status {
+  text-align: center;
+  padding: 20px;
+  background: #f8f9fa;
+  border: 2px solid #e3f2fd;
+  border-radius: 8px;
+  margin: 15px 0;
+}
+
+.processing-status p {
+  margin: 8px 0;
+  color: #1976d2;
+  font-weight: 500;
+}
+
+.processing-status em {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.loading-spinner {
+  margin: 0 auto 15px;
+  width: 30px;
+  height: 30px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #1976d2;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

@@ -30,6 +30,13 @@ class DockerCeleryManager:
         # Check if containers are already running
         if self._check_existing_containers():
             logger.info("Found existing containers, infrastructure is ready")
+            self.is_setup = True
+            return True
+            
+        # First check if Redis is accessible without Docker (external Redis)
+        if self._wait_for_redis(max_attempts=3):
+            logger.info("External Redis found, skipping Docker setup")
+            self.is_setup = True
             return True
             
         try:
@@ -49,6 +56,13 @@ class DockerCeleryManager:
             
             if result.returncode != 0:
                 logger.error(f"Failed to start Docker services: {result.stderr}")
+                # If port already allocated, check if Redis is still accessible
+                if "port is already allocated" in result.stderr.lower():
+                    logger.info("Port conflict detected, checking if Redis is accessible...")
+                    if self._wait_for_redis(max_attempts=5):
+                        logger.info("Redis is accessible despite Docker conflict, proceeding...")
+                        self.is_setup = True
+                        return True
                 return False
             
             # Wait for services to be ready
@@ -67,6 +81,11 @@ class DockerCeleryManager:
             
         except Exception as e:
             logger.error(f"Failed to set up infrastructure: {str(e)}")
+            # Try to continue if Redis is still accessible
+            if self._wait_for_redis(max_attempts=3):
+                logger.info("Redis accessible despite setup error, continuing...")
+                self.is_setup = True
+                return True
             return False
         finally:
             os.chdir(original_dir)

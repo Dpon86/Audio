@@ -309,6 +309,7 @@ const ProjectDetailPage = () => {
   const [duplicateResults, setDuplicateResults] = useState(null);
   const [duplicateReview, setDuplicateReview] = useState(null);
   const [pdfMatchResults, setPdfMatchResults] = useState(null);
+  const [currentTaskName, setCurrentTaskName] = useState(null);
   
   const pdfInputRef = useRef();
   const audioInputRef = useRef();
@@ -523,6 +524,81 @@ const ProjectDetailPage = () => {
     }
   };
 
+  // Task Status Polling Function for Async Operations
+  const pollTaskStatus = async (taskId, taskName, onSuccess) => {
+    console.log(`Starting to poll task ${taskId} for ${taskName}`);
+    setCurrentTaskName(taskName);
+    const pollInterval = 2000; // Poll every 2 seconds
+    const maxPolls = 300; // Maximum 10 minutes (300 * 2 seconds)
+    let pollCount = 0;
+    
+    const poll = async () => {
+      try {
+        console.log(`Polling task ${taskId}, attempt ${pollCount + 1}`);
+        
+        const response = await fetchWithAuth(`/api/tasks/${taskId}/status/`, {}, token);
+        
+        if (response.ok) {
+          const statusData = await response.json();
+          console.log(`Task ${taskId} status:`, statusData);
+          
+          if (statusData.status === 'completed') {
+            console.log(`Task ${taskName} completed successfully`);
+            setCurrentTaskName(null);
+            if (onSuccess && statusData.result) {
+              onSuccess(statusData.result);
+            }
+            return; // Stop polling
+          } else if (statusData.status === 'failed') {
+            console.error(`Task ${taskName} failed:`, statusData.error);
+            setCurrentTaskName(null);
+            alert(`${taskName} failed: ${statusData.error || 'Unknown error'}`);
+            return; // Stop polling
+          } else if (statusData.status === 'in_progress' || statusData.status === 'pending') {
+            console.log(`Task ${taskName} still running... Progress: ${statusData.progress}%`);
+            
+            // Update progress if we have a progress indicator
+            if (statusData.progress && typeof statusData.progress === 'number') {
+              setProgress(statusData.progress);
+            }
+            
+            // Continue polling
+            pollCount++;
+            if (pollCount < maxPolls) {
+              setTimeout(poll, pollInterval);
+            } else {
+              console.error(`Task ${taskName} timed out after ${maxPolls} polls`);
+              setCurrentTaskName(null);
+              alert(`${taskName} is taking longer than expected. Please check back later.`);
+            }
+          }
+        } else {
+          console.error(`Failed to check status for task ${taskId}:`, response.status);
+          // Retry a few times on server errors
+          pollCount++;
+          if (pollCount < 5) {
+            setTimeout(poll, pollInterval * 2); // Wait longer on errors
+          } else {
+            setCurrentTaskName(null);
+            alert(`Unable to check ${taskName} status. Please refresh and try again.`);
+          }
+        }
+      } catch (error) {
+        console.error(`Error polling task ${taskId}:`, error);
+        pollCount++;
+        if (pollCount < 5) {
+          setTimeout(poll, pollInterval * 2); // Wait longer on errors
+        } else {
+          setCurrentTaskName(null);
+          alert(`Unable to check ${taskName} status. Please refresh and try again.`);
+        }
+      }
+    };
+    
+    // Start polling immediately
+    poll();
+  };
+
   // New Step-by-Step Processing Functions
   
   const startPDFMatching = async () => {
@@ -555,11 +631,26 @@ const ProjectDetailPage = () => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log("PDF matching successful, data:", data);
-        console.log("Match result:", data.match_result);
-        setPdfMatchResults(data.match_result);
-        await fetchProjectDetails(); // Refresh to get updated status
-        console.log("Project after refresh:", project);
+        console.log("PDF matching task started, data:", data);
+        
+        if (data.task_id) {
+          // Start polling for task completion
+          console.log("Starting task polling for:", data.task_id);
+          await pollTaskStatus(data.task_id, 'PDF Matching', (result) => {
+            // On successful completion
+            if (result && result.match_result) {
+              console.log("PDF matching completed, result:", result.match_result);
+              setPdfMatchResults(result.match_result);
+            }
+            fetchProjectDetails(); // Refresh to get updated status
+          });
+        } else {
+          // Fallback to old synchronous response
+          console.log("PDF matching successful, data:", data);
+          console.log("Match result:", data.match_result);
+          setPdfMatchResults(data.match_result);
+          await fetchProjectDetails(); // Refresh to get updated status
+        }
       } else {
         const errorData = await response.json();
         console.error("PDF matching failed:", errorData);
@@ -588,9 +679,26 @@ const ProjectDetailPage = () => {
       
       if (response.ok) {
         const data = await response.json();
-        setDuplicateResults(data.duplicate_results);
-        alert(`Found ${data.duplicates_found} duplicate segments in ${data.duplicate_results.summary.unique_duplicate_groups} groups`);
-        fetchProjectDetails(); // Refresh to get updated status
+        console.log("Duplicate detection task started, data:", data);
+        
+        if (data.task_id) {
+          // Start polling for task completion
+          console.log("Starting task polling for:", data.task_id);
+          await pollTaskStatus(data.task_id, 'Duplicate Detection', (result) => {
+            // On successful completion
+            if (result && result.duplicate_results) {
+              console.log("Duplicate detection completed, result:", result.duplicate_results);
+              setDuplicateResults(result.duplicate_results);
+              alert(`Found ${result.duplicate_results.duplicates_found} duplicate segments`);
+            }
+            fetchProjectDetails(); // Refresh to get updated status
+          });
+        } else {
+          // Fallback to old synchronous response
+          setDuplicateResults(data.duplicate_results);
+          alert(`Found ${data.duplicates_found} duplicate segments in ${data.duplicate_results.summary.unique_duplicate_groups} groups`);
+          fetchProjectDetails(); // Refresh to get updated status
+        }
       } else {
         const errorData = await response.json();
         alert(errorData.error || "Failed to detect duplicates");
@@ -623,6 +731,39 @@ const ProjectDetailPage = () => {
     } catch (error) {
       console.error("Error loading duplicate review:", error);
       alert("Failed to load duplicate review");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const resetPDFMatching = async () => {
+    if (!window.confirm("This will reset PDF matching and force re-extraction of PDF text. Continue?")) {
+      return;
+    }
+
+    try {
+      setProcessing(true);
+      const response = await fetchWithAuth(`/api/projects/${projectId}/`, {
+        method: "PATCH",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reset_pdf_text: true
+        })
+      }, token);
+      
+      if (response.ok) {
+        setPdfMatchResults(null);
+        fetchProjectDetails(); // Refresh to get updated status
+        alert("PDF matching has been reset. You can now try matching again.");
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || "Failed to reset PDF matching");
+      }
+    } catch (error) {
+      console.error("Error resetting PDF matching:", error);
+      alert("Failed to reset PDF matching");
     } finally {
       setProcessing(false);
     }
@@ -1056,7 +1197,15 @@ const ProjectDetailPage = () => {
                   {processing ? (
                     <div className="processing-status">
                       <div className="loading-spinner"></div>
-                      <p>🔍 Analyzing PDF content and matching with audio transcript...</p>
+                      <p>🔍 {currentTaskName || 'Analyzing PDF content and matching with audio transcript'}...</p>
+                      {progress > 0 && (
+                        <div className="progress-container">
+                          <div className="progress-bar">
+                            <div className="progress-fill" style={{width: `${progress}%`}}></div>
+                          </div>
+                          <span className="progress-text">{progress}%</span>
+                        </div>
+                      )}
                       <p><em>This may take a few moments...</em></p>
                     </div>
                   ) : (
@@ -1077,6 +1226,16 @@ const ProjectDetailPage = () => {
                   <div className="match-results">
                     <p><strong>Chapter:</strong> {project.pdf_chapter_title}</p>
                     <p><strong>Confidence:</strong> {(project.pdf_match_confidence * 100).toFixed(1)}%</p>
+                  </div>
+                  
+                  <div className="pdf-actions">
+                    <button 
+                      className="reset-pdf-btn secondary-btn"
+                      onClick={resetPDFMatching}
+                      title="Reset and re-extract PDF text"
+                    >
+                      🔄 Reset PDF Matching
+                    </button>
                   </div>
                   
                   <div className="debug-info" style={{backgroundColor: '#f0f0f0', padding: '10px', margin: '10px 0'}}>
@@ -1123,7 +1282,15 @@ const ProjectDetailPage = () => {
                   {processing ? (
                     <div className="processing-status">
                       <div className="loading-spinner"></div>
-                      <p>🔍 Analyzing audio transcript for duplicate content...</p>
+                      <p>🔍 {currentTaskName || 'Analyzing audio transcript for duplicate content'}...</p>
+                      {progress > 0 && (
+                        <div className="progress-container">
+                          <div className="progress-bar">
+                            <div className="progress-fill" style={{width: `${progress}%`}}></div>
+                          </div>
+                          <span className="progress-text">{progress}%</span>
+                        </div>
+                      )}
                       <p><em>Comparing against PDF sections...</em></p>
                     </div>
                   ) : (

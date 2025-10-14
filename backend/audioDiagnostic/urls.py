@@ -38,6 +38,9 @@ urlpatterns = [
     # Infrastructure Management
     path('infrastructure/status/', InfrastructureStatusView.as_view(), name='infrastructure-status'),
     
+    # Task Status Checking (prevents timeouts)
+    path('tasks/<str:task_id>/status/', TaskStatusView.as_view(), name='task-status'),
+    
     # Legacy endpoints (kept for backward compatibility)
     path('upload-chunk/', upload_chunk, name='audio-upload-chunk'),
     path('assemble-chunks/', assemble_chunks, name='audio-assemble-chunks'),

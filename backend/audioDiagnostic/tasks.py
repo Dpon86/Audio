@@ -1359,3 +1359,746 @@ def process_confirmed_deletions_task(self, project_id, confirmed_deletions):
         logger.info(f"Generated clean audio: {output_path}")
         
         return output_path
+
+
+@shared_task(bind=True)
+def match_pdf_to_audio_task(self, project_id):
+    """
+    Celery task for PDF-to-Audio matching to prevent frontend timeouts
+    Uses sentence-based boundary detection for comprehensive matching
+    """
+    task_id = self.request.id
+    
+    # Get Redis connection appropriate for this environment
+    r = get_redis_connection()
+    
+    # Set up Docker and Celery infrastructure
+    if not docker_celery_manager.setup_infrastructure():
+        raise Exception("Failed to set up Docker and Celery infrastructure")
+    
+    # Register this task
+    docker_celery_manager.register_task(task_id)
+    
+    try:
+        # Get project
+        from .models import AudioProject
+        project = AudioProject.objects.get(id=project_id)
+        
+        r.set(f"progress:{task_id}", 5)
+        logger.info(f"Starting PDF matching for project {project_id}")
+        
+        # Verify prerequisites
+        if not project.pdf_file:
+            raise ValueError("No PDF file uploaded")
+        
+        audio_files = project.audio_files.filter(status='transcribed')
+        if not audio_files.exists():
+            raise ValueError("No transcribed audio files found")
+        
+        r.set(f"progress:{task_id}", 15)
+        
+        # Extract PDF text if not already done
+        if not project.pdf_text:
+            from PyPDF2 import PdfReader
+            
+            logger.info(f"Extracting PDF text from {project.pdf_file.path}")
+            reader = PdfReader(project.pdf_file.path)
+            logger.info(f"PDF has {len(reader.pages)} pages")
+            
+            # Extract text from all pages with progress tracking
+            all_text = []
+            total_pages = len(reader.pages)
+            
+            for i, page in enumerate(reader.pages):
+                try:
+                    page_text = page.extract_text()
+                    if page_text and page_text.strip():
+                        all_text.append(page_text.strip())
+                        logger.info(f"Page {i+1}: extracted {len(page_text)} characters")
+                    else:
+                        logger.warning(f"Page {i+1}: no text extracted")
+                        
+                    # Update progress for PDF extraction (15-40%)
+                    progress = 15 + int((i + 1) / total_pages * 25)
+                    r.set(f"progress:{task_id}", progress)
+                    
+                except Exception as e:
+                    logger.error(f"Error extracting text from page {i+1}: {e}")
+            
+            project.pdf_text = "\n\n".join(all_text)
+            logger.info(f"Total PDF text extracted: {len(project.pdf_text)} characters")
+            project.save()
+        
+        r.set(f"progress:{task_id}", 45)
+        
+        # Get combined transcript from all audio files
+        if not project.combined_transcript:
+            transcripts = []
+            for audio_file in audio_files.order_by('order_index'):
+                if audio_file.transcript_text:
+                    transcripts.append(audio_file.transcript_text)
+            project.combined_transcript = "\n".join(transcripts)
+            project.save()
+        
+        r.set(f"progress:{task_id}", 55)
+        
+        # Debug logging for text comparison
+        logger.info(f"PDF text length: {len(project.pdf_text)}")
+        logger.info(f"Combined transcript length: {len(project.combined_transcript)}")
+        
+        # Perform the intensive PDF matching using sentence-based algorithm
+        logger.info("Starting sentence-based PDF matching algorithm...")
+        r.set(f"progress:{task_id}", 60)
+        
+        match_result = find_pdf_section_match_task(project.pdf_text, project.combined_transcript, task_id, r)
+        
+        r.set(f"progress:{task_id}", 90)
+        
+        # Save results to project
+        project.pdf_matched_section = match_result['matched_section']
+        project.pdf_match_confidence = match_result['confidence']
+        project.pdf_chapter_title = match_result['chapter_title']
+        project.pdf_match_completed = True
+        project.save()
+        
+        r.set(f"progress:{task_id}", 100)
+        
+        # Unregister task
+        docker_celery_manager.unregister_task(task_id)
+        
+        logger.info(f"PDF matching completed for project {project_id}")
+        
+        return {
+            'status': 'completed',
+            'match_result': {
+                'matched_section_preview': match_result['matched_section'][:500] + '...',
+                'confidence': match_result['confidence'],
+                'chapter_title': match_result['chapter_title'],
+                'coverage_analyzed': match_result.get('coverage_analyzed', 0),
+                'match_type': match_result.get('match_type', 'unknown'),
+                'match_completed': True
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"PDF matching failed for project {project_id}: {str(e)}")
+        
+        # Update project with error
+        try:
+            project.status = 'failed'
+            project.error_message = f"PDF matching failed: {str(e)}"
+            project.save()
+        except:
+            pass
+            
+        # Unregister task even on failure
+        docker_celery_manager.unregister_task(task_id)
+            
+        r.set(f"progress:{task_id}", -1)
+        raise e
+
+
+def find_pdf_section_match_task(pdf_text, transcript, task_id, r):
+    """
+    Sentence-based PDF matching algorithm for Celery task with progress tracking
+    """
+    import difflib
+    import re
+    
+    logger.info(f"Starting SENTENCE-BASED PDF matching - PDF: {len(pdf_text)} chars, Transcript: {len(transcript)} chars")
+    
+    # Clean and normalize texts for better matching
+    def deep_clean_text(text):
+        # Remove extra whitespace, normalize punctuation
+        text = re.sub(r'\s+', ' ', text.lower().strip())
+        text = re.sub(r'[^\w\s\.]', ' ', text)  # Keep only words and periods
+        text = re.sub(r'\s+', ' ', text)
+        return text
+    
+    # Extract sentences from transcript
+    def extract_sentences(text, num_sentences=3):
+        # Split by sentence endings but be flexible about transcription
+        sentences = re.split(r'[.!?]+\s+', text.strip())
+        sentences = [s.strip() for s in sentences if len(s.strip()) > 10]  # Min 10 chars per sentence
+        return sentences
+    
+    pdf_clean = deep_clean_text(pdf_text)
+    transcript_clean = deep_clean_text(transcript)
+    
+    r.set(f"progress:{task_id}", 65)
+    
+    # Get first and last sentences from transcript
+    transcript_sentences = extract_sentences(transcript)
+    logger.info(f"Extracted {len(transcript_sentences)} sentences from transcript")
+    
+    if len(transcript_sentences) < 2:
+        logger.warning("Too few sentences in transcript - using fallback method")
+        # Fallback to character-based chunks
+        first_chunk = transcript_clean[:500]
+        last_chunk = transcript_clean[-500:] if len(transcript_clean) > 500 else transcript_clean
+    else:
+        # Use first 3 and last 3 sentences
+        num_boundary_sentences = min(3, len(transcript_sentences) // 2)
+        
+        first_sentences = transcript_sentences[:num_boundary_sentences]
+        last_sentences = transcript_sentences[-num_boundary_sentences:]
+        
+        first_chunk = deep_clean_text(' '.join(first_sentences))
+        last_chunk = deep_clean_text(' '.join(last_sentences))
+        
+        logger.info(f"Using {num_boundary_sentences} sentences for start/end detection")
+    
+    r.set(f"progress:{task_id}", 70)
+    
+    # PHASE 1: Find START position using first sentences
+    logger.info("PHASE 1: Finding START position using first sentences...")
+    start_position = None
+    start_method = None
+    
+    # Try different approaches to find the start
+    search_variants = []
+    
+    # Variant 1: Full first chunk
+    search_variants.append(("full_chunk", first_chunk))
+    
+    # Variant 2: Remove common words from first chunk
+    first_chunk_filtered = re.sub(r'\b(the|and|of|to|a|in|is|it|you|that|he|was|for|on|are|as|with|his|they|i|at|be|this|have|from|or|one|had|by|word|but|not|what|all|were|we|when|your|can|said|there|each|which|she|do|how|their|if|so|up|out|if|about|who|get|which|go|me)\b', ' ', first_chunk)
+    first_chunk_filtered = re.sub(r'\s+', ' ', first_chunk_filtered).strip()
+    if len(first_chunk_filtered) > 30:
+        search_variants.append(("filtered_chunk", first_chunk_filtered))
+    
+    # Variant 3: Key phrases from first chunk (8-word sequences)
+    first_words = first_chunk.split()
+    for i in range(0, min(len(first_words) - 7, 5)):  # Try first 5 possible 8-word phrases
+        phrase = ' '.join(first_words[i:i+8])
+        if len(phrase) > 25:
+            search_variants.append((f"phrase_{i}", phrase))
+    
+    # Search for start position
+    for variant_name, search_text in search_variants:
+        if len(search_text) < 20:
+            continue
+            
+        match_pos = pdf_clean.find(search_text)
+        if match_pos != -1:
+            start_position = match_pos
+            start_method = variant_name
+            logger.info(f"Found START at position {match_pos} using {variant_name}")
+            break
+    
+    r.set(f"progress:{task_id}", 80)
+    
+    # PHASE 2: Find END position using last sentences
+    logger.info("PHASE 2: Finding END position using last sentences...")
+    end_position = None
+    end_method = None
+    
+    if start_position is not None:
+        # Search for end position after the start
+        end_search_variants = []
+        
+        # Variant 1: Full last chunk
+        end_search_variants.append(("full_end_chunk", last_chunk))
+        
+        # Variant 2: Filtered last chunk
+        last_chunk_filtered = re.sub(r'\b(the|and|of|to|a|in|is|it|you|that|he|was|for|on|are|as|with|his|they|i|at|be|this|have|from|or|one|had|by|word|but|not|what|all|were|we|when|your|can|said|there|each|which|she|do|how|their|if|so|up|out|if|about|who|get|which|go|me)\b', ' ', last_chunk)
+        last_chunk_filtered = re.sub(r'\s+', ' ', last_chunk_filtered).strip()
+        if len(last_chunk_filtered) > 30:
+            end_search_variants.append(("filtered_end_chunk", last_chunk_filtered))
+        
+        # Variant 3: Key phrases from last chunk
+        last_words = last_chunk.split()
+        for i in range(max(0, len(last_words) - 15), len(last_words) - 7):  # Try last few 8-word phrases
+            if i >= 0:
+                phrase = ' '.join(last_words[i:i+8])
+                if len(phrase) > 25:
+                    end_search_variants.append((f"end_phrase_{i}", phrase))
+        
+        # Search for end position
+        for variant_name, search_text in end_search_variants:
+            if len(search_text) < 20:
+                continue
+            
+            # Look for this text AFTER the start position
+            match_pos = pdf_clean.find(search_text, start_position + 100)  # Give some buffer
+            if match_pos != -1:
+                end_position = match_pos + len(search_text)
+                end_method = variant_name
+                logger.info(f"Found END at position {match_pos} using {variant_name}")
+                break
+    
+    r.set(f"progress:{task_id}", 85)
+    
+    # PHASE 3: Extract the matched section and calculate results
+    if start_position is not None and end_position is not None and end_position > start_position:
+        # SUCCESS: Found both start and end boundaries
+        matched_length = end_position - start_position
+        matched_section_clean = pdf_clean[start_position:end_position]
+        
+        # Calculate confidence using comprehensive similarity
+        confidence = calculate_comprehensive_similarity_task(matched_section_clean, transcript_clean)
+        
+        # Map back to original PDF text positions (approximate)
+        char_ratio = len(pdf_text) / len(pdf_clean)
+        original_start = int(start_position * char_ratio)
+        original_end = int(end_position * char_ratio)
+        
+        # Expand slightly for context and ensure we don't go out of bounds
+        context_buffer = 100
+        expanded_start = max(0, original_start - context_buffer)
+        expanded_end = min(len(pdf_text), original_end + context_buffer)
+        
+        matched_section = pdf_text[expanded_start:expanded_end]
+        
+        # Extract chapter title from context
+        chapter_context = pdf_text[max(0, expanded_start - 800):expanded_start + 300]
+        chapter_title = extract_chapter_title_task(chapter_context)
+        
+        coverage = matched_length / len(pdf_clean)
+        
+        logger.info(f"SUCCESS: COMPLETE BOUNDARY MATCH!")
+        logger.info(f"- Start method: {start_method} at position {start_position}")
+        logger.info(f"- End method: {end_method} at position {end_position}")
+        logger.info(f"- Matched length: {matched_length} chars ({coverage*100:.1f}% of PDF)")
+        logger.info(f"- Confidence: {confidence:.3f}")
+        logger.info(f"- Chapter: {chapter_title}")
+        
+        return {
+            'matched_section': matched_section,
+            'confidence': confidence,
+            'chapter_title': chapter_title,
+            'coverage_analyzed': coverage,
+            'start_position': start_position,
+            'end_position': end_position,
+            'match_type': 'sentence_boundary',
+            'start_method': start_method,
+            'end_method': end_method
+        }
+        
+    elif start_position is not None:
+        # PARTIAL: Found start but no clear end - use intelligent estimation
+        logger.info("Found START boundary but not END - using intelligent estimation")
+        
+        # Estimate end position based on transcript length vs PDF length
+        estimated_length = min(
+            int(len(transcript_clean) * 1.5),  # Assume PDF is 1.5x longer due to formatting
+            len(pdf_clean) - start_position    # Don't exceed PDF length
+        )
+        
+        estimated_end = start_position + estimated_length
+        matched_section_clean = pdf_clean[start_position:estimated_end]
+        confidence = calculate_comprehensive_similarity_task(matched_section_clean, transcript_clean)
+        
+        # Map back to original text
+        char_ratio = len(pdf_text) / len(pdf_clean)
+        original_start = int(start_position * char_ratio)
+        original_end = int(estimated_end * char_ratio)
+        
+        expanded_start = max(0, original_start - 100)
+        expanded_end = min(len(pdf_text), original_end + 100)
+        
+        matched_section = pdf_text[expanded_start:expanded_end]
+        chapter_title = extract_chapter_title_task(pdf_text[max(0, expanded_start - 800):expanded_start + 300])
+        
+        coverage = estimated_length / len(pdf_clean)
+        
+        logger.info(f"PARTIAL MATCH from start boundary - Coverage: {coverage*100:.1f}%, Confidence: {confidence:.3f}")
+        
+        return {
+            'matched_section': matched_section,
+            'confidence': confidence,
+            'chapter_title': chapter_title,
+            'coverage_analyzed': coverage,
+            'start_position': start_position,
+            'match_type': 'start_boundary_estimated',
+            'start_method': start_method
+        }
+    
+    else:
+        # FALLBACK: No clear boundaries found - use comprehensive analysis
+        logger.warning("No sentence boundaries found - using comprehensive fallback")
+        
+        # Try to find ANY substantial match in the PDF
+        best_match_pos = 0
+        best_confidence = 0
+        chunk_size = len(transcript_clean)
+        
+        # Sliding window to find best match
+        step_size = max(1000, len(pdf_clean) // 20)  # Check 20 positions across PDF
+        
+        for pos in range(0, max(1, len(pdf_clean) - chunk_size), step_size):
+            pdf_chunk = pdf_clean[pos:pos + chunk_size]
+            confidence = calculate_comprehensive_similarity_task(pdf_chunk, transcript_clean)
+            
+            if confidence > best_confidence:
+                best_confidence = confidence
+                best_match_pos = pos
+        
+        # Use the best match found
+        matched_section_clean = pdf_clean[best_match_pos:best_match_pos + chunk_size]
+        
+        # Map to original text
+        char_ratio = len(pdf_text) / len(pdf_clean)
+        original_start = int(best_match_pos * char_ratio)
+        original_end = int((best_match_pos + chunk_size) * char_ratio)
+        
+        matched_section = pdf_text[original_start:original_end]
+        chapter_title = extract_chapter_title_task(pdf_text[max(0, original_start - 800):original_start + 300])
+        
+        coverage = chunk_size / len(pdf_clean)
+        
+        logger.info(f"FALLBACK MATCH at position {best_match_pos} - Coverage: {coverage*100:.1f}%, Confidence: {best_confidence:.3f}")
+        
+        return {
+            'matched_section': matched_section,
+            'confidence': max(0.15, best_confidence),  # Ensure minimum confidence
+            'chapter_title': chapter_title,
+            'coverage_analyzed': coverage,
+            'match_type': 'comprehensive_fallback',
+            'best_match_position': best_match_pos
+        }
+
+
+def calculate_comprehensive_similarity_task(text1, text2):
+    """Comprehensive similarity calculation for Celery task"""
+    import difflib
+    import re
+    
+    # Method 1: Word overlap (primary method for transcription)
+    words1 = set(re.findall(r'\b\w{4,}\b', text1.lower()))  # 4+ char words only
+    words2 = set(re.findall(r'\b\w{4,}\b', text2.lower()))
+    
+    if words1 and words2:
+        word_intersection = len(words1 & words2)
+        word_union = len(words1 | words2)
+        word_similarity = word_intersection / word_union if word_union > 0 else 0
+    else:
+        word_similarity = 0
+    
+    # Method 2: Phrase matching (6+ word sequences)
+    phrases1 = []
+    phrases2 = []
+    
+    words1_list = re.findall(r'\b\w+\b', text1.lower())
+    words2_list = re.findall(r'\b\w+\b', text2.lower())
+    
+    # Create overlapping 6-word phrases
+    for i in range(len(words1_list) - 5):
+        phrases1.append(' '.join(words1_list[i:i+6]))
+    for i in range(len(words2_list) - 5):
+        phrases2.append(' '.join(words2_list[i:i+6]))
+    
+    phrases1_set = set(phrases1)
+    phrases2_set = set(phrases2)
+    
+    if phrases1_set and phrases2_set:
+        phrase_intersection = len(phrases1_set & phrases2_set)
+        phrase_union = len(phrases1_set | phrases2_set)
+        phrase_similarity = phrase_intersection / phrase_union if phrase_union > 0 else 0
+    else:
+        phrase_similarity = 0
+    
+    # Method 3: Character n-gram similarity (for structure)
+    def get_ngrams(text, n=4):
+        text_clean = re.sub(r'\s+', '', text.lower())
+        return set(text_clean[i:i+n] for i in range(len(text_clean) - n + 1))
+    
+    ngrams1 = get_ngrams(text1)
+    ngrams2 = get_ngrams(text2)
+    
+    if ngrams1 and ngrams2:
+        ngram_intersection = len(ngrams1 & ngrams2)
+        ngram_union = len(ngrams1 | ngrams2)
+        ngram_similarity = ngram_intersection / ngram_union if ngram_union > 0 else 0
+    else:
+        ngram_similarity = 0
+    
+    # Weighted combination optimized for audio transcription
+    combined_similarity = (
+        word_similarity * 0.6 +     # 60% - word overlap (most reliable for audio)
+        phrase_similarity * 0.3 +   # 30% - phrase matching (structure)
+        ngram_similarity * 0.1      # 10% - character patterns
+    )
+    
+    return combined_similarity
+
+
+def extract_chapter_title_task(context_text):
+    """Extract chapter/section title from context for Celery task"""
+    import re
+    
+    # Multiple patterns to find chapter titles
+    chapter_patterns = [
+        r'chapter\s+(\d+|[ivx]+)[\s\.:]*([^\n\r.]{1,100})',
+        r'(\d+)\.\s+([A-Z][^\n\r.]{10,80})',  
+        r'section\s+(\d+)[\s\.:]*([^\n\r.]{1,100})',
+        r'^([A-Z][A-Z\s]{10,60})\s*$',  # All caps titles
+        r'(Chapter\s+[A-Z][^\n\r.]{5,80})',
+        r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+){2,8})\s*\n'  # Title Case
+    ]
+    
+    for pattern in chapter_patterns:
+        match = re.search(pattern, context_text, re.IGNORECASE | re.MULTILINE)
+        if match:
+            if len(match.groups()) >= 2:
+                # Two groups: number and title
+                return f"Chapter {match.group(1).strip()} - {match.group(2).strip()}"
+            else:
+                # Single group: full title
+                return match.group(1).strip()
+    
+    # Fallback: look for the first meaningful sentence
+    sentences = re.split(r'[.!?]\s+', context_text)
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if 20 <= len(sentence) <= 100 and not sentence.lower().startswith(('the ', 'and ', 'but ', 'however')):
+            return f"Section: {sentence[:80]}..."
+    
+    return "PDF Beginning (auto-detected)"
+
+
+@shared_task(bind=True)
+def detect_duplicates_task(self, project_id):
+    """
+    Celery task for duplicate detection to prevent frontend timeouts
+    Compares audio segments against PDF to find duplicates
+    """
+    task_id = self.request.id
+    
+    # Get Redis connection appropriate for this environment
+    r = get_redis_connection()
+    
+    # Set up Docker and Celery infrastructure
+    if not docker_celery_manager.setup_infrastructure():
+        raise Exception("Failed to set up Docker and Celery infrastructure")
+    
+    # Register this task
+    docker_celery_manager.register_task(task_id)
+    
+    try:
+        # Get project
+        from .models import AudioProject, AudioFile, TranscriptionSegment
+        project = AudioProject.objects.get(id=project_id)
+        
+        r.set(f"progress:{task_id}", 5)
+        logger.info(f"Starting duplicate detection for project {project_id}")
+        
+        # Verify prerequisites
+        if not project.pdf_match_completed:
+            raise ValueError("PDF matching must be completed first")
+        
+        if not project.pdf_matched_section:
+            raise ValueError("No PDF matched section found")
+        
+        r.set(f"progress:{task_id}", 15)
+        
+        # Get all transcription segments
+        logger.info("Collecting transcription segments...")
+        all_segments = []
+        audio_files = project.audio_files.filter(status='transcribed').order_by('order_index')
+        
+        total_files = audio_files.count()
+        
+        for i, audio_file in enumerate(audio_files):
+            segments = TranscriptionSegment.objects.filter(audio_file=audio_file).order_by('segment_index')
+            for segment in segments:
+                all_segments.append({
+                    'id': segment.id,
+                    'audio_file_id': audio_file.id,
+                    'audio_file_title': audio_file.title,
+                    'text': segment.text.strip(),
+                    'start_time': segment.start_time,
+                    'end_time': segment.end_time,
+                    'segment_index': segment.segment_index
+                })
+            
+            # Update progress for segment collection (15-40%)
+            progress = 15 + int((i + 1) / total_files * 25)
+            r.set(f"progress:{task_id}", progress)
+        
+        logger.info(f"Collected {len(all_segments)} segments from {total_files} audio files")
+        r.set(f"progress:{task_id}", 45)
+        
+        # Detect duplicates by comparing against PDF
+        logger.info("Starting duplicate detection algorithm...")
+        duplicate_results = detect_duplicates_against_pdf_task(
+            all_segments, 
+            project.pdf_matched_section,
+            project.combined_transcript,
+            task_id,
+            r
+        )
+        
+        r.set(f"progress:{task_id}", 90)
+        
+        # Save results to project
+        project.duplicates_detected = duplicate_results
+        project.duplicates_detection_completed = True
+        project.status = 'duplicates_detected'  # Update status
+        project.save()
+        
+        r.set(f"progress:{task_id}", 100)
+        
+        # Unregister task
+        docker_celery_manager.unregister_task(task_id)
+        
+        logger.info(f"Duplicate detection completed for project {project_id}")
+        logger.info(f"Found {len(duplicate_results.get('duplicates', []))} duplicates")
+        
+        return {
+            'status': 'completed',
+            'duplicate_results': {
+                'total_segments': len(all_segments),
+                'duplicates_found': len(duplicate_results.get('duplicates', [])),
+                'detection_completed': True,
+                'duplicates_preview': duplicate_results.get('duplicates', [])[:5]  # First 5 for preview
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Duplicate detection failed for project {project_id}: {str(e)}")
+        
+        # Update project with error
+        try:
+            project.status = 'failed'
+            project.error_message = f"Duplicate detection failed: {str(e)}"
+            project.save()
+        except:
+            pass
+            
+        # Unregister task even on failure
+        docker_celery_manager.unregister_task(task_id)
+            
+        r.set(f"progress:{task_id}", -1)
+        raise e
+
+
+def detect_duplicates_against_pdf_task(segments, pdf_section, full_transcript, task_id, r):
+    """
+    Compare audio segments against PDF to find duplicates (for Celery task)
+    Returns comprehensive duplicate analysis with similarity scores
+    """
+    import difflib
+    import re
+    
+    logger.info(f"Analyzing {len(segments)} segments against PDF section ({len(pdf_section)} chars)")
+    
+    # Clean PDF text for better matching
+    def clean_text_for_comparison(text):
+        # Normalize whitespace and punctuation
+        text = re.sub(r'\s+', ' ', text.lower().strip())
+        text = re.sub(r'[^\w\s]', ' ', text)  # Remove punctuation except spaces
+        text = re.sub(r'\s+', ' ', text)  # Normalize spaces
+        return text
+    
+    pdf_clean = clean_text_for_comparison(pdf_section)
+    transcript_clean = clean_text_for_comparison(full_transcript)
+    
+    duplicates = []
+    unique_segments = []
+    total_segments = len(segments)
+    
+    # Progress tracking for duplicate detection (45-85%)
+    base_progress = 45
+    progress_range = 40
+    
+    for i, segment in enumerate(segments):
+        segment_text = segment['text']
+        segment_clean = clean_text_for_comparison(segment_text)
+        
+        # Skip very short segments (likely not meaningful duplicates)
+        if len(segment_clean.split()) < 3:
+            unique_segments.append(segment)
+            continue
+        
+        # Method 1: Direct text matching in PDF
+        pdf_similarity = 0
+        if segment_clean in pdf_clean:
+            pdf_similarity = 1.0  # Exact match
+        else:
+            # Use sequence matcher for partial matches
+            pdf_similarity = difflib.SequenceMatcher(None, segment_clean, pdf_clean).ratio()
+        
+        # Method 2: Word-based similarity
+        segment_words = set(segment_clean.split())
+        pdf_words = set(pdf_clean.split())
+        
+        if segment_words and pdf_words:
+            word_intersection = len(segment_words & pdf_words)
+            word_union = len(segment_words | pdf_words)
+            word_similarity = word_intersection / word_union if word_union > 0 else 0
+        else:
+            word_similarity = 0
+        
+        # Method 3: Look for similar phrases in PDF (sliding window)
+        phrase_similarity = 0
+        segment_length = len(segment_clean)
+        if segment_length > 20:  # Only for substantial segments
+            for start in range(0, max(1, len(pdf_clean) - segment_length), max(1, len(pdf_clean) // 100)):
+                pdf_chunk = pdf_clean[start:start + segment_length]
+                similarity = difflib.SequenceMatcher(None, segment_clean, pdf_chunk).ratio()
+                phrase_similarity = max(phrase_similarity, similarity)
+        
+        # Combined similarity score (weighted)
+        combined_similarity = (
+            pdf_similarity * 0.4 +      # 40% - overall PDF similarity
+            word_similarity * 0.4 +     # 40% - word overlap
+            phrase_similarity * 0.2     # 20% - phrase matching
+        )
+        
+        # Determine if it's a duplicate (threshold: 0.7)
+        is_duplicate = combined_similarity >= 0.7
+        
+        duplicate_info = {
+            'segment': segment,
+            'is_duplicate': is_duplicate,
+            'similarity_score': combined_similarity,
+            'pdf_similarity': pdf_similarity,
+            'word_similarity': word_similarity,
+            'phrase_similarity': phrase_similarity,
+            'confidence': 'high' if combined_similarity >= 0.8 else 'medium' if combined_similarity >= 0.6 else 'low'
+        }
+        
+        if is_duplicate:
+            duplicates.append(duplicate_info)
+        else:
+            unique_segments.append(segment)
+        
+        # Update progress
+        progress = base_progress + int((i + 1) / total_segments * progress_range)
+        r.set(f"progress:{task_id}", progress)
+    
+    # Calculate summary statistics
+    total_duplicate_time = sum(
+        dup['segment']['end_time'] - dup['segment']['start_time'] 
+        for dup in duplicates
+    )
+    
+    total_unique_time = sum(
+        seg['end_time'] - seg['start_time'] 
+        for seg in unique_segments
+    )
+    
+    duplicate_percentage = (len(duplicates) / total_segments * 100) if total_segments > 0 else 0
+    
+    logger.info(f"Duplicate detection completed:")
+    logger.info(f"- Total segments: {total_segments}")
+    logger.info(f"- Duplicates found: {len(duplicates)} ({duplicate_percentage:.1f}%)")
+    logger.info(f"- Unique segments: {len(unique_segments)}")
+    logger.info(f"- Duplicate time: {total_duplicate_time:.1f}s")
+    logger.info(f"- Unique time: {total_unique_time:.1f}s")
+    
+    return {
+        'duplicates': duplicates,
+        'unique_segments': unique_segments,
+        'summary': {
+            'total_segments': total_segments,
+            'duplicates_count': len(duplicates),
+            'unique_count': len(unique_segments),
+            'duplicate_percentage': duplicate_percentage,
+            'total_duplicate_time': total_duplicate_time,
+            'total_unique_time': total_unique_time,
+            'pdf_section_length': len(pdf_section),
+            'analysis_method': 'comprehensive_similarity'
+        }
+    }

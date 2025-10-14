@@ -253,6 +253,33 @@
   gap: 10px;
 }
 
+/* PDF Actions */
+.pdf-actions {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e9ecef;
+}
+
+.secondary-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.secondary-btn:hover:not(:disabled) {
+  background: #5a6268;
+}
+
+.secondary-btn:disabled {
+  background: #adb5bd;
+  cursor: not-allowed;
+}
+
 .loading-message, .loading-transcript {
   padding: 20px;
   text-align: center;
