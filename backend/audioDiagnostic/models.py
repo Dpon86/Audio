@@ -20,6 +20,10 @@ class AudioProject(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    # Iterative cleaning - link to parent project
+    parent_project = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='iterations')
+    iteration_number = models.IntegerField(default=0)  # 0 = original, 1 = first iteration, etc.
+    
     # Project-level results after processing all audio files
     pdf_text = models.TextField(null=True, blank=True)  # Extracted PDF text
     combined_transcript = models.TextField(null=True, blank=True)  # All transcripts combined
@@ -35,6 +39,8 @@ class AudioProject(models.Model):
     pdf_match_confidence = models.FloatField(null=True, blank=True)  # Confidence score 0-1
     pdf_chapter_title = models.CharField(max_length=200, null=True, blank=True)  # e.g. "Chapter 1"
     pdf_match_completed = models.BooleanField(default=False)  # Step 1 completion status
+    pdf_match_start_char = models.IntegerField(null=True, blank=True)  # Character position where match starts
+    pdf_match_end_char = models.IntegerField(null=True, blank=True)  # Character position where match ends
     
     # Duplicate Detection Results (Step 2)
     duplicates_detected = models.JSONField(null=True, blank=True)  # List of detected duplicates
@@ -42,6 +48,21 @@ class AudioProject(models.Model):
     
     # User Review Results (Step 3)
     duplicates_confirmed_for_deletion = models.JSONField(null=True, blank=True)  # User-confirmed deletions
+    
+    # Duration Tracking
+    original_audio_duration = models.FloatField(null=True, blank=True)  # Total duration of all original audio (seconds)
+    final_audio_duration = models.FloatField(null=True, blank=True)  # Duration of processed audio after deletions (seconds)
+    duration_deleted = models.FloatField(null=True, blank=True)  # Total duration of deleted segments (seconds)
+    
+    # Post-Processing Verification (Step 4)
+    clean_audio_transcribed = models.BooleanField(default=False)  # Clean audio transcription completed
+    verification_completed = models.BooleanField(default=False)  # Verification comparison completed
+    verification_results = models.JSONField(null=True, blank=True)  # Comparison results vs PDF
+    
+    # PDF Word-by-Word Validation (Step 5)
+    pdf_validation_completed = models.BooleanField(default=False)  # PDF validation completed
+    pdf_validation_results = models.JSONField(null=True, blank=True)  # Statistics: matched_words, unmatched_pdf_words, etc.
+    pdf_validation_html = models.TextField(null=True, blank=True)  # Rendered HTML with color-coded highlights
     
     error_message = models.TextField(null=True, blank=True)
     
@@ -108,6 +129,9 @@ class TranscriptionSegment(models.Model):
     text = models.TextField()
     start_time = models.FloatField()  # seconds from start of THIS audio file
     end_time = models.FloatField()    # seconds from start of THIS audio file  
+    
+    # Verification flag to distinguish clean audio transcription
+    is_verification = models.BooleanField(default=False)  # True if from clean/processed audio
     
     # Duplicate detection results (filled during processing phase)
     is_duplicate = models.BooleanField(default=False)

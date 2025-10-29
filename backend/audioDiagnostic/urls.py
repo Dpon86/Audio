@@ -25,6 +25,12 @@ urlpatterns = [
     path('projects/<int:project_id>/detect-duplicates/', ProjectDetectDuplicatesView.as_view(), name='project-detect-duplicates'),
     path('projects/<int:project_id>/duplicates/', ProjectDuplicatesReviewView.as_view(), name='project-duplicates-review'),
     path('projects/<int:project_id>/confirm-deletions/', ProjectConfirmDeletionsView.as_view(), name='project-confirm-deletions'),
+    path('projects/<int:project_id>/verify-cleanup/', ProjectVerifyCleanupView.as_view(), name='project-verify-cleanup'),
+    path('projects/<int:project_id>/validate-against-pdf/', ProjectValidatePDFView.as_view(), name='project-validate-pdf'),
+    path('projects/<int:project_id>/validation-progress/<str:task_id>/', ProjectValidationProgressView.as_view(), name='project-validation-progress'),
+    
+    # Iterative Cleaning API (Step 6 - Create child project)
+    path('projects/<int:project_id>/create-iteration/', ProjectRedetectDuplicatesView.as_view(), name='project-create-iteration'),
     
     # Audio File Management
     path('projects/<int:project_id>/audio-files/', AudioFileListView.as_view(), name='audio-file-list'),

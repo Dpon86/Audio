@@ -336,6 +336,39 @@ Step 2c: Interactive Review
 3. User selects/deselects duplicates for deletion
 4. User clicks "Confirm Deletions" → POST /api/projects/{id}/confirm-deletions/
 5. Background task processes confirmed deletions → Generate clean audio
+
+Step 3: Automatic Clean Audio Transcription ⭐ New
+1. After generating clean audio, system automatically transcribes it
+2. Saves verification segments with is_verification=True flag
+3. Sets clean_audio_transcribed = True
+4. Ready for verification comparison
+
+Step 4: Post-Processing Verification ⭐ New
+1. User clicks "Compare Clean Audio to PDF" → POST /api/projects/{id}/verify-cleanup/
+2. System compares clean audio transcript against original PDF matched section
+3. Calculates similarity score and identifies any remaining duplicates
+4. Displays side-by-side comparison with statistics
+5. Alerts user if repeated sentences still exist
+6. Sets verification_completed = True
+
+Step 5: Word-by-Word PDF Validation ⭐ New
+1. User clicks "Test Against PDF Section" → POST /api/projects/{id}/validate-against-pdf/
+2. System starts Celery background task → Returns task_id for tracking
+3. Task gets clean transcript (excludes confirmed deletions)
+4. Tokenizes PDF section and clean transcript into individual words
+5. Sequential matching algorithm:
+   - For each word in PDF, search in transcript from last matched position
+   - If found: Mark GREEN in both PDF and transcript
+   - If not found: Mark RED in PDF, continue searching in transcript
+   - Move to next PDF word, resume from last matched transcript position
+6. Generate color-coded HTML with <span> tags for highlighting
+7. Calculate statistics: matched words, unmatched PDF words, unmatched transcript words
+8. Save results to database → pdf_validation_results, pdf_validation_html
+9. Frontend polls progress endpoint every second → Update progress bar
+10. Display results with side-by-side panels, match percentage, quality warnings
+11. Sets pdf_validation_completed = True
+```
+6. Sets verification_completed = True
 ```
 
 ### **Infrastructure Management**
@@ -369,10 +402,13 @@ File Management:
   POST   /api/projects/{id}/upload-audio/  # Upload audio
 
 Step-by-Step Processing (New Interactive Workflow): ⭐ New
-  POST   /api/projects/{id}/match-pdf/           # Step 2a: Match PDF section
-  POST   /api/projects/{id}/detect-duplicates/  # Step 2b: Detect duplicates
-  GET    /api/projects/{id}/duplicates/         # Step 2c: Get review data
-  POST   /api/projects/{id}/confirm-deletions/  # Step 3: Process confirmations
+  POST   /api/projects/{id}/match-pdf/                      # Step 2a: Match PDF section
+  POST   /api/projects/{id}/detect-duplicates/             # Step 2b: Detect duplicates
+  GET    /api/projects/{id}/duplicates/                    # Step 2c: Get review data
+  POST   /api/projects/{id}/confirm-deletions/             # Step 3: Process confirmations
+  POST   /api/projects/{id}/verify-cleanup/                # Step 4: Verify clean audio ⭐ New
+  POST   /api/projects/{id}/validate-against-pdf/          # Step 5: Start PDF validation ⭐ New
+  GET    /api/projects/{id}/validation-progress/{task_id}/ # Step 5: Check validation progress ⭐ New
 
 Legacy Processing (Backward Compatible):
   POST   /api/projects/{id}/transcribe/    # Step 1: Start transcription

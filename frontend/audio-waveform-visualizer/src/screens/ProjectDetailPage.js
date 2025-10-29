@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import DebugPanel from "../components/DebugPanel";
+import WaveSurfer from "wavesurfer.js";
 import "../static/CSS/ProjectDetailPage.css";
+import "../static/CSS/PDFRefinement.css";
 
 // Helper function for authenticated API calls
 const fetchWithAuth = (url, options = {}, token) => {
-  console.log('fetchWithAuth called:', { url, token: token ? `${token.substring(0, 8)}...` : 'null' });
-  
   const headers = {
     'Authorization': `Token ${token}`,
     ...options.headers
@@ -20,8 +20,6 @@ const fetchWithAuth = (url, options = {}, token) => {
   
   // Ensure full URL to backend server
   const fullUrl = url.startsWith('http') ? url : `http://localhost:8000${url}`;
-  
-  console.log('Making request to:', fullUrl, 'with headers:', headers);
   
   return fetch(fullUrl, {
     ...options,
@@ -42,7 +40,6 @@ const AudioFilesList = ({ projectId, onUpdate, token }) => {
         setAudioFiles(data.audio_files);
       }
     } catch (error) {
-      console.error("Error fetching audio files:", error);
     } finally {
       setLoading(false);
     }
@@ -108,7 +105,6 @@ const AudioFilesList = ({ projectId, onUpdate, token }) => {
         });
       }
       
-      console.error("Error transcribing audio file:", error);
       alert(`Failed to start transcription: ${error.message}`);
     }
   };
@@ -150,7 +146,6 @@ const AudioFilesList = ({ projectId, onUpdate, token }) => {
       if (window.debugLog) {
         window.debugLog('error', 'Restart Network Error', { message: error.message });
       }
-      console.error("Error restarting transcription:", error);
       alert("Failed to restart transcription");
     }
   };
@@ -168,7 +163,6 @@ const AudioFilesList = ({ projectId, onUpdate, token }) => {
         alert(errorData.error || "Failed to start processing");
       }
     } catch (error) {
-      console.error("Error processing audio file:", error);
       alert("Failed to start processing");
     }
   };
@@ -193,14 +187,12 @@ const AudioFilesList = ({ projectId, onUpdate, token }) => {
         alert(errorData.error || "Failed to delete audio file");
       }
     } catch (error) {
-      console.error("Error deleting audio file:", error);
       alert("Failed to delete audio file");
     }
   };
 
   if (loading) return <div className="audio-files-loading">Loading audio files...</div>;
 
-  console.log('AudioFilesList rendering with:', audioFiles.length, 'files:', audioFiles);
 
   return (
     <div className="audio-files-list">
@@ -287,14 +279,6 @@ const ProjectDetailPage = () => {
   const navigate = useNavigate();
   const { token, user, isAuthenticated } = useAuth();
   const [project, setProject] = useState(null);
-  
-  console.log('ProjectDetailPage render:', { 
-    projectId, 
-    token: token ? `${token.substring(0, 8)}...` : 'null', 
-    tokenFromStorage: localStorage.getItem('token') ? `${localStorage.getItem('token').substring(0, 8)}...` : 'null',
-    user: user ? user.username : 'null',
-    isAuthenticated 
-  });
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -305,30 +289,121 @@ const ProjectDetailPage = () => {
   const [transcript, setTranscript] = useState(null);
   const [transcriptVisible, setTranscriptVisible] = useState(false);
   
+  // Suppress AbortError in console - Enhanced version
+  useEffect(() => {
+    const handleUnhandledRejection = (event) => {
+      if (event.reason?.name === 'AbortError' || 
+          event.reason?.message?.includes('aborted') ||
+          event.reason?.message?.includes('abort') ||
+          event.message?.includes('aborted')) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        return false;
+      }
+    };
+    
+    const handleError = (event) => {
+      if (event.message?.includes('AbortError') || 
+          event.message?.includes('aborted') ||
+          event.error?.name === 'AbortError') {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        return false;
+      }
+    };
+    
+    // Suppress console error for AbortError
+    const originalConsoleError = console.error;
+    console.error = (...args) => {
+      const message = args.join(' ');
+      if (message.includes('AbortError') || 
+          message.includes('aborted') || 
+          message.includes('BodyStreamBuffer was aborted')) {
+        return; // Silently ignore
+      }
+      originalConsoleError.apply(console, args);
+    };
+    
+    window.addEventListener('unhandledrejection', handleUnhandledRejection, true);
+    window.addEventListener('error', handleError, true);
+    
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection, true);
+      window.removeEventListener('error', handleError, true);
+      console.error = originalConsoleError;
+    };
+  }, []);
+  
   // New state for step-by-step workflow
   const [duplicateResults, setDuplicateResults] = useState(null);
   const [duplicateReview, setDuplicateReview] = useState(null);
   const [pdfMatchResults, setPdfMatchResults] = useState(null);
   const [currentTaskName, setCurrentTaskName] = useState(null);
+  const [showPdfRefinement, setShowPdfRefinement] = useState(false);
+  
+  // Step 4: Verification state
+  const [verificationResults, setVerificationResults] = useState(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  
+  // Step 5: PDF Validation state
+  const [isValidatingPDF, setIsValidatingPDF] = useState(false);
+  const [validationProgress, setValidationProgress] = useState(0);
+  const [validationResults, setValidationResults] = useState(null);
+  const [validationError, setValidationError] = useState(null);
+  const [validationTaskId, setValidationTaskId] = useState(null);
+  
+  // Step 6 & 7: Iterative Cleaning state
+  const [creatingIteration, setCreatingIteration] = useState(false);
+  const [iterationProject, setIterationProject] = useState(null);
+  
+  // Retry state - keep history of attempts
+  const [retryAttempts, setRetryAttempts] = useState([]);
+  const [showRetrySection, setShowRetrySection] = useState(false);
+  
+  // Waveform state
+  const [wavesurfer, setWavesurfer] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const waveformRef = useRef(null);
+  const [currentPass, setCurrentPass] = useState(1);
+  const [processingPasses, setProcessingPasses] = useState([]);
+  const [isRetrying, setIsRetrying] = useState(false);
   
   const pdfInputRef = useRef();
   const audioInputRef = useRef();
   const progressIntervalRef = useRef();
+  const abortControllerRef = useRef(null);
 
   const fetchProjectDetails = useCallback(async () => {
-    console.log('fetchProjectDetails called with token:', token, 'projectId:', projectId);
     if (!token) {
-      console.warn('No token available for API call');
       return;
     }
+    
+    // Cancel previous request if still pending
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
+    
     try {
-      const response = await fetchWithAuth(`/api/projects/${projectId}/`, {}, token);
+      const response = await fetchWithAuth(
+        `/api/projects/${projectId}/`, 
+        { signal: abortControllerRef.current.signal }, 
+        token
+      );
       
       if (response.ok) {
         const data = await response.json();
-        console.log("Project details fetched:", data.project);
-        console.log("PDF match completed:", data.project.pdf_match_completed);
         setProject(data.project);
+        
+        // Load duplicate results if they exist
+        if (data.project.duplicates_detected) {
+          setDuplicateResults(data.project.duplicates_detected);
+        }
         
         // If project is processing, start polling for progress
         if (data.project.status === 'processing') {
@@ -337,11 +412,12 @@ const ProjectDetailPage = () => {
       } else if (response.status === 404) {
         alert("Project not found");
         navigate("/projects");
-      } else {
-        console.error("Failed to fetch project:", response.statusText);
       }
     } catch (error) {
-      console.error("Error fetching project:", error);
+      // Ignore abort errors
+      if (error.name !== 'AbortError') {
+        alert("Error loading project details");
+      }
     } finally {
       setLoading(false);
     }
@@ -349,7 +425,6 @@ const ProjectDetailPage = () => {
 
   const fetchInfrastructureStatus = useCallback(async () => {
     if (!token) {
-      console.warn('No token available for infrastructure status API call');
       return;
     }
     const url = 'http://localhost:8000/api/infrastructure/status/';
@@ -389,13 +464,11 @@ const ProjectDetailPage = () => {
           message: error.message
         });
       }
-      console.error("Error fetching infrastructure status:", error);
     }
   }, [token]);
 
   const fetchTranscript = useCallback(async () => {
     if (!token) {
-      console.warn('No token available for transcript API call');
       return;
     }
     
@@ -426,23 +499,30 @@ const ProjectDetailPage = () => {
           message: error.message
         });
       }
-      console.error("Error fetching transcript:", error);
     }
   }, [token, projectId]);
 
   // Main useEffect hook for component initialization
   useEffect(() => {
-    fetchProjectDetails();
-    fetchInfrastructureStatus();
+    // Delay initial fetch to prevent double-calls during React strict mode
+    const timeoutId = setTimeout(() => {
+      fetchProjectDetails();
+      fetchInfrastructureStatus();
+    }, 100);
     
     // Poll infrastructure status every 30 seconds
     const infraInterval = setInterval(fetchInfrastructureStatus, 30000);
     
     return () => {
+      clearTimeout(timeoutId);
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
       }
       clearInterval(infraInterval);
+      // Cancel any pending fetch requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, [projectId, fetchProjectDetails, fetchInfrastructureStatus]);
 
@@ -465,7 +545,6 @@ const ProjectDetailPage = () => {
         alert(errorData.error || "Failed to upload PDF");
       }
     } catch (error) {
-      console.error("Error uploading PDF:", error);
       alert("Failed to upload PDF");
     } finally {
       setUploadingPDF(false);
@@ -491,7 +570,6 @@ const ProjectDetailPage = () => {
         alert(errorData.error || "Failed to upload audio");
       }
     } catch (error) {
-      console.error("Error uploading audio:", error);
       alert("Failed to upload audio");
     } finally {
       setUploadingAudio(false);
@@ -519,14 +597,12 @@ const ProjectDetailPage = () => {
         alert(errorData.error || "Failed to start transcription");
       }
     } catch (error) {
-      console.error("Error starting transcription:", error);
       alert("Failed to start transcription");
     }
   };
 
   // Task Status Polling Function for Async Operations
   const pollTaskStatus = async (taskId, taskName, onSuccess) => {
-    console.log(`Starting to poll task ${taskId} for ${taskName}`);
     setCurrentTaskName(taskName);
     const pollInterval = 2000; // Poll every 2 seconds
     const maxPolls = 300; // Maximum 10 minutes (300 * 2 seconds)
@@ -534,28 +610,25 @@ const ProjectDetailPage = () => {
     
     const poll = async () => {
       try {
-        console.log(`Polling task ${taskId}, attempt ${pollCount + 1}`);
         
         const response = await fetchWithAuth(`/api/tasks/${taskId}/status/`, {}, token);
         
         if (response.ok) {
           const statusData = await response.json();
-          console.log(`Task ${taskId} status:`, statusData);
           
           if (statusData.status === 'completed') {
-            console.log(`Task ${taskName} completed successfully`);
             setCurrentTaskName(null);
+            setProcessing(false);
             if (onSuccess && statusData.result) {
-              onSuccess(statusData.result);
+              await onSuccess(statusData.result);
             }
             return; // Stop polling
           } else if (statusData.status === 'failed') {
-            console.error(`Task ${taskName} failed:`, statusData.error);
             setCurrentTaskName(null);
+            setProcessing(false);
             alert(`${taskName} failed: ${statusData.error || 'Unknown error'}`);
             return; // Stop polling
           } else if (statusData.status === 'in_progress' || statusData.status === 'pending') {
-            console.log(`Task ${taskName} still running... Progress: ${statusData.progress}%`);
             
             // Update progress if we have a progress indicator
             if (statusData.progress && typeof statusData.progress === 'number') {
@@ -567,29 +640,29 @@ const ProjectDetailPage = () => {
             if (pollCount < maxPolls) {
               setTimeout(poll, pollInterval);
             } else {
-              console.error(`Task ${taskName} timed out after ${maxPolls} polls`);
               setCurrentTaskName(null);
+              setProcessing(false);
               alert(`${taskName} is taking longer than expected. Please check back later.`);
             }
           }
         } else {
-          console.error(`Failed to check status for task ${taskId}:`, response.status);
           // Retry a few times on server errors
           pollCount++;
           if (pollCount < 5) {
             setTimeout(poll, pollInterval * 2); // Wait longer on errors
           } else {
             setCurrentTaskName(null);
+            setProcessing(false);
             alert(`Unable to check ${taskName} status. Please refresh and try again.`);
           }
         }
       } catch (error) {
-        console.error(`Error polling task ${taskId}:`, error);
         pollCount++;
         if (pollCount < 5) {
           setTimeout(poll, pollInterval * 2); // Wait longer on errors
         } else {
           setCurrentTaskName(null);
+          setProcessing(false);
           alert(`Unable to check ${taskName} status. Please refresh and try again.`);
         }
       }
@@ -602,11 +675,6 @@ const ProjectDetailPage = () => {
   // New Step-by-Step Processing Functions
   
   const startPDFMatching = async () => {
-    console.log("startPDFMatching called");
-    console.log("Project data:", project);
-    console.log("Project status:", project.status);
-    console.log("Has PDF file (pdf_file):", !!project.pdf_file);
-    console.log("Has PDF file (has_pdf):", !!project.has_pdf);
     
     if (project.status !== 'transcribed') {
       alert(`All audio files must be transcribed first. Current status: ${project.status}`);
@@ -618,49 +686,38 @@ const ProjectDetailPage = () => {
       return;
     }
 
-    console.log("Starting PDF matching for project:", projectId);
     try {
       setProcessing(true);
-      console.log("Set processing to true, making API call...");
       
       const response = await fetchWithAuth(`/api/projects/${projectId}/match-pdf/`, {
         method: "POST"
       }, token);
       
-      console.log("PDF matching response status:", response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log("PDF matching task started, data:", data);
         
         if (data.task_id) {
           // Start polling for task completion
-          console.log("Starting task polling for:", data.task_id);
           await pollTaskStatus(data.task_id, 'PDF Matching', (result) => {
             // On successful completion
             if (result && result.match_result) {
-              console.log("PDF matching completed, result:", result.match_result);
               setPdfMatchResults(result.match_result);
             }
             fetchProjectDetails(); // Refresh to get updated status
           });
         } else {
           // Fallback to old synchronous response
-          console.log("PDF matching successful, data:", data);
-          console.log("Match result:", data.match_result);
           setPdfMatchResults(data.match_result);
           await fetchProjectDetails(); // Refresh to get updated status
         }
       } else {
         const errorData = await response.json();
-        console.error("PDF matching failed:", errorData);
         alert(errorData.error || "Failed to match PDF section");
       }
     } catch (error) {
-      console.error("Error matching PDF:", error);
       alert("Failed to match PDF section");
     } finally {
-      console.log("Setting processing to false");
       setProcessing(false);
     }
   };
@@ -673,40 +730,63 @@ const ProjectDetailPage = () => {
 
     try {
       setProcessing(true);
+      setProgress(0);
       const response = await fetchWithAuth(`/api/projects/${projectId}/detect-duplicates/`, {
         method: "POST"
       }, token);
       
       if (response.ok) {
         const data = await response.json();
-        console.log("Duplicate detection task started, data:", data);
         
         if (data.task_id) {
           // Start polling for task completion
-          console.log("Starting task polling for:", data.task_id);
-          await pollTaskStatus(data.task_id, 'Duplicate Detection', (result) => {
+          await pollTaskStatus(data.task_id, 'Duplicate Detection', async (result) => {
             // On successful completion
+            
+            // First, refresh project details to get the saved duplicate results
+            await fetchProjectDetails();
+            
+            // Then try to get the duplicate results from the task result or from project
             if (result && result.duplicate_results) {
-              console.log("Duplicate detection completed, result:", result.duplicate_results);
               setDuplicateResults(result.duplicate_results);
-              alert(`Found ${result.duplicate_results.duplicates_found} duplicate segments`);
+              
+              const count = result.duplicate_results.duplicates_found || 0;
+              const groups = result.duplicate_results.duplicate_groups || 0;
+              
+              if (count > 0) {
+                alert(`✅ Found ${count} duplicate segments in ${groups} groups!\n\nYou can now review them below.`);
+              } else {
+                alert(`ℹ️ No duplicates found in the audio transcription.`);
+              }
+            } else {
+              // Fallback: fetch from project endpoint
+              try {
+                const projectResponse = await fetchWithAuth(`/api/projects/${projectId}/`, {}, token);
+                if (projectResponse.ok) {
+                  const projectData = await projectResponse.json();
+                  if (projectData.project.duplicates_detected) {
+                    setDuplicateResults(projectData.project.duplicates_detected);
+                    const count = projectData.project.duplicates_detected.summary?.duplicates_count || 0;
+                    alert(`✅ Found ${count} duplicate segments!`);
+                  }
+                }
+              } catch (err) {
+              }
             }
-            fetchProjectDetails(); // Refresh to get updated status
           });
         } else {
           // Fallback to old synchronous response
           setDuplicateResults(data.duplicate_results);
           alert(`Found ${data.duplicates_found} duplicate segments in ${data.duplicate_results.summary.unique_duplicate_groups} groups`);
-          fetchProjectDetails(); // Refresh to get updated status
+          await fetchProjectDetails(); // Refresh to get updated status
         }
       } else {
         const errorData = await response.json();
         alert(errorData.error || "Failed to detect duplicates");
+        setProcessing(false);
       }
     } catch (error) {
-      console.error("Error detecting duplicates:", error);
       alert("Failed to detect duplicates");
-    } finally {
       setProcessing(false);
     }
   };
@@ -725,14 +805,45 @@ const ProjectDetailPage = () => {
         const data = await response.json();
         setDuplicateReview(data);
       } else {
-        const errorData = await response.json();
-        alert(errorData.error || "Failed to load duplicate review");
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        alert(`Failed to load duplicate review: ${errorData.error || errorData.detail || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error("Error loading duplicate review:", error);
-      alert("Failed to load duplicate review");
+      alert(`Failed to load duplicate review: ${error.message || 'Network error'}`);
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const savePdfBoundaries = async (startChar, endChar) => {
+    try {
+      const response = await fetchWithAuth(`/api/projects/${projectId}/refine-pdf-boundaries/`, {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          start_char: startChar,
+          end_char: endChar
+        })
+      }, token);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Refresh project data to get updated boundaries
+        await fetchProjectDetails();
+        
+        // Hide refinement UI and show comparison
+        setShowPdfRefinement(false);
+        
+        alert(`✅ PDF boundaries saved successfully!\n\nSection length: ${data.section_length} characters\nConfidence: ${(data.confidence * 100).toFixed(1)}%`);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || "Failed to save PDF boundaries");
+      }
+    } catch (error) {
+      alert("Failed to save PDF boundaries");
     }
   };
 
@@ -755,6 +866,7 @@ const ProjectDetailPage = () => {
       
       if (response.ok) {
         setPdfMatchResults(null);
+        setShowPdfRefinement(false);
         fetchProjectDetails(); // Refresh to get updated status
         alert("PDF matching has been reset. You can now try matching again.");
       } else {
@@ -762,7 +874,6 @@ const ProjectDetailPage = () => {
         alert(errorData.error || "Failed to reset PDF matching");
       }
     } catch (error) {
-      console.error("Error resetting PDF matching:", error);
       alert("Failed to reset PDF matching");
     } finally {
       setProcessing(false);
@@ -792,8 +903,283 @@ const ProjectDetailPage = () => {
         setProcessing(false);
       }
     } catch (error) {
-      console.error("Error confirming deletions:", error);
       alert("Failed to confirm deletions");
+      setProcessing(false);
+    }
+  };
+
+  const verifyCleanup = async () => {
+    try {
+      setIsVerifying(true);
+      
+      const response = await fetchWithAuth(`/api/projects/${projectId}/verify-cleanup/`, {
+        method: "POST"
+      }, token);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setVerificationResults(data);
+        alert("Verification complete! Check results below.");
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || "Verification failed");
+      }
+    } catch (error) {
+      alert("Failed to verify cleanup");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const validateAgainstPDF = async () => {
+    try {
+      setIsValidatingPDF(true);
+      setValidationProgress(0);
+      setValidationError(null);
+      setValidationResults(null);
+      
+      // Start validation task
+      const response = await fetchWithAuth(`/api/projects/${projectId}/validate-against-pdf/`, {
+        method: "POST"
+      }, token);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setValidationTaskId(data.task_id);
+        
+        // Poll progress
+        const progressInterval = setInterval(async () => {
+          try {
+            const progressResponse = await fetchWithAuth(
+              `/api/projects/${projectId}/validation-progress/${data.task_id}/`,
+              {}, 
+              token
+            );
+            
+            if (progressResponse.ok) {
+              const progressData = await progressResponse.json();
+              setValidationProgress(progressData.progress || 0);
+              
+              if (progressData.completed) {
+                clearInterval(progressInterval);
+                setValidationResults(progressData.results);
+                setIsValidatingPDF(false);
+                alert("PDF validation complete! Check results below.");
+              } else if (progressData.status === 'FAILURE') {
+                clearInterval(progressInterval);
+                setValidationError(progressData.error || "Validation failed");
+                setIsValidatingPDF(false);
+                alert("Validation failed: " + (progressData.error || "Unknown error"));
+              }
+            }
+          } catch (error) {
+          }
+        }, 1000); // Poll every second
+        
+        // Timeout after 5 minutes
+        setTimeout(() => {
+          clearInterval(progressInterval);
+          if (isValidatingPDF) {
+            setValidationError("Validation timeout");
+            setIsValidatingPDF(false);
+          }
+        }, 300000);
+        
+      } else {
+        const errorData = await response.json();
+        setValidationError(errorData.error || "Failed to start validation");
+        setIsValidatingPDF(false);
+        alert(errorData.error || "Failed to start validation");
+      }
+    } catch (error) {
+      setValidationError("Failed to start validation");
+      setIsValidatingPDF(false);
+      alert("Failed to start PDF validation");
+    }
+  };
+
+  // Helper function to format duration (seconds to MM:SS)
+  const formatDuration = (seconds) => {
+    if (!seconds || seconds === 0) return '0:00';
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Step 6: Create iteration project (completely fresh start with clean audio)
+  const createIterationProject = async () => {
+    if (!project.final_processed_audio) {
+      alert("Clean audio must be generated first");
+      return;
+    }
+
+    try {
+      setCreatingIteration(true);
+      
+      const response = await fetchWithAuth(`/api/projects/${projectId}/create-iteration/`, {
+        method: "POST"
+      }, token);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        alert(`✅ Created new iteration project!\n\nIteration #${data.iteration_number}\n\nYou will now be redirected to the new project to continue the workflow from Step 1.`);
+        
+        // Navigate to the new child project
+        navigate(`/projects/${data.child_project_id}`);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || "Failed to create iteration project");
+      }
+    } catch (error) {
+      alert("Failed to create iteration project");
+    } finally {
+      setCreatingIteration(false);
+    }
+  };
+
+  // Download processed audio file
+  const downloadProcessedAudio = async () => {
+    if (!project.final_processed_audio) {
+      alert("No processed audio file available");
+      return;
+    }
+    
+    try {
+      const audioUrl = `http://localhost:8000${project.final_processed_audio}`;
+      const response = await fetch(audioUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${project.title}_clean.wav`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      alert("Failed to download audio file");
+    }
+  };
+
+  // Initialize WaveSurfer when processed audio is available
+  useEffect(() => {
+    if (project && project.final_processed_audio && waveformRef.current && !wavesurfer) {
+      try {
+        const ws = WaveSurfer.create({
+          container: waveformRef.current,
+          waveColor: '#4a90e2',
+          progressColor: '#2563eb',
+          cursorColor: '#1e40af',
+          barWidth: 2,
+          barRadius: 3,
+          cursorWidth: 1,
+          height: 100,
+          barGap: 2,
+          responsive: true,
+          normalize: true,
+        });
+
+        // Load audio file
+        const audioUrl = `http://localhost:8000${project.final_processed_audio}`;
+        ws.load(audioUrl);
+        
+        ws.on('ready', () => {
+          // Waveform is ready
+        });
+
+        ws.on('play', () => {
+          setIsPlaying(true);
+        });
+
+        ws.on('pause', () => {
+          setIsPlaying(false);
+        });
+
+        ws.on('finish', () => {
+          setIsPlaying(false);
+        });
+
+        ws.on('audioprocess', (time) => {
+          setCurrentTime(time);
+        });
+
+        ws.on('seek', () => {
+          setCurrentTime(ws.getCurrentTime());
+        });
+        
+        ws.on('error', (error) => {
+          // Silently handle waveform errors
+          if (error.name !== 'AbortError') {
+            // Only log non-abort errors if needed for debugging
+          }
+        });
+
+        setWavesurfer(ws);
+
+        return () => {
+          if (ws) {
+            ws.destroy();
+          }
+        };
+      } catch (error) {
+        // Silently handle initialization errors
+        if (error.name !== 'AbortError') {
+          // Only log non-abort errors
+        }
+      }
+    }
+  }, [project, waveformRef, wavesurfer]);
+
+  // Waveform control functions
+  const togglePlayPause = () => {
+    if (wavesurfer) {
+      wavesurfer.playPause();
+    }
+  };
+
+  const stopAudio = () => {
+    if (wavesurfer) {
+      wavesurfer.stop();
+      setIsPlaying(false);
+      setCurrentTime(0);
+    }
+  };
+
+  const retryProcessing = async () => {
+    try {
+      setIsRetrying(true);
+      setProcessing(true);
+      
+      // Save current pass data before starting new one
+      const passData = {
+        passNumber: currentPass,
+        timestamp: new Date().toLocaleString(),
+        status: project.status,
+        error: project.error_message,
+        hasFile: !!project.final_processed_audio,
+        duplicateResults: duplicateResults,
+        duplicateReview: duplicateReview,
+        segmentsKept: project.segments?.filter(s => !s.is_duplicate).length || 0,
+        duplicatesRemoved: project.segments?.filter(s => s.is_duplicate).length || 0,
+        pdfMatchResults: pdfMatchResults
+      };
+      
+      setProcessingPasses(prev => [...prev, passData]);
+      setCurrentPass(prev => prev + 1);
+      
+      // Clear current results to show new detection
+      setDuplicateResults(null);
+      setDuplicateReview(null);
+      
+      // Start fresh duplicate detection
+      await startDuplicateDetection();
+      
+      setIsRetrying(false);
+      
+    } catch (error) {
+      alert("Failed to retry processing");
+      setIsRetrying(false);
       setProcessing(false);
     }
   };
@@ -816,8 +1202,49 @@ const ProjectDetailPage = () => {
         fetchProjectDetails(); // Refresh project data
       }
     } catch (error) {
-      console.error("Error resetting PDF match:", error);
       alert("Failed to reset match. Please refresh the page.");
+    }
+  };
+
+  const resetDuplicateDetection = async () => {
+    if (!window.confirm("Reset and re-run duplicate detection?\n\nThis will clear current results and immediately start detecting duplicates again.")) {
+      return;
+    }
+    
+    try {
+      setProcessing(true);
+      setProgress(0);
+      
+      // Reset the duplicate detection status on the backend
+      const response = await fetchWithAuth(`/api/projects/${projectId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          duplicates_detection_completed: false,
+          duplicates_detected: null,
+          duplicates_confirmed_for_deletion: [],
+          status: 'pdf_matched'  // Reset to the state before duplicate detection
+        })
+      }, token);
+      
+      if (response.ok) {
+        setDuplicateResults(null);
+        setDuplicateReview(null);
+        
+        // Wait a moment for the backend to update
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Refresh project data
+        await fetchProjectDetails();
+        
+        // Automatically start duplicate detection again
+        await startDuplicateDetection();
+      } else {
+        setProcessing(false);
+        alert("Failed to reset duplicate detection. Please try again.");
+      }
+    } catch (error) {
+      setProcessing(false);
+      alert("Failed to reset duplicate detection. Please refresh the page.");
     }
   };
 
@@ -834,7 +1261,8 @@ const ProjectDetailPage = () => {
           const data = await response.json();
           setProgress(data.progress);
           
-          if (data.status === 'completed') {
+          // Check for various completion states
+          if (data.status === 'completed' || data.status === 'transcribed' || data.status === 'ready') {
             setProcessing(false);
             clearInterval(progressIntervalRef.current);
             fetchProjectDetails(); // Refresh project data
@@ -846,41 +1274,21 @@ const ProjectDetailPage = () => {
           }
         }
       } catch (error) {
-        console.error("Error polling progress:", error);
       }
     }, 2000); // Poll every 2 seconds
   };
 
-  const downloadProcessedAudio = async () => {
-    try {
-      const response = await fetchWithAuth(`/api/projects/${projectId}/download/`, {}, token);
-      
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `processed_${project.title}.wav`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-      } else {
-        const errorData = await response.json();
-        alert(errorData.error || "Failed to download processed audio");
-      }
-    } catch (error) {
-      console.error("Error downloading audio:", error);
-      alert("Failed to download processed audio");
-    }
-  };
-
   const deleteProject = async () => {
+    if (!project) {
+      alert("Project data not loaded. Please refresh the page.");
+      return;
+    }
+    
     const confirmDelete = window.confirm(
       `⚠️ Are you sure you want to delete "${project.title}"?\n\n` +
       `This will permanently delete:\n` +
       `• The project and all settings\n` +
-      `• All uploaded audio files (${project.audio_files_count} files)\n` +
+      `• All uploaded audio files (${project.audio_files_count || 0} files)\n` +
       `• All transcriptions and processing results\n` +
       `• The uploaded PDF file\n` +
       `• Any processed audio files\n\n` +
@@ -914,22 +1322,23 @@ const ProjectDetailPage = () => {
     try {
       setProcessing(true);
       
-      const response = await fetch(`/api/projects/${projectId}/`, {
-        method: "DELETE",
-        credentials: "include"
-      });
+      // Debug log
+      
+      const response = await fetchWithAuth(`/api/projects/${projectId}/`, {
+        method: "DELETE"
+      }, token);
+      
       
       if (response.ok) {
         const data = await response.json();
-        alert(`✅ ${data.message}\n\nFiles cleaned up: ${data.files_deleted}`);
+        alert(`✅ ${data.message}\n\nFiles cleaned up: ${data.files_deleted || 0}`);
         navigate("/projects"); // Redirect to project list
       } else {
-        const errorData = await response.json();
-        alert(`❌ Failed to delete project: ${errorData.error}`);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        alert(`❌ Failed to delete project: ${errorData.error || errorData.detail || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error("Error deleting project:", error);
-      alert("❌ Failed to delete project. Please try again.");
+      alert(`❌ Failed to delete project: ${error.message || 'Please try again.'}`);
     } finally {
       setProcessing(false);
     }
@@ -1156,7 +1565,7 @@ const ProjectDetailPage = () => {
                 <p>✅ Transcription Complete!</p>
                 <p>📊 {project.transcribed_files_count} of {project.audio_files_count} files transcribed with word timestamps</p>
                 <button 
-                  className="btn btn-secondary"
+                  className="action-btn btn-info"
                   onClick={() => {
                     if (!transcript) {
                       fetchTranscript();
@@ -1230,13 +1639,38 @@ const ProjectDetailPage = () => {
                   
                   <div className="pdf-actions">
                     <button 
-                      className="reset-pdf-btn secondary-btn"
+                      className="action-btn btn-reset"
                       onClick={resetPDFMatching}
                       title="Reset and re-extract PDF text"
                     >
                       🔄 Reset PDF Matching
                     </button>
+                    
+                    <button 
+                      className="action-btn btn-info"
+                      onClick={() => {
+                        if (!transcript) {
+                          fetchTranscript();
+                        }
+                        setTranscriptVisible(!transcriptVisible);
+                      }}
+                    >
+                      {transcriptVisible ? '📄 Hide Transcript' : '📄 View Transcript'}
+                    </button>
                   </div>
+                  
+                  {transcriptVisible && transcript && (
+                    <div className="transcript-display" style={{marginTop: '15px'}}>
+                      <h4>📝 Full Transcript</h4>
+                      <div className="transcript-stats">
+                        <p><strong>Total Segments:</strong> {transcript.total_segments}</p>
+                        <p><strong>Audio Files:</strong> {transcript.audio_files_count}</p>
+                      </div>
+                      <div className="transcript-content">
+                        <pre>{transcript.full_transcript}</pre>
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="debug-info" style={{backgroundColor: '#f0f0f0', padding: '10px', margin: '10px 0'}}>
                     <h5>Debug Info:</h5>
@@ -1246,24 +1680,49 @@ const ProjectDetailPage = () => {
                     <p>pdfMatchResults: {pdfMatchResults ? 'exists' : 'null'}</p>
                   </div>
                   
-                  {/* Side-by-side comparison */}
-                  {project && project.pdf_match_completed ? (
-                    <PDFMatchComparison 
+                  {/* PDF Boundary Refinement UI */}
+                  {showPdfRefinement && project && project.pdf_match_completed ? (
+                    <PDFBoundaryRefinement 
                       project={project}
-                      matchResults={pdfMatchResults || {
-                        matched_section: project.pdf_matched_section,
-                        confidence: project.pdf_match_confidence,
-                        chapter_title: project.pdf_chapter_title
-                      }}
-                      onConfirmMatch={() => {
-                        alert("Match confirmed! You can now proceed to detect duplicates.");
-                        setPdfMatchResults(null); // Hide comparison after confirmation
-                      }}
-                      onRejectMatch={() => {
-                        // Reset match status and try again
-                        resetPDFMatch();
-                      }}
+                      projectId={projectId}
+                      token={token}
+                      onSave={savePdfBoundaries}
+                      onCancel={() => setShowPdfRefinement(false)}
                     />
+                  ) : null}
+                  
+                  {/* Side-by-side comparison */}
+                  {!showPdfRefinement && project && project.pdf_match_completed ? (
+                    <>
+                      <PDFMatchComparison 
+                        project={project}
+                        matchResults={pdfMatchResults || {
+                          matched_section: project.pdf_matched_section,
+                          confidence: project.pdf_match_confidence,
+                          chapter_title: project.pdf_chapter_title
+                        }}
+                        onConfirmMatch={async () => {
+                          setPdfMatchResults(null); // Hide comparison after confirmation
+                          setShowPdfRefinement(false);
+                          // Automatically trigger duplicate detection
+                          await startDuplicateDetection();
+                        }}
+                        onRejectMatch={() => {
+                          // Reset match status and try again
+                          resetPDFMatch();
+                        }}
+                      />
+                      
+                      {/* Button to refine boundaries */}
+                      <div style={{marginTop: '20px', textAlign: 'center'}}>
+                        <button 
+                          className="refine-boundaries-btn"
+                          onClick={() => setShowPdfRefinement(true)}
+                        >
+                          🎯 Refine Start/End Boundaries
+                        </button>
+                      </div>
+                    </>
                   ) : project.pdf_match_completed ? (
                     <div className="loading-comparison">
                       <p>Loading comparison data...</p>
@@ -1314,6 +1773,41 @@ const ProjectDetailPage = () => {
                     <p><strong>To Delete:</strong> {duplicateResults?.summary?.segments_to_delete || 0}</p>
                     <p><strong>To Keep:</strong> {duplicateResults?.summary?.segments_to_keep || 0}</p>
                   </div>
+                  
+                  <div className="action-buttons">
+                    <button 
+                      className="action-btn btn-info"
+                      onClick={() => {
+                        if (!transcript) {
+                          fetchTranscript();
+                        }
+                        setTranscriptVisible(!transcriptVisible);
+                      }}
+                    >
+                      {transcriptVisible ? '📄 Hide Transcript' : '📄 View Transcript'}
+                    </button>
+                    
+                    <button 
+                      className="action-btn btn-reset"
+                      onClick={resetDuplicateDetection}
+                      title="Reset duplicate detection and run again"
+                    >
+                      🔄 Reset & Re-detect
+                    </button>
+                  </div>
+                  
+                  {transcriptVisible && transcript && (
+                    <div className="transcript-display" style={{marginTop: '15px'}}>
+                      <h4>📝 Full Transcript</h4>
+                      <div className="transcript-stats">
+                        <p><strong>Total Segments:</strong> {transcript.total_segments}</p>
+                        <p><strong>Audio Files:</strong> {transcript.audio_files_count}</p>
+                      </div>
+                      <div className="transcript-content">
+                        <pre>{transcript.full_transcript}</pre>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1335,7 +1829,9 @@ const ProjectDetailPage = () => {
                   {duplicateReview && (
                     <DuplicateReviewComponent 
                       duplicates={duplicateReview}
+                      transcript={transcript}
                       onConfirmDeletions={confirmDeletions}
+                      onFetchTranscript={fetchTranscript}
                     />
                   )}
                 </div>
@@ -1402,7 +1898,7 @@ const ProjectDetailPage = () => {
             </div>
           )}
 
-          {(processing || project.status === 'processing') && (
+          {(processing || project.status === 'processing' || isRetrying) && (
             <div className="processing-indicator">
               <div className="progress-bar">
                 <div 
@@ -1411,8 +1907,11 @@ const ProjectDetailPage = () => {
                 ></div>
               </div>
               <p className="progress-text">
-                {getProgressMessage()} ({Math.max(progress, 0)}%)
+                {isRetrying ? `🔄 Pass #${currentPass} - ${getProgressMessage()}` : getProgressMessage()} ({Math.max(progress, 0)}%)
               </p>
+              {isRetrying && (
+                <p className="retry-info">Processing new duplicate detection while keeping previous results below...</p>
+              )}
             </div>
           )}
 
@@ -1426,14 +1925,119 @@ const ProjectDetailPage = () => {
           )}
         </div>
 
-        {/* Results Section */}
+        {/* Enhanced Results Section - Top Priority */}
         {project.status === 'completed' && (
           <div className="results-section">
-            <h2>3. Results</h2>
+            <h2>3. Results {processingPasses.length > 0 && `- Pass #${currentPass}`}</h2>
             
-            <div className="results-grid">
+            {/* Primary Results Card - Download, Stats, Waveform */}
+            <div className="primary-results-card">
+              <h3>🎵 Processed Audio File</h3>
+              
+              {/* Download Section */}
+              <div className="download-section">
+                {project.final_processed_audio ? (
+                  <>
+                    <button 
+                      className="primary-btn download-btn-large"
+                      onClick={downloadProcessedAudio}
+                    >
+                      📥 Download Clean Audio
+                    </button>
+                    <p className="file-info">Audio with duplicates removed, keeping only the final version of repeated content</p>
+                  </>
+                ) : (
+                  <div className="error-box">
+                    <p>⚠️ Processed audio file not available. Processing may have failed.</p>
+                    <button className="retry-btn" onClick={retryProcessing}>
+                      🔄 Retry Processing
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              {/* Time Statistics */}
+              <div className="time-stats-grid">
+                <div className="time-stat-card original">
+                  <div className="stat-icon">⏱️</div>
+                  <div className="stat-content">
+                    <h4>Original Duration</h4>
+                    <div className="stat-value">{formatDuration(project.original_audio_duration)}</div>
+                    <p className="stat-label">Total recorded time</p>
+                  </div>
+                </div>
+                
+                <div className="time-stat-card deleted">
+                  <div className="stat-icon">✂️</div>
+                  <div className="stat-content">
+                    <h4>Time Deleted</h4>
+                    <div className="stat-value">{formatDuration(project.duration_deleted)}</div>
+                    <p className="stat-label">{project.total_duplicates_found} duplicate segments</p>
+                  </div>
+                </div>
+                
+                <div className="time-stat-card final">
+                  <div className="stat-icon">✅</div>
+                  <div className="stat-content">
+                    <h4>Final Duration</h4>
+                    <div className="stat-value">{formatDuration(project.final_audio_duration)}</div>
+                    <p className="stat-label">Clean audio length</p>
+                  </div>
+                </div>
+                
+                <div className="time-stat-card savings">
+                  <div className="stat-icon">📊</div>
+                  <div className="stat-content">
+                    <h4>Time Saved</h4>
+                    <div className="stat-value">
+                      {project.original_audio_duration > 0 
+                        ? `${((project.duration_deleted / project.original_audio_duration) * 100).toFixed(1)}%`
+                        : '0%'}
+                    </div>
+                    <p className="stat-label">Reduction in audio length</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Interactive Waveform */}
+              {project.final_processed_audio && (
+                <div className="waveform-section">
+                  <h4>🎧 Preview & Listen</h4>
+                  <p className="waveform-description">Click anywhere on the waveform to jump to that position</p>
+                  
+                  <div className="waveform-container">
+                    <div id="waveform" ref={waveformRef}></div>
+                    
+                    <div className="waveform-controls">
+                      <button 
+                        className="control-btn"
+                        onClick={togglePlayPause}
+                      >
+                        {isPlaying ? '⏸️ Pause' : '▶️ Play'}
+                      </button>
+                      
+                      <div className="timeline-info">
+                        <span className="current-time">{formatDuration(currentTime)}</span>
+                        <span className="divider">/</span>
+                        <span className="total-time">{formatDuration(project.final_audio_duration)}</span>
+                      </div>
+                      
+                      <button 
+                        className="control-btn"
+                        onClick={stopAudio}
+                      >
+                        ⏹️ Stop
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Secondary Results - PDF Matching */}
+            <div className="secondary-results-grid">
               <div className="result-card">
-                <h3>PDF Section Matched</h3>
+                <h3>📄 PDF Section Matched</h3>
                 <div className="pdf-section">
                   {project.pdf_section_matched ? (
                     <p>{project.pdf_section_matched.substring(0, 300)}...</p>
@@ -1460,14 +2064,398 @@ const ProjectDetailPage = () => {
               <div className="result-card download-card">
                 <h3>Download Processed Audio</h3>
                 <p>Audio with duplicates removed, keeping only the final version of repeated content.</p>
-                <button 
-                  className="download-btn"
-                  onClick={downloadProcessedAudio}
-                >
-                  📥 Download Clean Audio
-                </button>
+                
+                {/* Debug info */}
+                <div style={{fontSize: '12px', color: '#666', marginBottom: '10px'}}>
+                  Status: {project.status} | 
+                  Has file: {project.final_processed_audio ? 'Yes' : 'No'} | 
+                  Transcribed: {project.clean_audio_transcribed ? 'Yes' : 'No'}
+                </div>
+                
+                {project.final_processed_audio ? (
+                  <button 
+                    className="download-btn"
+                    onClick={downloadProcessedAudio}
+                  >
+                    📥 Download Clean Audio
+                  </button>
+                ) : (
+                  <div>
+                    <p className="error-text">⚠️ Processed audio file not available. Processing may have failed.</p>
+                    {project.error_message && (
+                      <p className="error-text">Error: {project.error_message}</p>
+                    )}
+                    <button 
+                      className="retry-btn"
+                      onClick={retryProcessing}
+                    >
+                      🔄 Retry Processing (Keep History)
+                    </button>
+                    <p style={{fontSize: '12px', color: '#666', marginTop: '10px'}}>
+                      This will retry duplicate detection and confirmation while keeping the current results visible above.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
+
+            {/* Previous Passes Section - Show all historical passes */}
+            {processingPasses.length > 0 && (
+              <div className="previous-passes-section">
+                <h2>📚 Previous Processing Passes</h2>
+                <p className="section-description">Scroll down to see all attempts and compare results</p>
+                
+                {processingPasses.map((pass, index) => (
+                  <div key={index} className="pass-card">
+                    <div className="pass-header">
+                      <h3>Pass #{pass.passNumber} - {pass.timestamp}</h3>
+                      <span className={`pass-status ${pass.hasFile ? 'success' : 'failed'}`}>
+                        {pass.hasFile ? '✅ Completed' : '❌ Failed'}
+                      </span>
+                    </div>
+                    
+                    <div className="pass-content">
+                      {/* PDF Match Results */}
+                      {pass.pdfMatchResults && (
+                        <div className="pass-section">
+                          <h4>PDF Section Matched</h4>
+                          <div className="pdf-match-summary">
+                            <p><strong>Chapter:</strong> {pass.pdfMatchResults.pdf_chapter_title || 'N/A'}</p>
+                            <p><strong>Confidence:</strong> {(pass.pdfMatchResults.pdf_match_confidence * 100).toFixed(1)}%</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Duplicate Detection Results */}
+                      {pass.duplicateResults && (
+                        <div className="pass-section">
+                          <h4>Duplicate Detection</h4>
+                          <div className="duplicate-stats">
+                            <div className="stat-item">
+                              <span className="stat-label">Total Duplicates:</span>
+                              <span className="stat-value">{pass.duplicateResults.summary?.total_duplicate_segments || 0}</span>
+                            </div>
+                            <div className="stat-item">
+                              <span className="stat-label">Groups:</span>
+                              <span className="stat-value">{pass.duplicateResults.summary?.unique_duplicate_groups || 0}</span>
+                            </div>
+                            <div className="stat-item">
+                              <span className="stat-label">To Delete:</span>
+                              <span className="stat-value">{pass.duplicateResults.summary?.segments_to_delete || 0}</span>
+                            </div>
+                            <div className="stat-item">
+                              <span className="stat-label">To Keep:</span>
+                              <span className="stat-value">{pass.duplicateResults.summary?.segments_to_keep || 0}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Processing Results */}
+                      <div className="pass-section">
+                        <h4>Final Processing</h4>
+                        <div className="processing-stats">
+                          <div className="stat-box">
+                            <div className="stat-number">{pass.segmentsKept}</div>
+                            <div className="stat-label">Segments Kept</div>
+                          </div>
+                          <div className="stat-box">
+                            <div className="stat-number">{pass.duplicatesRemoved}</div>
+                            <div className="stat-label">Duplicates Removed</div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Error if any */}
+                      {pass.error && (
+                        <div className="pass-section error-section">
+                          <h4>Error Details</h4>
+                          <p className="error-text">{pass.error}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Retry History Section */}
+            {retryAttempts.length > 0 && (
+              <div className="retry-history-section">
+                <h3>📋 Processing History</h3>
+                <p>Previous attempts are shown below for comparison:</p>
+                {retryAttempts.map((attempt, index) => (
+                  <div key={index} className="history-card">
+                    <div className="history-header">
+                      <strong>Attempt #{index + 1}</strong>
+                      <span>{attempt.timestamp}</span>
+                    </div>
+                    <div className="history-details">
+                      <p><strong>Status:</strong> {attempt.status}</p>
+                      <p><strong>File Generated:</strong> {attempt.hasFile ? '✅ Yes' : '❌ No'}</p>
+                      <p><strong>Segments Kept:</strong> {attempt.segmentsKept}</p>
+                      <p><strong>Duplicates Removed:</strong> {attempt.duplicatesRemoved}</p>
+                      {attempt.error && (
+                        <p className="error-text"><strong>Error:</strong> {attempt.error}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Step 4: Verification Section */}
+            {project.clean_audio_transcribed && (
+              <div className="processing-step verification-step">
+                <h3>Step 4: Verify Clean Audio</h3>
+                <p className="step-description">
+                  The clean audio has been automatically transcribed. Compare it against the original PDF section to verify all duplicates were successfully removed.
+                </p>
+                
+                {!verificationResults ? (
+                  <button
+                    className="start-process-btn"
+                    onClick={verifyCleanup}
+                    disabled={isVerifying}
+                  >
+                    {isVerifying ? "Verifying..." : "🔍 Compare Clean Audio to PDF"}
+                  </button>
+                ) : (
+                  <div className="verification-results">
+                    <div className="verification-stats">
+                      <div className="stat-card">
+                        <h4>Similarity Score</h4>
+                        <div className="big-stat">{(verificationResults.verification_results.similarity_to_pdf * 100).toFixed(1)}%</div>
+                        <p>Match with PDF section</p>
+                      </div>
+                      <div className="stat-card">
+                        <h4>Repeated Sentences</h4>
+                        <div className="big-stat">{verificationResults.verification_results.repeated_sentences_found}</div>
+                        <p>Still present in clean audio</p>
+                      </div>
+                      <div className="stat-card">
+                        <h4>Common Words</h4>
+                        <div className="big-stat">{verificationResults.verification_results.common_words_count}</div>
+                        <p>Shared with PDF</p>
+                      </div>
+                    </div>
+                    
+                    {verificationResults.verification_results.repeated_sentences_found > 0 && (
+                      <div className="warning-box">
+                        <h4>⚠️ Remaining Duplicates Found</h4>
+                        <p>The following sentences still appear multiple times in the clean audio:</p>
+                        <ul>
+                          {verificationResults.verification_results.repeated_sentences.map((sentence, idx) => (
+                            <li key={idx}>{sentence}</li>
+                          ))}
+                        </ul>
+                        <p><em>You may want to review and re-process these duplicates.</em></p>
+                      </div>
+                    )}
+                    
+                    <div className="comparison-panels">
+                      <div className="comparison-panel">
+                        <h4>Clean Audio Transcript</h4>
+                        <div className="transcript-box">
+                          {verificationResults.clean_transcript}
+                        </div>
+                        <p className="char-count">{verificationResults.verification_results.clean_transcript_length} characters</p>
+                      </div>
+                      
+                      <div className="comparison-panel">
+                        <h4>Original PDF Section</h4>
+                        <div className="transcript-box">
+                          {verificationResults.pdf_section}
+                        </div>
+                        <p className="char-count">{verificationResults.verification_results.pdf_section_length} characters</p>
+                      </div>
+                    </div>
+                    
+                    <button 
+                      className="secondary-btn"
+                      onClick={() => setVerificationResults(null)}
+                    >
+                      ↻ Re-verify
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step 5: PDF Word-by-Word Validation Section */}
+            {project.duplicates_confirmed_for_deletion && (
+              <div className="processing-step pdf-validation-step">
+                <h3>Step 5: Test Against PDF</h3>
+                <p className="step-description">
+                  Perform word-by-word comparison of clean transcript (with deletions removed) against the original PDF section.
+                  <br/>
+                  <strong>Green</strong> = Word found in both | <strong>Red</strong> = Word missing in transcript
+                </p>
+                
+                {!validationResults && !isValidatingPDF ? (
+                  <button
+                    className="start-process-btn validation-btn"
+                    onClick={validateAgainstPDF}
+                    disabled={isValidatingPDF}
+                  >
+                    📊 Test Against PDF Section
+                  </button>
+                ) : null}
+                
+                {isValidatingPDF && (
+                  <div className="progress-section">
+                    <div className="progress-bar-container">
+                      <div 
+                        className="progress-bar" 
+                        style={{width: `${validationProgress}%`}}
+                      />
+                    </div>
+                    <p className="progress-text">
+                      Matching words against PDF: {validationProgress}%
+                    </p>
+                  </div>
+                )}
+                
+                {validationResults && (
+                  <div className="validation-results-container">
+                    <div className="validation-stats-grid">
+                      <div className="stat-card">
+                        <h4>Match Percentage</h4>
+                        <div className="big-stat success-stat">
+                          {validationResults.match_percentage}%
+                        </div>
+                        <p>{validationResults.matched_words} of {validationResults.total_pdf_words} PDF words found</p>
+                      </div>
+                      <div className="stat-card">
+                        <h4>Missing from Transcript</h4>
+                        <div className="big-stat error-stat">
+                          {validationResults.unmatched_pdf_words}
+                        </div>
+                        <p>PDF words not found in clean transcript</p>
+                      </div>
+                      <div className="stat-card">
+                        <h4>Extra in Transcript</h4>
+                        <div className="big-stat warning-stat">
+                          {validationResults.unmatched_transcript_words}
+                        </div>
+                        <p>Transcript words not in PDF section</p>
+                      </div>
+                    </div>
+                    
+                    <div className="validation-comparison-container">
+                      <div className="validation-comparison-panel pdf-validation-panel">
+                        <h4>📄 PDF Section ({validationResults.total_pdf_words} words)</h4>
+                        <div 
+                          className="validation-text-content"
+                          dangerouslySetInnerHTML={{__html: validationResults.pdf_html}}
+                        />
+                        <div className="legend">
+                          <span className="legend-item"><span className="matched-word">Green</span> = Found in transcript</span>
+                          <span className="legend-item"><span className="unmatched-word">Red</span> = Missing from transcript</span>
+                        </div>
+                      </div>
+                      
+                      <div className="validation-comparison-panel transcript-validation-panel">
+                        <h4>📝 Clean Transcript ({validationResults.total_transcript_words} words)</h4>
+                        <div 
+                          className="validation-text-content"
+                          dangerouslySetInnerHTML={{__html: validationResults.transcript_html}}
+                        />
+                        <div className="legend">
+                          <span className="legend-item"><span className="matched-word">Green</span> = Matches PDF</span>
+                          <span className="legend-item"><span className="unmatched-word">Red</span> = Not in PDF section</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="validation-actions">
+                      <button 
+                        className="secondary-btn"
+                        onClick={() => {
+                          setValidationResults(null);
+                          setValidationProgress(0);
+                        }}
+                      >
+                        ↻ Re-validate
+                      </button>
+                      
+                      {validationResults.match_percentage < 90 && (
+                        <div className="warning-box" style={{marginTop: '15px'}}>
+                          <h4>⚠️ Low Match Percentage</h4>
+                          <p>
+                            Only {validationResults.match_percentage}% of PDF words were found in the transcript.
+                            Consider reviewing the deletion selections or re-recording missing sections.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {validationError && (
+                  <div className="error-box">
+                    <h4>❌ Validation Error</h4>
+                    <p>{validationError}</p>
+                    <button 
+                      className="secondary-btn"
+                      onClick={() => {
+                        setValidationError(null);
+                        setValidationProgress(0);
+                      }}
+                    >
+                      ↻ Try Again
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step 6: Create Iteration Project for Further Cleaning */}
+            {project.final_processed_audio && (
+              <div className="processing-step iterative-cleaning-step">
+                <h3>Step 6: Iterative Cleaning (Optional)</h3>
+                <p className="step-description">
+                  Continue improving audio quality by starting a fresh workflow with your clean audio.
+                  <br/>
+                  This creates a <strong>new separate project</strong> using the clean audio as input, allowing you to detect and remove any remaining duplicates.
+                  <br/>
+                  📋 <strong>What happens:</strong> PDF + Clean Audio → New Project → Steps 1-5 again
+                </p>
+                
+                <div className="iteration-info-box" style={{
+                  background: '#f0f9ff',
+                  border: '2px solid #3b82f6',
+                  borderRadius: '8px',
+                  padding: '15px',
+                  marginBottom: '15px'
+                }}>
+                  <h4 style={{margin: '0 0 10px 0', color: '#1e40af'}}>🔄 How Iterative Cleaning Works</h4>
+                  <ul style={{margin: 0, paddingLeft: '20px'}}>
+                    <li><strong>Original Project (Current):</strong> Remains unchanged with all your work intact</li>
+                    <li><strong>New Iteration Project:</strong> Fresh start with clean audio from this project</li>
+                    <li><strong>Workflow:</strong> Upload PDF (copied) → Transcribe clean audio → Detect duplicates → Confirm deletions → Even cleaner audio</li>
+                    <li><strong>Result:</strong> Can repeat indefinitely until no duplicates remain</li>
+                  </ul>
+                </div>
+                
+                {creatingIteration ? (
+                  <div className="processing-status">
+                    <div className="loading-spinner"></div>
+                    <p>🔄 Creating new iteration project...</p>
+                    <p><em>Copying PDF and clean audio to new project...</em></p>
+                  </div>
+                ) : (
+                  <button 
+                    className="primary-btn"
+                    onClick={createIterationProject}
+                    disabled={creatingIteration}
+                    style={{fontSize: '16px', padding: '12px 24px'}}
+                  >
+                    🚀 Start New Iteration Project
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Detailed Segments View */}
             {project.segments && project.segments.length > 0 && (
@@ -1514,17 +2502,8 @@ const PDFMatchComparison = ({ project, matchResults, onConfirmMatch, onRejectMat
   
   // Comprehensive null checks
   if (!project) {
-    console.log("PDFMatchComparison: No project data");
     return <div className="loading-message">Loading project data...</div>;
   }
-  
-  console.log("PDFMatchComparison render:", { 
-    hasMatchResults: !!matchResults, 
-    hasCombinedTranscript: !!project.combined_transcript,
-    hasPdfMatchedSection: !!project.pdf_matched_section,
-    projectKeys: Object.keys(project || {}),
-    project: project
-  });
   
   // For now, let's use a fallback if combined_transcript is not available
   // We can get the transcript from the audio files if needed
@@ -1538,7 +2517,6 @@ const PDFMatchComparison = ({ project, matchResults, onConfirmMatch, onRejectMat
   
   // Don't fail if we don't have perfect data - show what we can
   if (!audioTranscript && !pdfSection) {
-    console.log("No transcript or PDF section data");
     return (
       <div className="loading-transcript">
         <p>⏳ Preparing comparison data...</p>
@@ -1576,7 +2554,6 @@ const PDFMatchComparison = ({ project, matchResults, onConfirmMatch, onRejectMat
       
       return highlightedText;
     } catch (error) {
-      console.error("Error highlighting text:", error);
       return text || '';
     }
   };
@@ -1655,19 +2632,396 @@ const PDFMatchComparison = ({ project, matchResults, onConfirmMatch, onRejectMat
   );
 };
 
+// PDF Boundary Refinement Component - allows user to select exact start/end
+const PDFBoundaryRefinement = ({ project, projectId, token, onSave, onCancel }) => {
+  const [pdfText, setPdfText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [startChar, setStartChar] = useState(project.pdf_match_start_char || 0);
+  const [endChar, setEndChar] = useState(project.pdf_match_end_char || 0);
+  const [selectionStart, setSelectionStart] = useState(null);
+  const [selectionEnd, setSelectionEnd] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const textAreaRef = useRef(null);
+
+  useEffect(() => {
+    // Fetch PDF text when component mounts (only when needed)
+    const fetchPdfText = async () => {
+      try {
+        setLoading(true);
+        const response = await fetchWithAuth(`/api/projects/${projectId}/?include_pdf_text=true`, {}, token);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.project.pdf_text) {
+            setPdfText(data.project.pdf_text);
+          } else {
+            alert('PDF text not available');
+          }
+        }
+      } catch (error) {
+        alert('Failed to load PDF text');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchPdfText();
+    
+    if (project.pdf_match_start_char !== null && project.pdf_match_end_char !== null) {
+      setStartChar(project.pdf_match_start_char);
+      setEndChar(project.pdf_match_end_char);
+    }
+  }, [projectId, token, project.pdf_match_start_char, project.pdf_match_end_char]);
+
+  const handleTextSelect = () => {
+    if (textAreaRef.current) {
+      const start = textAreaRef.current.selectionStart;
+      const end = textAreaRef.current.selectionEnd;
+      
+      if (start !== end) {
+        setSelectionStart(start);
+        setSelectionEnd(end);
+      }
+    }
+  };
+
+  const applySelection = () => {
+    if (selectionStart !== null && selectionEnd !== null) {
+      setStartChar(selectionStart);
+      setEndChar(selectionEnd);
+      setSelectionStart(null);
+      setSelectionEnd(null);
+    }
+  };
+
+  const handleSave = async () => {
+    if (startChar >= endChar) {
+      alert('End position must be after start position');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await onSave(startChar, endChar);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="pdf-boundary-refinement">
+        <div className="refinement-header">
+          <h4>🎯 Loading PDF Text...</h4>
+          <p>Please wait while we load the full PDF text for refinement.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Get text segments
+  const beforeText = pdfText.substring(Math.max(0, startChar - 500), startChar);
+  const matchedText = pdfText.substring(startChar, endChar);
+  const afterText = pdfText.substring(endChar, Math.min(pdfText.length, endChar + 500));
+
+  return (
+    <div className="pdf-boundary-refinement">
+      <div className="refinement-header">
+        <h4>🎯 Refine PDF Section Boundaries</h4>
+        <p>The system found this section, but you can adjust the start and end points:</p>
+      </div>
+
+      <div className="boundary-info">
+        <div className="boundary-stat">
+          <span className="stat-label">Start Position:</span>
+          <span className="stat-value">{startChar.toLocaleString()}</span>
+        </div>
+        <div className="boundary-stat">
+          <span className="stat-label">End Position:</span>
+          <span className="stat-value">{endChar.toLocaleString()}</span>
+        </div>
+        <div className="boundary-stat">
+          <span className="stat-label">Section Length:</span>
+          <span className="stat-value">{(endChar - startChar).toLocaleString()} characters</span>
+        </div>
+      </div>
+
+      <div className="pdf-text-display">
+        <h5>📄 PDF Text with Context</h5>
+        <p className="instruction">
+          <strong>To adjust boundaries:</strong> Click and drag to select text below, then click "Apply Selection"
+        </p>
+        
+        <div className="text-segments">
+          <div className="text-segment context-before">
+            <div className="segment-label">Before (Context)</div>
+            <div className="segment-text">{beforeText}</div>
+          </div>
+          
+          <div className="text-segment matched-section">
+            <div className="segment-label">
+              ▼ START at char {startChar}
+            </div>
+            <textarea
+              ref={textAreaRef}
+              className="segment-text selectable"
+              value={matchedText}
+              onSelect={handleTextSelect}
+              readOnly
+              rows={15}
+            />
+            <div className="segment-label">
+              ▲ END at char {endChar}
+            </div>
+            {selectionStart !== null && selectionEnd !== null && (
+              <div className="selection-info">
+                <p>Selected: {selectionEnd - selectionStart} characters</p>
+                <button 
+                  className="apply-selection-btn"
+                  onClick={applySelection}
+                >
+                  ✓ Apply Selection as New Boundaries
+                </button>
+              </div>
+            )}
+          </div>
+          
+          <div className="text-segment context-after">
+            <div className="segment-label">After (Context)</div>
+            <div className="segment-text">{afterText}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="refinement-actions">
+        <button 
+          className="cancel-btn"
+          onClick={onCancel}
+          disabled={saving}
+        >
+          Cancel
+        </button>
+        <button 
+          className="save-boundaries-btn"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? 'Saving...' : '💾 Save Boundaries & Continue'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Mini Waveform Component for duplicate segments - Lazy loaded
+const MiniWaveform = ({ audioUrl, startTime, endTime, segmentId }) => {
+  const waveformRef = useRef(null);
+  const wavesurferRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const [error, setError] = useState(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!shouldLoad || !audioUrl || !waveformRef.current) return;
+
+    let wavesurfer = null;
+    const abortController = new AbortController();
+    
+    try {
+      // Ensure full URL
+      const fullAudioUrl = audioUrl.startsWith('http') ? audioUrl : `http://localhost:8000${audioUrl}`;
+
+      // Create WaveSurfer instance
+      wavesurfer = WaveSurfer.create({
+        container: waveformRef.current,
+        waveColor: '#b8c1ec',
+        progressColor: '#6f42c1',
+        height: 60,
+        barWidth: 2,
+        barGap: 1,
+        responsive: true,
+        normalize: true,
+        backend: 'WebAudio',
+      });
+
+      wavesurferRef.current = wavesurfer;
+
+      // Load audio with region
+      wavesurfer.load(fullAudioUrl);
+
+      wavesurfer.on('ready', () => {
+        if (mountedRef.current && !abortController.signal.aborted) {
+          setIsReady(true);
+          setError(null);
+        }
+      });
+
+      wavesurfer.on('error', (err) => {
+        if (mountedRef.current && !abortController.signal.aborted) {
+          setError('Failed to load audio');
+          setIsReady(false);
+        }
+      });
+
+      wavesurfer.on('play', () => {
+        if (mountedRef.current) setIsPlaying(true);
+      });
+      
+      wavesurfer.on('pause', () => {
+        if (mountedRef.current) setIsPlaying(false);
+      });
+      
+      wavesurfer.on('finish', () => {
+        if (mountedRef.current) setIsPlaying(false);
+      });
+
+    } catch (err) {
+      if (mountedRef.current && !abortController.signal.aborted) {
+        setError('Failed to initialize waveform');
+      }
+    }
+
+    return () => {
+      abortController.abort();
+      if (wavesurfer) {
+        try {
+          wavesurfer.destroy();
+        } catch (err) {
+          // Silently handle cleanup errors
+        }
+      }
+    };
+  }, [shouldLoad, audioUrl, startTime, endTime, segmentId]);
+
+  const handlePlayPause = () => {
+    if (!wavesurferRef.current || !isReady) return;
+    
+    const wavesurfer = wavesurferRef.current;
+    
+    if (isPlaying) {
+      wavesurfer.pause();
+    } else {
+      // Seek to start time and play until end time
+      wavesurfer.seekTo(startTime / wavesurfer.getDuration());
+      wavesurfer.play();
+      
+      // Stop at end time
+      const checkTime = () => {
+        if (wavesurfer.getCurrentTime() >= endTime) {
+          wavesurfer.pause();
+          wavesurfer.un('audioprocess', checkTime);
+        }
+      };
+      wavesurfer.on('audioprocess', checkTime);
+    }
+  };
+
+  return (
+    <div className="mini-waveform-container">
+      {!shouldLoad ? (
+        <button 
+          className="load-waveform-btn"
+          onClick={() => setShouldLoad(true)}
+        >
+          📊 Load Waveform
+        </button>
+      ) : error ? (
+        <div className="mini-waveform-error">{error}</div>
+      ) : (
+        <div ref={waveformRef} className="mini-waveform" />
+      )}
+      {shouldLoad && (
+        <button 
+          className={`mini-play-btn ${isPlaying ? 'playing' : ''}`}
+          onClick={handlePlayPause}
+          disabled={!isReady || error}
+          title={isPlaying ? 'Pause' : 'Play segment'}
+        >
+          {isPlaying ? '⏸' : '▶'}
+        </button>
+      )}
+    </div>
+  );
+};
+
 // Duplicate Review Component for interactive duplicate confirmation
-const DuplicateReviewComponent = ({ duplicates, onConfirmDeletions }) => {
+const DuplicateReviewComponent = ({ duplicates, transcript, onConfirmDeletions, onFetchTranscript }) => {
   const [selectedDeletions, setSelectedDeletions] = useState([]);
+  const [showTranscript, setShowTranscript] = useState(true); // Always show by default
+  const [expandedGroups, setExpandedGroups] = useState(new Set());
+  const [highlightedSegmentId, setHighlightedSegmentId] = useState(null); // Track clicked segment
+  
+  // Create a lookup map for fast duplicate checking (optimization)
+  const duplicateLookup = React.useMemo(() => {
+    const map = new Map();
+    if (duplicates && duplicates.duplicates) {
+      duplicates.duplicates.forEach(d => {
+        if (d.id) {
+          map.set(d.id, d);
+        }
+      });
+    }
+    return map;
+  }, [duplicates]);
   
   useEffect(() => {
-    // Pre-select all recommended deletions
+    // Pre-select all segments marked for deletion (is_duplicate: true)
+    // Do NOT select the last occurrence (is_last_occurrence: true)
     if (duplicates && duplicates.duplicates) {
       const recommended = duplicates.duplicates
-        .filter(d => d.recommended_action === 'delete')
-        .map(d => d.segment_id);
+        .filter(d => d.is_duplicate === true && d.is_last_occurrence !== true)
+        .map(d => d.id);  // Use 'id' not 'segment_id'
       setSelectedDeletions(recommended);
+      
+      // Expand first 3 groups by default
+      const groupIds = Object.keys(duplicates.grouped_duplicates || {}).slice(0, 3);
+      setExpandedGroups(new Set(groupIds));
     }
   }, [duplicates]);
+
+  // Fetch transcript if not already loaded
+  useEffect(() => {
+    if (!transcript && onFetchTranscript) {
+      onFetchTranscript();
+    }
+  }, [transcript, onFetchTranscript]);
+
+  const toggleGroup = (groupId) => {
+    const newExpanded = new Set(expandedGroups);
+    if (newExpanded.has(groupId)) {
+      newExpanded.delete(groupId);
+    } else {
+      newExpanded.add(groupId);
+    }
+    setExpandedGroups(newExpanded);
+  };
+
+  const handleTranscriptClick = (segmentId, groupId) => {
+    // Highlight the segment
+    setHighlightedSegmentId(segmentId);
+    
+    // Expand the group if not already expanded
+    if (!expandedGroups.has(groupId.toString())) {
+      setExpandedGroups(prev => new Set([...prev, groupId.toString()]));
+    }
+    
+    // Scroll to the occurrence in the list
+    setTimeout(() => {
+      const element = document.getElementById(`occurrence-${segmentId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  };
 
   const toggleDeletion = (segmentId) => {
     setSelectedDeletions(prev => 
@@ -1684,9 +3038,9 @@ const DuplicateReviewComponent = ({ duplicates, onConfirmDeletions }) => {
     }
     
     const confirmed = duplicates.duplicates
-      .filter(d => selectedDeletions.includes(d.segment_id))
+      .filter(d => selectedDeletions.includes(d.id))  // Use 'id' not 'segment_id'
       .map(d => ({
-        segment_id: d.segment_id,
+        segment_id: d.id,  // Backend expects segment_id
         audio_file_id: d.audio_file_id,
         start_time: d.start_time,
         end_time: d.end_time,
@@ -1710,24 +3064,86 @@ const DuplicateReviewComponent = ({ duplicates, onConfirmDeletions }) => {
         </div>
       </div>
 
+      {/* Full Transcript with Highlighting - Always Visible */}
+      {transcript && transcript.transcript_data && (
+        <div className="transcript-with-highlights">
+          <h5>📝 Full Transcript (Click to locate in list below)</h5>
+          <div className="transcript-content-highlighted">
+            {transcript.transcript_data.map((fileData, fileIndex) => (
+              <React.Fragment key={`file-${fileData.audio_file_id}`}>
+                {fileData.segments && fileData.segments.map((segment, segIndex) => {
+                  // Use fast lookup map instead of .find() for O(1) performance
+                  const duplicateInfo = duplicateLookup.get(segment.id);
+                  
+                  // Backend now includes ALL occurrences:
+                  // - is_duplicate: true = DELETE (first occurrences) → RED
+                  // - is_duplicate: false + is_last_occurrence: true = KEEP (last occurrence) → GREEN
+                  const isDuplicate = duplicateInfo && duplicateInfo.is_duplicate === true;
+                  const isKept = duplicateInfo && duplicateInfo.is_last_occurrence === true;
+                  const isHighlighted = highlightedSegmentId === segment.id;
+                  
+                  return (
+                    <span
+                      key={`segment-${fileData.audio_file_id}-${segment.id || segIndex}`}
+                      className={`transcript-segment ${isDuplicate ? 'segment-duplicate' : ''} ${isKept ? 'segment-kept' : ''} ${isHighlighted ? 'segment-highlighted' : ''}`}
+                      onClick={() => duplicateInfo && handleTranscriptClick(segment.id, duplicateInfo.group_id)}
+                      style={{ cursor: duplicateInfo ? 'pointer' : 'default' }}
+                      title={duplicateInfo ? 
+                        `${fileData.filename} - ${segment.start_time?.toFixed(1)}s-${segment.end_time?.toFixed(1)}s\nGroup ${duplicateInfo.group_id + 1} - Occurrence ${duplicateInfo.occurrence_number}/${duplicateInfo.total_occurrences}\n${duplicateInfo.reason}\n\nClick to locate in list` :
+                        `${fileData.filename} - ${segment.start_time?.toFixed(1)}s-${segment.end_time?.toFixed(1)}s`
+                      }
+                    >
+                      {segment.text}{' '}
+                    </span>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </div>
+          <div className="transcript-legend">
+            <span className="legend-item"><span className="legend-box segment-duplicate"></span> Duplicate (to be deleted - first occurrences)</span>
+            <span className="legend-item"><span className="legend-box segment-kept"></span> Last occurrence (kept)</span>
+            <span className="legend-item"><span className="legend-box"></span> Normal segment</span>
+          </div>
+        </div>
+      )}
+      
+      {!transcript && (
+        <div className="transcript-loading">
+          <p>Loading transcript...</p>
+        </div>
+      )}
+
       <div className="duplicate-groups">
-        {Object.entries(duplicates.grouped_duplicates).map(([groupId, group]) => (
-          <div key={groupId} className="duplicate-group">
-            <div className="group-header">
-              <h5>Duplicate Group {parseInt(groupId) + 1}</h5>
-              <p><strong>Text:</strong> "{group.group_info.original_text?.substring(0, 100)}..."</p>
-              <p><strong>Occurrences:</strong> {group.occurrences?.length}</p>
-            </div>
+        {Object.entries(duplicates.grouped_duplicates).map(([groupId, group]) => {
+          const isExpanded = expandedGroups.has(groupId);
+          return (
+            <div key={groupId} className="duplicate-group">
+              <div className="group-header" onClick={() => toggleGroup(groupId)} style={{cursor: 'pointer'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                  <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
+                  <div style={{flex: 1}}>
+                    <h5>Duplicate Group {parseInt(groupId) + 1}</h5>
+                    <p><strong>Text:</strong> "{group.group_info?.sample_text || group.occurrences?.[0]?.text?.substring(0, 100) + '...' || 'No text available'}"</p>
+                    <p><strong>Occurrences:</strong> {group.occurrences?.length}</p>
+                  </div>
+                </div>
+              </div>
             
-            <div className="group-occurrences">
+              {isExpanded && (
+                <div className="group-occurrences">
               {group.occurrences?.map((occurrence, index) => (
-                <div key={occurrence.segment_id} className={`occurrence ${occurrence.is_last_occurrence ? 'last-occurrence' : ''}`}>
+                <div 
+                  key={occurrence.id} 
+                  id={`occurrence-${occurrence.id}`}
+                  className={`occurrence ${occurrence.is_last_occurrence ? 'last-occurrence' : ''} ${highlightedSegmentId === occurrence.id ? 'occurrence-highlighted' : ''}`}
+                >
                   <div className="occurrence-header">
                     <label className="checkbox-label">
                       <input
                         type="checkbox"
-                        checked={selectedDeletions.includes(occurrence.segment_id)}
-                        onChange={() => toggleDeletion(occurrence.segment_id)}
+                        checked={selectedDeletions.includes(occurrence.id)}
+                        onChange={() => toggleDeletion(occurrence.id)}
                         disabled={occurrence.is_last_occurrence} // Don't allow deleting the last occurrence
                       />
                       <span className="occurrence-title">
@@ -1738,30 +3154,34 @@ const DuplicateReviewComponent = ({ duplicates, onConfirmDeletions }) => {
                   </div>
                   
                   <div className="occurrence-details">
-                    <p><strong>File:</strong> {occurrence.audio_file_title}</p>
-                    <p><strong>Time:</strong> {occurrence.start_time.toFixed(1)}s - {occurrence.end_time.toFixed(1)}s</p>
+                    <p><strong>File:</strong> {occurrence.audio_file_name || occurrence.audio_file_title}</p>
+                    <p><strong>Time:</strong> {occurrence.start_time?.toFixed(1)}s - {occurrence.end_time?.toFixed(1)}s ({(occurrence.end_time - occurrence.start_time).toFixed(1)}s duration)</p>
+                    <p><strong>Text:</strong> "{occurrence.text}"</p>
                     <p><strong>Action:</strong> 
-                      <span className={`action-badge ${occurrence.recommended_action}`}>
-                        {occurrence.recommended_action === 'keep' ? 'KEEP' : 'DELETE'}
+                      <span className={`action-badge ${occurrence.is_duplicate ? 'delete' : 'keep'}`}>
+                        {occurrence.is_last_occurrence ? 'KEEP' : 'DELETE'}
                       </span>
                     </p>
                     
-                    {/* Audio playback button */}
-                    <div className="audio-controls">
-                      <button 
-                        className="play-segment-btn"
-                        onClick={() => playSegment(occurrence.audio_file_path, occurrence.start_time, occurrence.end_time)}
-                        title="Play this audio segment"
-                      >
-                        ▶️ Play Segment ({(occurrence.end_time - occurrence.start_time).toFixed(1)}s)
-                      </button>
-                    </div>
+                    {/* Audio waveform visualization */}
+                    {occurrence.audio_file_path && (
+                      <div className="waveform-section">
+                        <MiniWaveform 
+                          audioUrl={occurrence.audio_file_path}
+                          startTime={occurrence.start_time}
+                          endTime={occurrence.end_time}
+                          segmentId={occurrence.id}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
+              )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="review-actions">
@@ -1796,7 +3216,6 @@ const playSegment = (audioFilePath, startTime, endTime) => {
   
   audio.addEventListener('timeupdate', checkTime);
   audio.play().catch(error => {
-    console.error('Error playing audio:', error);
     alert('Could not play audio segment');
   });
 };

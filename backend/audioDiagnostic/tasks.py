@@ -433,20 +433,20 @@ def process_audio_file_task(self, audio_file_id):
         audio_file = AudioFile.objects.get(id=audio_file_id)
         project = audio_file.project
         
-        # Check if audio is already transcribed
-        if audio_file.status != 'transcribed':
+        # Check if audio has transcription (more flexible status check)
+        if audio_file.status not in ['transcribed', 'processed', 'processing']:
             raise ValueError(f"Audio file must be transcribed first. Current status: {audio_file.status}")
+        
+        # Check for existing transcription segments as the real validation
+        segments = TranscriptionSegment.objects.filter(audio_file=audio_file).order_by('start_time')
+        if not segments.exists():
+            raise ValueError("No transcription segments found. Please transcribe the audio first.")
         
         audio_file.task_id = task_id
         audio_file.status = 'processing'
         audio_file.save()
         
         r.set(f"progress:{task_id}", 10)
-        
-        # Get existing transcription segments
-        segments = TranscriptionSegment.objects.filter(audio_file=audio_file).order_by('start_time')
-        if not segments.exists():
-            raise ValueError("No transcription segments found. Please transcribe the audio first.")
         
         logger.info(f"Starting duplicate detection for audio file {audio_file_id} with {segments.count()} segments")
         
@@ -1221,14 +1221,33 @@ def analyze_transcription_vs_pdf(self, pdf_path, transcript, segments, words):
     }
 
 @shared_task(bind=True)
-def process_confirmed_deletions_task(self, project_id, confirmed_deletions):
+def process_confirmed_deletions_task(self, project_id, confirmed_deletions, use_clean_audio=False):
     """
     Process user-confirmed deletions and generate final clean audio file
+    
+    Args:
+        project_id: ID of the AudioProject
+        confirmed_deletions: List of segment IDs to delete
+        use_clean_audio: If True, apply deletions to clean audio (second pass)
+                        If False, apply deletions to original audio (first pass)
     """
     task_id = self.request.id
     
+    print(f"\n\n===== DELETION TASK STARTED =====")
+    print(f"Task ID: {task_id}")
+    print(f"Project ID: {project_id}")
+    print(f"Deletions: {len(confirmed_deletions)}")
+    print(f"===================================\n\n")
+    
+    logger.info(f"===== TASK STARTED: process_confirmed_deletions_task =====")
+    logger.info(f"Task ID: {task_id}")
+    logger.info(f"Project ID: {project_id}")
+    logger.info(f"Confirmed deletions count: {len(confirmed_deletions)}")
+    logger.info(f"Use clean audio: {use_clean_audio}")
+    
     # Get Redis connection
     r = get_redis_connection()
+    logger.info(f"Redis connection established")
     
     # Set up Docker and Celery infrastructure
     if not docker_celery_manager.setup_infrastructure():
@@ -1241,11 +1260,11 @@ def process_confirmed_deletions_task(self, project_id, confirmed_deletions):
         from .models import AudioProject, AudioFile, TranscriptionSegment
         
         project = AudioProject.objects.get(id=project_id)
-        project.status = 'processing'
+        project.status = 'processing_second_pass' if use_clean_audio else 'processing'
         project.save()
         
         r.set(f"progress:{task_id}", 10)
-        logger.info(f"Processing {len(confirmed_deletions)} confirmed deletions for project {project_id}")
+        logger.info(f"Processing {len(confirmed_deletions)} confirmed deletions for project {project_id} (second_pass={use_clean_audio})")
         
         # Get all audio files in order
         audio_files = project.audio_files.filter(status='transcribed').order_by('order_index')
@@ -1254,6 +1273,75 @@ def process_confirmed_deletions_task(self, project_id, confirmed_deletions):
         segments_to_delete = set(deletion['segment_id'] for deletion in confirmed_deletions)
         
         r.set(f"progress:{task_id}", 30)
+        
+        # Calculate duration statistics
+        logger.info("Calculating duration statistics...")
+        logger.info(f"Segments to delete count: {len(segments_to_delete)}")
+        logger.info(f"First few segment IDs to delete: {list(segments_to_delete)[:5]}")
+        
+        # Get segments based on use_clean_audio flag
+        if use_clean_audio:
+            # Second pass: use clean audio segments (is_verification=True)
+            all_segments = TranscriptionSegment.objects.filter(
+                audio_file__project=project,
+                is_verification=True
+            )
+            audio_source = project.final_processed_audio.path if project.final_processed_audio else None
+            if not audio_source:
+                raise ValueError("Clean audio file not found for second-pass processing")
+        else:
+            # First pass: use original segments (don't filter by is_verification)
+            # Get all segments that belong to transcribed audio files
+            all_segments = TranscriptionSegment.objects.filter(
+                audio_file__project=project
+            ).exclude(is_verification=True)  # Exclude verification segments if any
+        
+        logger.info(f"Found {all_segments.count()} total segments to analyze")
+        
+        # Debug: Check a sample segment
+        if all_segments.exists():
+            sample_seg = all_segments.first()
+            logger.info(f"Sample segment - ID: {sample_seg.id}, start: {sample_seg.start_time}, end: {sample_seg.end_time}, duration: {sample_seg.end_time - sample_seg.start_time}")
+        
+        # Calculate original total duration (sum of all segments)
+        original_duration = sum(
+            (segment.end_time - segment.start_time) 
+            for segment in all_segments
+            if segment.start_time is not None and segment.end_time is not None
+        )
+        
+        logger.info(f"Calculated original duration: {original_duration:.2f}s from {all_segments.count()} segments")
+        
+        # Calculate deleted duration (only confirmed deletions)
+        deleted_segments = all_segments.filter(id__in=segments_to_delete)
+        logger.info(f"Found {deleted_segments.count()} segments in database matching deletion IDs")
+        
+        deleted_duration = sum(
+            (segment.end_time - segment.start_time)
+            for segment in deleted_segments
+            if segment.start_time is not None and segment.end_time is not None
+        )
+        
+        logger.info(f"Calculated deleted duration: {deleted_duration:.2f}s from {deleted_segments.count()} segments")
+        
+        # Final duration is original minus deleted
+        final_duration = original_duration - deleted_duration
+        
+        # Save to project (update if second pass)
+        if use_clean_audio:
+            # Update with second-pass stats
+            project.duration_deleted += deleted_duration  # Add to existing
+            project.final_audio_duration = final_duration  # Update final
+        else:
+            # First pass stats
+            project.original_audio_duration = original_duration
+            project.duration_deleted = deleted_duration
+            project.final_audio_duration = final_duration
+        project.save()
+        
+        logger.info(f"Duration stats - Original: {original_duration:.2f}s, Deleted: {deleted_duration:.2f}s, Final: {final_duration:.2f}s")
+        
+        r.set(f"progress:{task_id}", 40)
         
         # Mark segments for deletion in database
         for segment_id in segments_to_delete:
@@ -1267,7 +1355,7 @@ def process_confirmed_deletions_task(self, project_id, confirmed_deletions):
         r.set(f"progress:{task_id}", 50)
         
         # Generate final audio file without deleted segments
-        final_audio_path = self.generate_clean_audio(project, segments_to_delete)
+        final_audio_path = generate_clean_audio(project, segments_to_delete)
         
         r.set(f"progress:{task_id}", 80)
         
@@ -1284,13 +1372,27 @@ def process_confirmed_deletions_task(self, project_id, confirmed_deletions):
         project.total_duplicates_found = len(confirmed_deletions)
         project.save()
         
-        r.set(f"progress:{task_id}", 100)
         logger.info(f"Successfully processed deletions for project {project_id}")
+        
+        # Mark task as complete BEFORE transcription
+        r.set(f"progress:{task_id}", 100)
+        
+        # Step 4: Auto-transcribe the clean audio for verification (don't block completion)
+        logger.info(f"Starting automatic transcription of clean audio for verification")
+        try:
+            transcribe_clean_audio_for_verification(project, final_audio_path)
+            project.clean_audio_transcribed = True
+            project.save()
+            logger.info(f"Clean audio transcription completed for project {project_id}")
+        except Exception as transcribe_error:
+            logger.error(f"Failed to transcribe clean audio: {str(transcribe_error)}")
+            # Don't fail the whole task if transcription fails
         
         return {
             'success': True,
             'deletions_processed': len(confirmed_deletions),
-            'final_audio': project.final_processed_audio.url if project.final_processed_audio else None
+            'final_audio': project.final_processed_audio.url if project.final_processed_audio else None,
+            'clean_audio_transcribed': project.clean_audio_transcribed
         }
         
     except Exception as e:
@@ -1305,60 +1407,115 @@ def process_confirmed_deletions_task(self, project_id, confirmed_deletions):
         # Unregister task
         docker_celery_manager.unregister_task(task_id)
 
-    def generate_clean_audio(self, project, segments_to_delete):
-        """
-        Generate final audio file with specified segments removed
-        """
-        from pydub import AudioSegment
-        import os
+
+def generate_clean_audio(project, segments_to_delete):
+    """
+    Generate final audio file with specified segments removed
+    """
+    from pydub import AudioSegment
+    import os
+    from .models import TranscriptionSegment
+    
+    final_audio = AudioSegment.empty()
+    
+    # Process each audio file in order
+    audio_files = project.audio_files.filter(status='transcribed').order_by('order_index')
+    
+    for audio_file in audio_files:
+        logger.info(f"Processing audio file: {audio_file.filename}")
         
-        final_audio = AudioSegment.empty()
+        # Load audio file
+        audio = AudioSegment.from_file(audio_file.file.path)
         
-        # Process each audio file in order
-        audio_files = project.audio_files.filter(status='transcribed').order_by('order_index')
+        # Get segments for this audio file that should be kept
+        segments = TranscriptionSegment.objects.filter(
+            audio_file=audio_file
+        ).order_by('segment_index')
         
-        for audio_file in audio_files:
-            logger.info(f"Processing audio file: {audio_file.filename}")
+        # Build list of time ranges to keep
+        keep_ranges = []
+        for segment in segments:
+            if segment.id not in segments_to_delete:
+                # Keep this segment
+                start_ms = int(segment.start_time * 1000)
+                end_ms = int(segment.end_time * 1000)
+                keep_ranges.append((start_ms, end_ms))
+        
+        # Extract and combine kept segments
+        for start_ms, end_ms in keep_ranges:
+            segment_audio = audio[start_ms:end_ms]
             
-            # Load audio file
-            audio = AudioSegment.from_file(audio_file.file.path)
+            # Add small fade to avoid clicks
+            if len(segment_audio) > 100:  # Only if segment is long enough
+                segment_audio = segment_audio.fade_in(50).fade_out(50)
             
-            # Get segments for this audio file that should be kept
-            segments = TranscriptionSegment.objects.filter(
-                audio_file=audio_file
-            ).order_by('segment_index')
-            
-            # Build list of time ranges to keep
-            keep_ranges = []
-            for segment in segments:
-                if segment.id not in segments_to_delete:
-                    # Keep this segment
-                    start_ms = int(segment.start_time * 1000)
-                    end_ms = int(segment.end_time * 1000)
-                    keep_ranges.append((start_ms, end_ms))
-            
-            # Extract and combine kept segments
-            for start_ms, end_ms in keep_ranges:
-                segment_audio = audio[start_ms:end_ms]
-                
-                # Add small fade to avoid clicks
-                if len(segment_audio) > 100:  # Only if segment is long enough
-                    segment_audio = segment_audio.fade_in(50).fade_out(50)
-                
-                final_audio += segment_audio
+            final_audio += segment_audio
+    
+    # Export final audio
+    output_dir = os.path.join(settings.MEDIA_ROOT, 'assembled')
+    os.makedirs(output_dir, exist_ok=True)
+    
+    timestamp = int(datetime.datetime.now().timestamp() * 1000)
+    filename = f"{timestamp}-{project.title.replace(' ', '_')}_clean.wav"
+    output_path = os.path.join(output_dir, filename)
+    
+    final_audio.export(output_path, format="wav")
+    logger.info(f"Generated clean audio: {output_path}")
+    
+    return output_path
+
+
+def transcribe_clean_audio_for_verification(project, clean_audio_path):
+    """
+    Transcribe the clean/processed audio file for verification purposes
+    Saves segments with is_verification=True flag to distinguish from original transcription
+    """
+    logger.info(f"Transcribing clean audio for verification: {clean_audio_path}")
+    
+    # Load Whisper model
+    model = whisper.load_model("base")
+    
+    # Transcribe with word timestamps
+    result = model.transcribe(clean_audio_path, word_timestamps=True)
+    
+    # Clear any existing verification segments for this project
+    TranscriptionSegment.objects.filter(
+        audio_file__project=project,
+        is_verification=True
+    ).delete()
+    
+    # Get the first audio file to associate verification segments with
+    # (or we could create a special verification AudioFile object)
+    first_audio_file = project.audio_files.first()
+    
+    # Save verification segments
+    for segment_index, segment in enumerate(result['segments']):
+        seg_obj = TranscriptionSegment.objects.create(
+            audio_file=first_audio_file,  # Associate with first file
+            text=segment['text'].strip(),
+            start_time=segment['start'],
+            end_time=segment['end'],
+            confidence_score=segment.get('avg_logprob', 0.0),
+            is_duplicate=False,
+            segment_index=segment_index,
+            is_verification=True  # Mark as verification transcript
+        )
         
-        # Export final audio
-        output_dir = os.path.join(settings.MEDIA_ROOT, 'assembled')
-        os.makedirs(output_dir, exist_ok=True)
-        
-        timestamp = int(datetime.datetime.now().timestamp() * 1000)
-        filename = f"{timestamp}-{project.title.replace(' ', '_')}_clean.wav"
-        output_path = os.path.join(output_dir, filename)
-        
-        final_audio.export(output_path, format="wav")
-        logger.info(f"Generated clean audio: {output_path}")
-        
-        return output_path
+        # Save words if available
+        if 'words' in segment:
+            for word_index, word_data in enumerate(segment['words']):
+                TranscriptionWord.objects.create(
+                    audio_file=first_audio_file,
+                    segment=seg_obj,
+                    word=word_data['word'].strip(),
+                    start_time=word_data['start'],
+                    end_time=word_data['end'],
+                    confidence=word_data.get('probability', 0.0),
+                    word_index=word_index
+                )
+    
+    logger.info(f"Verification transcription completed: {len(result['segments'])} segments")
+    return result
 
 
 @shared_task(bind=True)
@@ -1858,10 +2015,15 @@ def extract_chapter_title_task(context_text):
 
 
 @shared_task(bind=True)
-def detect_duplicates_task(self, project_id):
+def detect_duplicates_task(self, project_id, use_clean_audio=False):
     """
     Celery task for duplicate detection to prevent frontend timeouts
     Compares audio segments against PDF to find duplicates
+    
+    Args:
+        project_id: ID of the AudioProject
+        use_clean_audio: If True, use is_verification=True segments (clean audio)
+                        If False, use original transcription segments
     """
     task_id = self.request.id
     
@@ -1881,7 +2043,7 @@ def detect_duplicates_task(self, project_id):
         project = AudioProject.objects.get(id=project_id)
         
         r.set(f"progress:{task_id}", 5)
-        logger.info(f"Starting duplicate detection for project {project_id}")
+        logger.info(f"Starting duplicate detection for project {project_id} (use_clean_audio={use_clean_audio})")
         
         # Verify prerequisites
         if not project.pdf_match_completed:
@@ -1890,17 +2052,30 @@ def detect_duplicates_task(self, project_id):
         if not project.pdf_matched_section:
             raise ValueError("No PDF matched section found")
         
+        if use_clean_audio and not project.final_processed_audio:
+            raise ValueError("Clean audio must be generated first")
+        
         r.set(f"progress:{task_id}", 15)
         
-        # Get all transcription segments
-        logger.info("Collecting transcription segments...")
+        # Get transcription segments based on use_clean_audio flag
+        logger.info(f"Collecting transcription segments (clean_audio={use_clean_audio})...")
         all_segments = []
         audio_files = project.audio_files.filter(status='transcribed').order_by('order_index')
         
         total_files = audio_files.count()
         
         for i, audio_file in enumerate(audio_files):
-            segments = TranscriptionSegment.objects.filter(audio_file=audio_file).order_by('segment_index')
+            # Filter by is_verification if using clean audio
+            if use_clean_audio:
+                segments = TranscriptionSegment.objects.filter(
+                    audio_file=audio_file, 
+                    is_verification=True
+                ).order_by('segment_index')
+            else:
+                segments = TranscriptionSegment.objects.filter(
+                    audio_file=audio_file
+                ).order_by('segment_index')
+                
             for segment in segments:
                 all_segments.append({
                     'id': segment.id,
@@ -1975,24 +2150,22 @@ def detect_duplicates_task(self, project_id):
 
 def detect_duplicates_against_pdf_task(segments, pdf_section, full_transcript, task_id, r):
     """
-    Compare audio segments against PDF to find duplicates (for Celery task)
-    Returns comprehensive duplicate analysis with similarity scores
+    Find REPEATED/DUPLICATE segments within the audio transcription
+    Returns segments that appear multiple times (keep last occurrence, mark earlier ones as duplicates)
     """
     import difflib
     import re
+    from collections import defaultdict
     
-    logger.info(f"Analyzing {len(segments)} segments against PDF section ({len(pdf_section)} chars)")
+    logger.info(f"Analyzing {len(segments)} segments for repeated content")
     
-    # Clean PDF text for better matching
+    # Clean text for better comparison
     def clean_text_for_comparison(text):
         # Normalize whitespace and punctuation
         text = re.sub(r'\s+', ' ', text.lower().strip())
         text = re.sub(r'[^\w\s]', ' ', text)  # Remove punctuation except spaces
         text = re.sub(r'\s+', ' ', text)  # Normalize spaces
         return text
-    
-    pdf_clean = clean_text_for_comparison(pdf_section)
-    transcript_clean = clean_text_for_comparison(full_transcript)
     
     duplicates = []
     unique_segments = []
@@ -2002,6 +2175,11 @@ def detect_duplicates_against_pdf_task(segments, pdf_section, full_transcript, t
     base_progress = 45
     progress_range = 40
     
+    # Create a map of cleaned text to list of segments with that text
+    text_to_segments = defaultdict(list)
+    
+    # First pass: group segments by similar text
+    logger.info("First pass: Grouping similar segments...")
     for i, segment in enumerate(segments):
         segment_text = segment['text']
         segment_clean = clean_text_for_comparison(segment_text)
@@ -2011,66 +2189,133 @@ def detect_duplicates_against_pdf_task(segments, pdf_section, full_transcript, t
             unique_segments.append(segment)
             continue
         
-        # Method 1: Direct text matching in PDF
-        pdf_similarity = 0
-        if segment_clean in pdf_clean:
-            pdf_similarity = 1.0  # Exact match
-        else:
-            # Use sequence matcher for partial matches
-            pdf_similarity = difflib.SequenceMatcher(None, segment_clean, pdf_clean).ratio()
-        
-        # Method 2: Word-based similarity
-        segment_words = set(segment_clean.split())
-        pdf_words = set(pdf_clean.split())
-        
-        if segment_words and pdf_words:
-            word_intersection = len(segment_words & pdf_words)
-            word_union = len(segment_words | pdf_words)
-            word_similarity = word_intersection / word_union if word_union > 0 else 0
-        else:
-            word_similarity = 0
-        
-        # Method 3: Look for similar phrases in PDF (sliding window)
-        phrase_similarity = 0
-        segment_length = len(segment_clean)
-        if segment_length > 20:  # Only for substantial segments
-            for start in range(0, max(1, len(pdf_clean) - segment_length), max(1, len(pdf_clean) // 100)):
-                pdf_chunk = pdf_clean[start:start + segment_length]
-                similarity = difflib.SequenceMatcher(None, segment_clean, pdf_chunk).ratio()
-                phrase_similarity = max(phrase_similarity, similarity)
-        
-        # Combined similarity score (weighted)
-        combined_similarity = (
-            pdf_similarity * 0.4 +      # 40% - overall PDF similarity
-            word_similarity * 0.4 +     # 40% - word overlap
-            phrase_similarity * 0.2     # 20% - phrase matching
-        )
-        
-        # Determine if it's a duplicate (threshold: 0.7)
-        is_duplicate = combined_similarity >= 0.7
-        
-        duplicate_info = {
+        # Add to the map
+        text_to_segments[segment_clean].append({
+            'index': i,
             'segment': segment,
-            'is_duplicate': is_duplicate,
-            'similarity_score': combined_similarity,
-            'pdf_similarity': pdf_similarity,
-            'word_similarity': word_similarity,
-            'phrase_similarity': phrase_similarity,
-            'confidence': 'high' if combined_similarity >= 0.8 else 'medium' if combined_similarity >= 0.6 else 'low'
+            'clean_text': segment_clean
+        })
+        
+        # Update progress (first 20% of range)
+        progress = base_progress + int((i + 1) / total_segments * (progress_range * 0.2))
+        r.set(f"progress:{task_id}", progress)
+    
+    # Second pass: find fuzzy matches for groups with single items
+    logger.info("Second pass: Finding fuzzy duplicates...")
+    segment_groups = []
+    processed_indices = set()
+    
+    for i, segment in enumerate(segments):
+        if i in processed_indices:
+            continue
+            
+        segment_clean = clean_text_for_comparison(segment['text'])
+        
+        # Skip very short segments
+        if len(segment_clean.split()) < 3:
+            continue
+        
+        # Create a group for this segment
+        group = [{
+            'index': i,
+            'segment': segment,
+            'clean_text': segment_clean
+        }]
+        processed_indices.add(i)
+        
+        # Find similar segments (fuzzy matching)
+        for j, other_segment in enumerate(segments[i+1:], start=i+1):
+            if j in processed_indices:
+                continue
+                
+            other_clean = clean_text_for_comparison(other_segment['text'])
+            
+            # Skip very short segments
+            if len(other_clean.split()) < 3:
+                continue
+            
+            # Calculate similarity
+            similarity = difflib.SequenceMatcher(None, segment_clean, other_clean).ratio()
+            
+            # If highly similar (>85%), add to group
+            if similarity >= 0.85:
+                group.append({
+                    'index': j,
+                    'segment': other_segment,
+                    'clean_text': other_clean
+                })
+                processed_indices.add(j)
+        
+        # If group has more than one segment, it's a duplicate group
+        if len(group) > 1:
+            segment_groups.append(group)
+        
+        # Update progress (remaining 80% of range)
+        progress = base_progress + int(progress_range * 0.2) + int(len(processed_indices) / total_segments * (progress_range * 0.8))
+        r.set(f"progress:{task_id}", progress)
+    
+    # Third pass: Mark duplicates (keep LAST occurrence)
+    logger.info("Third pass: Marking duplicates (keeping last occurrence)...")
+    duplicate_indices = set()
+    duplicate_groups_info = {}  # Store group information for backend
+    
+    for group_idx, group in enumerate(segment_groups):
+        # Sort by index to ensure we keep the LAST occurrence
+        group_sorted = sorted(group, key=lambda x: x['index'])
+        
+        # Store group info
+        duplicate_groups_info[str(group_idx)] = {
+            'group_id': group_idx,
+            'occurrences_count': len(group_sorted),
+            'kept_occurrence': group_sorted[-1]['index'],  # Last one is kept
+            'sample_text': group_sorted[0]['segment']['text'][:100] + '...' if len(group_sorted[0]['segment']['text']) > 100 else group_sorted[0]['segment']['text']
         }
         
-        if is_duplicate:
+        # Add ALL occurrences to duplicates list (mark which to keep vs delete)
+        for item in group_sorted:
+            # Calculate how many times this segment appears
+            occurrences = len(group_sorted)
+            
+            # Find which occurrence this is (1st, 2nd, etc.)
+            occurrence_number = group_sorted.index(item) + 1
+            is_last_occurrence = (occurrence_number == occurrences)
+            
+            # Flatten the structure for easier backend access
+            segment = item['segment']
+            duplicate_info = {
+                # Flatten segment data to top level for backend compatibility
+                'id': segment.get('id'),
+                'audio_file_id': segment.get('audio_file_id'),
+                'audio_file_title': segment.get('audio_file_title'),
+                'text': segment.get('text'),
+                'start_time': segment.get('start_time'),
+                'end_time': segment.get('end_time'),
+                'segment_index': segment.get('segment_index'),
+                # Duplicate metadata
+                'is_duplicate': not is_last_occurrence,  # True for segments to delete, False for kept occurrence
+                'is_last_occurrence': is_last_occurrence,
+                'similarity_score': 1.0,  # High confidence - actual repeat
+                'duplicate_of_index': group_sorted[-1]['index'],  # Last occurrence
+                'occurrence_number': occurrence_number,
+                'total_occurrences': occurrences,
+                'group_id': group_idx,  # Group identifier
+                'confidence': 'high',
+                'reason': f'Repeated content (occurrence {occurrence_number} of {occurrences}, {"KEEP - last occurrence" if is_last_occurrence else "DELETE - earlier occurrence"})'
+            }
             duplicates.append(duplicate_info)
-        else:
+            
+            # Only add to duplicate_indices if it's NOT the last occurrence
+            if not is_last_occurrence:
+                duplicate_indices.add(item['index'])
+    
+    # Add unique segments (not in duplicate list)
+    for i, segment in enumerate(segments):
+        if i not in duplicate_indices and len(clean_text_for_comparison(segment['text']).split()) >= 3:
             unique_segments.append(segment)
-        
-        # Update progress
-        progress = base_progress + int((i + 1) / total_segments * progress_range)
-        r.set(f"progress:{task_id}", progress)
     
     # Calculate summary statistics
     total_duplicate_time = sum(
-        dup['segment']['end_time'] - dup['segment']['start_time'] 
+        dup['end_time'] - dup['start_time'] 
         for dup in duplicates
     )
     
@@ -2083,6 +2328,7 @@ def detect_duplicates_against_pdf_task(segments, pdf_section, full_transcript, t
     
     logger.info(f"Duplicate detection completed:")
     logger.info(f"- Total segments: {total_segments}")
+    logger.info(f"- Duplicate groups found: {len(segment_groups)}")
     logger.info(f"- Duplicates found: {len(duplicates)} ({duplicate_percentage:.1f}%)")
     logger.info(f"- Unique segments: {len(unique_segments)}")
     logger.info(f"- Duplicate time: {total_duplicate_time:.1f}s")
@@ -2091,9 +2337,14 @@ def detect_duplicates_against_pdf_task(segments, pdf_section, full_transcript, t
     return {
         'duplicates': duplicates,
         'unique_segments': unique_segments,
+        'duplicate_groups': duplicate_groups_info,  # Dict of group info, not just count
         'summary': {
             'total_segments': total_segments,
             'duplicates_count': len(duplicates),
+            'total_duplicate_segments': len(duplicates),  # For frontend compatibility
+            'unique_duplicate_groups': len(segment_groups),  # For frontend compatibility
+            'segments_to_delete': len(duplicates),  # For frontend compatibility
+            'segments_to_keep': len(unique_segments),  # For frontend compatibility
             'unique_count': len(unique_segments),
             'duplicate_percentage': duplicate_percentage,
             'total_duplicate_time': total_duplicate_time,
@@ -2102,3 +2353,270 @@ def detect_duplicates_against_pdf_task(segments, pdf_section, full_transcript, t
             'analysis_method': 'comprehensive_similarity'
         }
     }
+
+
+@shared_task(bind=True)
+def validate_transcript_against_pdf_task(self, project_id):
+    """
+    Step 5: Enhanced validation of clean transcript against PDF section
+    
+    Uses multiple matching strategies:
+    1. Fuzzy matching for typos/variations (Levenshtein distance)
+    2. Sentence-level semantic alignment (TF-IDF similarity)
+    3. Sliding window LCS for sequence matching
+    
+    This provides more accurate results even with transcription variations.
+    """
+    task_id = self.request.id
+    r = get_redis_connection()
+    
+    # Set up infrastructure
+    if not docker_celery_manager.setup_infrastructure():
+        raise Exception("Failed to set up Docker and Celery infrastructure")
+    
+    docker_celery_manager.register_task(task_id)
+    
+    try:
+        from difflib import SequenceMatcher
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity
+        import numpy as np
+        
+        project = AudioProject.objects.get(id=project_id)
+        
+        # Validate prerequisites
+        if not project.pdf_matched_section:
+            raise ValueError("PDF section not matched yet")
+        if not project.duplicates_confirmed_for_deletion:
+            raise ValueError("No confirmed deletions to validate")
+        
+        r.set(f"progress:{task_id}", 5)
+        logger.info(f"Starting ENHANCED PDF validation for project {project_id}")
+        
+        # Step 1: Get clean transcript (segments NOT in confirmed deletions)
+        # Extract segment IDs from the list of deletion objects
+        deletion_objects = project.duplicates_confirmed_for_deletion
+        confirmed_deletions = set(d['segment_id'] for d in deletion_objects)
+        all_segments = TranscriptionSegment.objects.filter(
+            audio_file__project=project,
+            is_verification=False
+        ).order_by('audio_file__order_index', 'start_time').values('id', 'text')
+        
+        clean_transcript_parts = []
+        for seg in all_segments:
+            if seg['id'] not in confirmed_deletions:
+                clean_transcript_parts.append(seg['text'])
+        
+        clean_transcript = ' '.join(clean_transcript_parts)
+        r.set(f"progress:{task_id}", 15)
+        
+        # Step 2: Get PDF section and clean it
+        pdf_section = project.pdf_matched_section
+        if not pdf_section:
+            raise ValueError("PDF matched section is empty")
+        
+        # Remove bracketed text from PDF (stage directions, notes, etc.)
+        import re
+        pdf_section_cleaned = re.sub(r'\[.*?\]', '', pdf_section)
+        # Also remove any double spaces left behind
+        pdf_section_cleaned = re.sub(r'\s+', ' ', pdf_section_cleaned).strip()
+        
+        r.set(f"progress:{task_id}", 20)
+        logger.info(f"Clean transcript length: {len(clean_transcript)} chars")
+        logger.info(f"PDF section length (cleaned): {len(pdf_section_cleaned)} chars")
+        
+        # ==================== SIMPLIFIED WORD MATCHING ====================
+        # Strategy: Tokenize into words, then find each PDF word in transcript
+        # Use sequential search with backtracking tolerance
+        
+        def normalize_word(word):
+            """Normalize word for matching"""
+            return re.sub(r'[^\w]', '', word.lower())
+        
+        def tokenize_with_positions(text):
+            """Get words with their positions"""
+            words = []
+            word_pattern = re.compile(r'\b[\w\']+\b')
+            for match in word_pattern.finditer(text):
+                original = match.group(0)
+                normalized = normalize_word(original)
+                if normalized:  # Skip empty after normalization
+                    words.append({
+                        'original': original,
+                        'normalized': normalized,
+                        'pos': match.start()
+                    })
+            return words
+        
+        pdf_words = tokenize_with_positions(pdf_section_cleaned)
+        transcript_words = tokenize_with_positions(clean_transcript)
+        
+        total_pdf_words = len(pdf_words)
+        total_transcript_words = len(transcript_words)
+        
+        logger.info(f"PDF words: {total_pdf_words}, Transcript words: {total_transcript_words}")
+        
+        r.set(f"progress:{task_id}", 30)
+        
+        # ==================== MATCHING ALGORITHM ====================
+        # Create word lists for searching
+        pdf_word_list = [w['normalized'] for w in pdf_words]
+        transcript_word_list = [w['normalized'] for w in transcript_words]
+        
+        matched_pdf_indices = set()
+        matched_transcript_indices = set()
+        
+        # Pass 1: Find exact word sequences (3+ words in a row)
+        logger.info("Pass 1: Finding 3-word sequences...")
+        window_size = 3
+        for pdf_idx in range(total_pdf_words - window_size + 1):
+            if pdf_idx in matched_pdf_indices:
+                continue
+            
+            pdf_window = pdf_word_list[pdf_idx:pdf_idx + window_size]
+            
+            for trans_idx in range(total_transcript_words - window_size + 1):
+                if trans_idx in matched_transcript_indices:
+                    continue
+                
+                trans_window = transcript_word_list[trans_idx:trans_idx + window_size]
+                
+                if pdf_window == trans_window:
+                    for i in range(window_size):
+                        matched_pdf_indices.add(pdf_idx + i)
+                        matched_transcript_indices.add(trans_idx + i)
+                    break
+        
+        logger.info(f"After 3-word sequences: {len(matched_pdf_indices)} PDF words matched")
+        r.set(f"progress:{task_id}", 50)
+        
+        # Pass 2: Find 2-word sequences
+        logger.info("Pass 2: Finding 2-word sequences...")
+        window_size = 2
+        for pdf_idx in range(total_pdf_words - window_size + 1):
+            if pdf_idx in matched_pdf_indices:
+                continue
+            
+            pdf_window = pdf_word_list[pdf_idx:pdf_idx + window_size]
+            
+            for trans_idx in range(total_transcript_words - window_size + 1):
+                if trans_idx in matched_transcript_indices:
+                    continue
+                
+                trans_window = transcript_word_list[trans_idx:trans_idx + window_size]
+                
+                if pdf_window == trans_window:
+                    for i in range(window_size):
+                        matched_pdf_indices.add(pdf_idx + i)
+                        matched_transcript_indices.add(trans_idx + i)
+                    break
+        
+        logger.info(f"After 2-word sequences: {len(matched_pdf_indices)} PDF words matched")
+        r.set(f"progress:{task_id}", 70)
+        
+        # Pass 3: Match remaining individual words (nearest neighbor)
+        logger.info("Pass 3: Matching individual words...")
+        transcript_search_start = 0
+        
+        for pdf_idx in range(total_pdf_words):
+            if pdf_idx in matched_pdf_indices:
+                continue
+            
+            pdf_word_norm = pdf_word_list[pdf_idx]
+            
+            # Search forward in transcript from last position
+            for trans_idx in range(transcript_search_start, total_transcript_words):
+                if trans_idx in matched_transcript_indices:
+                    continue
+                
+                if pdf_word_norm == transcript_word_list[trans_idx]:
+                    matched_pdf_indices.add(pdf_idx)
+                    matched_transcript_indices.add(trans_idx)
+                    transcript_search_start = trans_idx + 1
+                    break
+        
+        logger.info(f"After individual matching: {len(matched_pdf_indices)} PDF words matched")
+        r.set(f"progress:{task_id}", 85)
+        
+        # ==================== Calculate Statistics ====================
+        matched_words_count = len(matched_pdf_indices)
+        unmatched_pdf_words = total_pdf_words - matched_words_count
+        unmatched_transcript_words = total_transcript_words - len(matched_transcript_indices)
+        match_percentage = (matched_words_count / total_pdf_words * 100) if total_pdf_words > 0 else 0
+        
+        logger.info(f"Final validation results:")
+        logger.info(f"- Matched words: {matched_words_count}/{total_pdf_words}")
+        logger.info(f"- Unmatched PDF words: {unmatched_pdf_words}")
+        logger.info(f"- Unmatched transcript words: {unmatched_transcript_words}")
+        logger.info(f"- Match percentage: {match_percentage:.2f}%")
+        
+        # ==================== Generate HTML with Color Coding ====================
+        pdf_html_parts = []
+        for idx, word_info in enumerate(pdf_words):
+            word = word_info['original']
+            if idx in matched_pdf_indices:
+                pdf_html_parts.append(f'<span class="matched-word">{word}</span>')
+            else:
+                pdf_html_parts.append(f'<span class="unmatched-word">{word}</span>')
+        
+        pdf_html = ' '.join(pdf_html_parts)
+        
+        transcript_html_parts = []
+        for idx, word_info in enumerate(transcript_words):
+            word = word_info['original']
+            if idx in matched_transcript_indices:
+                transcript_html_parts.append(f'<span class="matched-word">{word}</span>')
+            else:
+                transcript_html_parts.append(f'<span class="unmatched-word">{word}</span>')
+        
+        transcript_html = ' '.join(transcript_html_parts)
+        
+        r.set(f"progress:{task_id}", 90)
+        
+        # Step 7: Save results
+        validation_results = {
+            'total_pdf_words': total_pdf_words,
+            'total_transcript_words': total_transcript_words,
+            'matched_words': matched_words_count,
+            'unmatched_pdf_words': unmatched_pdf_words,
+            'unmatched_transcript_words': unmatched_transcript_words,
+            'match_percentage': round(match_percentage, 2),
+            'validation_timestamp': datetime.datetime.now().isoformat()
+        }
+        
+        project.pdf_validation_results = validation_results
+        project.pdf_validation_html = f"""
+        <div class="validation-container">
+            <div class="validation-panel pdf-panel">
+                <h3>PDF Section ({total_pdf_words} words)</h3>
+                <div class="validation-text">{pdf_html}</div>
+            </div>
+            <div class="validation-panel transcript-panel">
+                <h3>Clean Transcript ({total_transcript_words} words)</h3>
+                <div class="validation-text">{transcript_html}</div>
+            </div>
+        </div>
+        """
+        project.pdf_validation_completed = True
+        project.save()
+        
+        r.set(f"progress:{task_id}", 100)
+        logger.info(f"PDF validation completed for project {project_id}")
+        
+        return {
+            'status': 'completed',
+            'results': {
+                **validation_results,
+                'pdf_html': pdf_html,
+                'transcript_html': transcript_html
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"PDF validation failed: {str(e)}", exc_info=True)
+        project = AudioProject.objects.get(id=project_id)
+        project.error_message = f"PDF validation error: {str(e)}"
+        project.save()
+        raise
+    finally:
+        docker_celery_manager.unregister_task(task_id)

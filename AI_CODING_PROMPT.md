@@ -123,6 +123,30 @@
     ├── Generate high-quality clean audio file with user-approved modifications
     ├── Preserve original audio quality and provide processing summary
     └── Include comprehensive analytics report of all changes made
+
+11. Post-Processing Verification ⭐ New:
+    ├── Automatically transcribe the generated clean audio file
+    ├── Save verification transcript with is_verification=True flag
+    ├── Compare clean audio transcript against original PDF matched section
+    ├── Calculate similarity score and identify any remaining duplicates
+    ├── Display side-by-side comparison interface
+    ├── Alert user if repeated sentences still exist
+    ├── Provide statistics: similarity percentage, common words, repeated phrases
+    └── Allow user to re-process if issues are found
+
+12. PDF Word-by-Word Validation ⭐ New:
+    ├── Remove all suggested text from transcript (apply confirmed deletions)
+    ├── Display cleaned transcript next to original PDF section
+    ├── For each word in PDF, sequentially match against clean transcript
+    ├── If word found: Highlight GREEN in both PDF and transcript
+    ├── If word not found: Continue to next transcript word until match found
+    ├── If PDF word not in transcript: Highlight RED in PDF
+    ├── Move to next PDF word and continue from last matched position
+    ├── Repeat for entire PDF section
+    ├── Calculate match percentage and provide detailed statistics
+    ├── Display side-by-side color-coded comparison with scrollable panels
+    ├── Show progress bar during processing for user feedback
+    └── Alert if match percentage is below 90% for quality assurance
 ```
 
 ### Duplicate Detection Algorithm Implementation

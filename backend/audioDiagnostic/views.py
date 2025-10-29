@@ -31,7 +31,8 @@ from .tasks import (
     transcribe_audio_words_task, 
     analyze_transcription_vs_pdf,
     match_pdf_to_audio_task,
-    detect_duplicates_task
+    detect_duplicates_task,
+    process_confirmed_deletions_task
 )
 from celery.result import AsyncResult
 from pydub import AudioSegment
@@ -170,37 +171,68 @@ class ProjectDetailView(APIView):
                 'pdf_chapter_title': project.pdf_chapter_title,
                 'pdf_match_confidence': project.pdf_match_confidence,
                 'pdf_matched_section': project.pdf_matched_section,
+                # Only include pdf_text if explicitly requested (can be very large)
+                'pdf_text': project.pdf_text if request.GET.get('include_pdf_text') else None,
+                'pdf_match_start_char': getattr(project, 'pdf_match_start_char', None),  # Boundary positions
+                'pdf_match_end_char': getattr(project, 'pdf_match_end_char', None),
                 'combined_transcript': project.combined_transcript,
                 'duplicates_detection_completed': project.duplicates_detection_completed,
                 'duplicates_detected': project.duplicates_detected,
                 'duplicates_confirmed_for_deletion': project.duplicates_confirmed_for_deletion,
+                # Duration statistics
+                'original_audio_duration': project.original_audio_duration,
+                'duration_deleted': project.duration_deleted,
+                'final_audio_duration': project.final_audio_duration,
+                # Final processed audio
+                'final_processed_audio': project.final_processed_audio.url if project.final_processed_audio else None,
+                # Clean audio transcription status
+                'clean_audio_transcribed': project.clean_audio_transcribed,
                 # PDF file information
-                'pdf_filename': project.pdf_file.name.split('/')[-1] if project.pdf_file else None
+                'pdf_filename': project.pdf_file.name.split('/')[-1] if project.pdf_file else None,
+                # Iterative cleaning
+                'parent_project_id': project.parent_project.id if project.parent_project else None,
+                'iteration_number': project.iteration_number,
+                'has_iterations': project.iterations.exists() if hasattr(project, 'iterations') else False
             }
         })
     
     def delete(self, request, project_id):
         """Delete project and all associated data"""
-        project = get_object_or_404(AudioProject, id=project_id, user=request.user)
-        
         try:
+            # Get project - for dev, skip user check if no authentication
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                project = get_object_or_404(AudioProject, id=project_id, user=request.user)
+            else:
+                # Development mode - allow deletion without authentication
+                project = get_object_or_404(AudioProject, id=project_id)
+            
             # Get all file paths before deletion for cleanup
             files_to_delete = []
             
             # PDF file
             if project.pdf_file:
-                files_to_delete.append(project.pdf_file.path)
+                try:
+                    files_to_delete.append(project.pdf_file.path)
+                except Exception:
+                    pass
             
             # Final processed audio
             if project.final_processed_audio:
-                files_to_delete.append(project.final_processed_audio.path)
+                try:
+                    files_to_delete.append(project.final_processed_audio.path)
+                except Exception:
+                    pass
             
             # Audio files and their processed versions
             for audio_file in project.audio_files.all():
                 if audio_file.file:
-                    files_to_delete.append(audio_file.file.path)
+                    try:
+                        files_to_delete.append(audio_file.file.path)
+                    except Exception:
+                        pass
             
             project_title = project.title
+            project_id_str = str(project_id)
             
             # Delete the project (this will cascade delete all related objects)
             project.delete()
@@ -216,7 +248,8 @@ class ProjectDetailView(APIView):
                 except Exception as e:
                     logger.warning(f"Could not delete file {file_path}: {str(e)}")
             
-            logger.info(f"Project '{project_title}' (ID: {project_id}) deleted by user {request.user.username}")
+            username = request.user.username if hasattr(request, 'user') and request.user.is_authenticated else 'anonymous'
+            logger.info(f"Project '{project_title}' (ID: {project_id_str}) deleted by user {username}")
             logger.info(f"Cleaned up {len(deleted_files)} files")
             
             return Response({
@@ -224,8 +257,13 @@ class ProjectDetailView(APIView):
                 'files_deleted': len(deleted_files)
             }, status=status.HTTP_200_OK)
             
+        except AudioProject.DoesNotExist:
+            logger.error(f"Project {project_id} not found")
+            return Response({
+                'error': f'Project not found'
+            }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error deleting project {project_id}: {str(e)}")
+            logger.error(f"Error deleting project {project_id}: {str(e)}", exc_info=True)
             return Response({
                 'error': f'Failed to delete project: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -547,14 +585,17 @@ class ProjectDownloadView(APIView):
     def get(self, request, project_id):
         project = get_object_or_404(AudioProject, id=project_id)  # Remove user filter for testing
         
-        if not project.processed_audio:
-            return Response({'error': 'No processed audio available'}, status=status.HTTP_404_NOT_FOUND)
+        # Check for final_processed_audio first (new workflow), then fallback to processed_audio (legacy)
+        audio_file = project.final_processed_audio if project.final_processed_audio else getattr(project, 'processed_audio', None)
         
-        if not os.path.exists(project.processed_audio.path):
-            return Response({'error': 'Processed audio file not found'}, status=status.HTTP_404_NOT_FOUND)
+        if not audio_file:
+            return Response({'error': 'No processed audio available yet. Processing may still be in progress.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if not os.path.exists(audio_file.path):
+            return Response({'error': 'Processed audio file not found on server'}, status=status.HTTP_404_NOT_FOUND)
         
         response = FileResponse(
-            open(project.processed_audio.path, 'rb'),
+            open(audio_file.path, 'rb'),
             as_attachment=True,
             filename=f"processed_{project.title}.wav"
         )
@@ -977,6 +1018,95 @@ class ProjectMatchPDFView(APIView):
         return "PDF Beginning (auto-detected)"
 
 @method_decorator(csrf_exempt, name='dispatch')
+class ProjectRefinePDFBoundariesView(APIView):
+    """
+    POST: User refines the PDF match boundaries by selecting exact start and end positions
+    Saves the refined boundaries for use in duplicate detection
+    """
+    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, project_id):
+        project = get_object_or_404(AudioProject, id=project_id, user=request.user)
+        
+        # Verify prerequisites
+        if not project.pdf_match_completed:
+            return Response({'error': 'PDF matching must be completed first'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        if not project.pdf_text:
+            return Response({'error': 'PDF text not available'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Get user-selected boundaries
+            start_char = request.data.get('start_char')
+            end_char = request.data.get('end_char')
+            
+            if start_char is None or end_char is None:
+                return Response({'error': 'start_char and end_char are required'}, 
+                              status=status.HTTP_400_BAD_REQUEST)
+            
+            start_char = int(start_char)
+            end_char = int(end_char)
+            
+            # Validate boundaries
+            if start_char < 0 or end_char > len(project.pdf_text):
+                return Response({'error': 'Invalid character positions'}, 
+                              status=status.HTTP_400_BAD_REQUEST)
+            
+            if start_char >= end_char:
+                return Response({'error': 'Start position must be before end position'}, 
+                              status=status.HTTP_400_BAD_REQUEST)
+            
+            # Update project with refined boundaries
+            project.pdf_match_start_char = start_char
+            project.pdf_match_end_char = end_char
+            
+            # Extract the refined section
+            refined_section = project.pdf_text[start_char:end_char]
+            project.pdf_matched_section = refined_section
+            
+            # Recalculate confidence with refined section
+            if project.combined_transcript:
+                # Simple word overlap confidence
+                import re
+                pdf_words = set(re.findall(r'\b\w{4,}\b', refined_section.lower()))
+                transcript_words = set(re.findall(r'\b\w{4,}\b', project.combined_transcript.lower()))
+                
+                if pdf_words and transcript_words:
+                    intersection = len(pdf_words & transcript_words)
+                    union = len(pdf_words | transcript_words)
+                    confidence = intersection / union if union > 0 else 0
+                    project.pdf_match_confidence = confidence
+            
+            project.save()
+            
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"PDF boundaries refined for project {project_id}: chars {start_char}-{end_char} (length: {end_char - start_char})")
+            
+            return Response({
+                'success': True,
+                'message': 'PDF boundaries refined successfully',
+                'start_char': start_char,
+                'end_char': end_char,
+                'section_length': end_char - start_char,
+                'confidence': project.pdf_match_confidence,
+                'refined_section_preview': refined_section[:500] + '...' if len(refined_section) > 500 else refined_section
+            })
+            
+        except ValueError:
+            return Response({'error': 'Invalid character position format'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to refine PDF boundaries for project {project_id}: {str(e)}")
+            return Response({'error': f'Failed to refine boundaries: {str(e)}'}, 
+                          status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@method_decorator(csrf_exempt, name='dispatch')
 class ProjectDetectDuplicatesView(APIView):
     """
     POST: Step 2 - Compare audio transcript against PDF to detect duplicates
@@ -1143,21 +1273,36 @@ class ProjectDuplicatesReviewView(APIView):
         try:
             # Get stored duplicate results
             duplicate_results = project.duplicates_detected or {}
+            logger.info(f"Loading duplicate results for project {project_id}")
+            logger.info(f"Duplicate results keys: {duplicate_results.keys()}")
+            logger.info(f"Number of duplicates: {len(duplicate_results.get('duplicates', []))}")
             
             # Enrich with audio file paths for playback
             enriched_duplicates = []
-            for duplicate in duplicate_results.get('duplicates', []):
-                # Get audio file info for playback
-                audio_file = AudioFile.objects.get(id=duplicate['audio_file_id'])
-                
-                enriched_duplicate = {
-                    **duplicate,
-                    'audio_file_path': audio_file.file.url if audio_file.file else None,
-                    'audio_file_name': audio_file.filename,
-                    'duration': duplicate['end_time'] - duplicate['start_time'],
-                    'preview_text': duplicate['text'][:100] + '...' if len(duplicate['text']) > 100 else duplicate['text']
-                }
-                enriched_duplicates.append(enriched_duplicate)
+            for idx, duplicate in enumerate(duplicate_results.get('duplicates', [])):
+                try:
+                    logger.debug(f"Processing duplicate {idx}: {type(duplicate)}")
+                    logger.debug(f"Duplicate keys: {duplicate.keys() if isinstance(duplicate, dict) else 'NOT A DICT'}")
+                    
+                    # Get audio file info for playback
+                    audio_file_id = duplicate.get('audio_file_id') if isinstance(duplicate, dict) else None
+                    if not audio_file_id:
+                        logger.error(f"Duplicate {idx} has no audio_file_id: {duplicate}")
+                        continue
+                        
+                    audio_file = AudioFile.objects.get(id=audio_file_id)
+                    
+                    enriched_duplicate = {
+                        **duplicate,
+                        'audio_file_path': audio_file.file.url if audio_file.file else None,
+                        'audio_file_name': audio_file.filename,
+                        'duration': duplicate.get('end_time', 0) - duplicate.get('start_time', 0),
+                        'preview_text': duplicate.get('text', '')[:100] + '...' if len(duplicate.get('text', '')) > 100 else duplicate.get('text', '')
+                    }
+                    enriched_duplicates.append(enriched_duplicate)
+                except Exception as e:
+                    logger.error(f"Error processing duplicate {idx}: {str(e)}", exc_info=True)
+                    continue
             
             # Group duplicates by group_id for easier frontend handling
             grouped_duplicates = {}
@@ -1223,6 +1368,318 @@ class ProjectConfirmDeletionsView(APIView):
             logger.error(f"Deletion confirmation failed: {str(e)}")
             return Response({'error': f'Failed to process deletions: {str(e)}'}, 
                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ProjectVerifyCleanupView(APIView):
+    """
+    POST: Step 4 - Verify clean audio against PDF section
+    Compares the transcribed clean audio against the original PDF matched section
+    to ensure all duplicates were removed successfully
+    """
+    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, project_id):
+        project = get_object_or_404(AudioProject, id=project_id, user=request.user)
+        
+        # Check if clean audio has been transcribed
+        if not project.clean_audio_transcribed:
+            return Response({
+                'error': 'Clean audio has not been transcribed yet. Please wait for processing to complete.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Get verification transcript (is_verification=True)
+            verification_segments = TranscriptionSegment.objects.filter(
+                audio_file__project=project,
+                is_verification=True
+            ).order_by('segment_index')
+            
+            if not verification_segments.exists():
+                return Response({
+                    'error': 'Verification transcript not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Combine verification transcript
+            clean_transcript = ' '.join([seg.text for seg in verification_segments])
+            
+            # Get original PDF section (using character positions if available)
+            pdf_section = project.pdf_matched_section or ''
+            if project.pdf_match_start_char and project.pdf_match_end_char and project.pdf_text:
+                pdf_section = project.pdf_text[project.pdf_match_start_char:project.pdf_match_end_char]
+            
+            # Perform comparison analysis
+            from difflib import SequenceMatcher
+            
+            # Calculate similarity ratio
+            similarity = SequenceMatcher(None, 
+                                        clean_transcript.lower().strip(), 
+                                        pdf_section.lower().strip()).ratio()
+            
+            # Find common phrases (potential remaining duplicates)
+            words_in_transcript = set(clean_transcript.lower().split())
+            words_in_pdf = set(pdf_section.lower().split())
+            common_words = words_in_transcript.intersection(words_in_pdf)
+            
+            # Check for repeated phrases in clean transcript
+            transcript_sentences = clean_transcript.split('.')
+            repeated_sentences = []
+            seen = {}
+            for sentence in transcript_sentences:
+                sentence = sentence.strip().lower()
+                if len(sentence) > 10:  # Ignore very short sentences
+                    if sentence in seen:
+                        repeated_sentences.append(sentence)
+                    seen[sentence] = True
+            
+            # Save verification results
+            verification_results = {
+                'similarity_to_pdf': similarity,
+                'clean_transcript_length': len(clean_transcript),
+                'pdf_section_length': len(pdf_section),
+                'common_words_count': len(common_words),
+                'repeated_sentences_found': len(repeated_sentences),
+                'repeated_sentences': repeated_sentences[:5] if repeated_sentences else [],  # Limit to first 5
+                'verification_date': str(datetime.datetime.now())
+            }
+            
+            project.verification_results = verification_results
+            project.verification_completed = True
+            project.save()
+            
+            return Response({
+                'success': True,
+                'clean_transcript': clean_transcript,
+                'pdf_section': pdf_section,
+                'verification_results': verification_results,
+                'segments': [{
+                    'text': seg.text,
+                    'start_time': seg.start_time,
+                    'end_time': seg.end_time
+                } for seg in verification_segments]
+            })
+            
+        except Exception as e:
+            logger.error(f"Verification failed: {str(e)}")
+            return Response({
+                'error': f'Verification failed: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ProjectValidatePDFView(APIView):
+    """
+    POST /api/projects/{id}/validate-against-pdf/
+    Start word-by-word validation of clean transcript against PDF section
+    Returns task_id for progress tracking
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, project_id):
+        try:
+            project = AudioProject.objects.get(pk=project_id, user=request.user)
+            
+            # Validate prerequisites
+            if not project.pdf_matched_section:
+                return Response({
+                    'error': 'PDF section not matched yet. Complete Step 2a first.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            if not project.duplicates_confirmed_for_deletion:
+                return Response({
+                    'error': 'No confirmed deletions to validate. Complete Step 2c first.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Start validation task
+            from .tasks import validate_transcript_against_pdf_task
+            task = validate_transcript_against_pdf_task.delay(project.id)
+            
+            logger.info(f"Started PDF validation task {task.id} for project {project.id}")
+            
+            return Response({
+                'success': True,
+                'task_id': task.id,
+                'message': 'PDF validation started'
+            })
+            
+        except AudioProject.DoesNotExist:
+            return Response({
+                'error': 'Project not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Failed to start PDF validation: {str(e)}")
+            return Response({
+                'error': f'Failed to start validation: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ProjectValidationProgressView(APIView):
+    """
+    GET /api/projects/{id}/validation-progress/{task_id}/
+    Check progress of PDF validation task
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, project_id, task_id):
+        try:
+            project = AudioProject.objects.get(pk=project_id, user=request.user)
+            
+            # Get task status from Celery
+            from celery.result import AsyncResult
+            task = AsyncResult(task_id)
+            
+            # Get progress from Redis
+            from .utils import get_redis_connection
+            r = get_redis_connection()
+            progress = r.get(f"progress:{task_id}")
+            progress_value = int(progress) if progress else 0
+            
+            response_data = {
+                'task_id': task_id,
+                'status': task.state,
+                'progress': progress_value
+            }
+            
+            if task.state == 'SUCCESS':
+                # Task completed - return results from task (includes HTML)
+                task_result = task.result
+                response_data['completed'] = True
+                if task_result and 'results' in task_result:
+                    response_data['results'] = task_result['results']
+                else:
+                    # Fallback to database (without HTML)
+                    project.refresh_from_db()
+                    response_data['results'] = project.pdf_validation_results
+                
+            elif task.state == 'FAILURE':
+                response_data['error'] = str(task.info)
+                
+            return Response(response_data)
+            
+        except AudioProject.DoesNotExist:
+            return Response({
+                'error': 'Project not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Failed to get validation progress: {str(e)}")
+            return Response({
+                'error': f'Failed to get progress: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ProjectRedetectDuplicatesView(APIView):
+    """
+    POST: Step 6 - Create a NEW child project for iterative cleaning
+    Copies PDF and clean audio to a fresh project, starts from Step 1
+    """
+    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, project_id):
+        parent_project = get_object_or_404(AudioProject, id=project_id, user=request.user)
+        
+        # Verify prerequisites
+        if not parent_project.final_processed_audio:
+            return Response({'error': 'Clean audio must be generated first'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Create a new child project
+            from django.core.files import File
+            import os
+            
+            child_project = AudioProject.objects.create(
+                user=request.user,
+                title=f"{parent_project.title} - Iteration {parent_project.iteration_number + 1}",
+                parent_project=parent_project,
+                iteration_number=parent_project.iteration_number + 1,
+                status='setup'
+            )
+            
+            logger.info(f"Created child project {child_project.id} from parent {parent_project.id}")
+            
+            # Copy PDF file - check if it exists first
+            if parent_project.pdf_file:
+                pdf_path = parent_project.pdf_file.path
+                logger.info(f"Parent PDF path: {pdf_path}")
+                logger.info(f"Parent PDF exists: {os.path.exists(pdf_path)}")
+                
+                if os.path.exists(pdf_path):
+                    try:
+                        with open(pdf_path, 'rb') as pdf:
+                            child_project.pdf_file.save(
+                                f"iteration_{child_project.iteration_number}_{os.path.basename(pdf_path)}",
+                                File(pdf),
+                                save=False  # Don't save yet
+                            )
+                        logger.info(f"PDF copied successfully to: {child_project.pdf_file.path}")
+                    except Exception as e:
+                        logger.error(f"Failed to copy PDF: {str(e)}")
+                        raise
+                else:
+                    logger.error(f"Parent PDF file not found at: {pdf_path}")
+                    raise FileNotFoundError(f"Parent PDF file not found: {pdf_path}")
+                
+                # Copy PDF metadata
+                child_project.pdf_text = parent_project.pdf_text
+                child_project.pdf_matched_section = parent_project.pdf_matched_section
+                child_project.pdf_chapter_title = parent_project.pdf_chapter_title
+                child_project.pdf_match_start_char = parent_project.pdf_match_start_char
+                child_project.pdf_match_end_char = parent_project.pdf_match_end_char
+                child_project.pdf_match_completed = True
+                logger.info("PDF metadata copied")
+            
+            # Create single audio file from clean audio
+            clean_audio_path = parent_project.final_processed_audio.path
+            
+            logger.info(f"Creating audio file from: {clean_audio_path}")
+            logger.info(f"Clean audio exists: {os.path.exists(clean_audio_path)}")
+            
+            if not os.path.exists(clean_audio_path):
+                raise FileNotFoundError(f"Clean audio file not found: {clean_audio_path}")
+            
+            audio_file = AudioFile.objects.create(
+                project=child_project,
+                title=f"Clean Audio - Iteration {child_project.iteration_number}",
+                filename=f"iteration_{child_project.iteration_number}_{os.path.basename(clean_audio_path)}",
+                order_index=0,
+                status='pending'
+            )
+            
+            logger.info(f"Created AudioFile with ID: {audio_file.id}, status: {audio_file.status}")
+            
+            with open(clean_audio_path, 'rb') as audio:
+                audio_file.file.save(
+                    f"iteration_{child_project.iteration_number}_{os.path.basename(clean_audio_path)}",
+                    File(audio),
+                    save=False  # Don't save yet
+                )
+            
+            audio_file.status = 'uploaded'
+            audio_file.save()
+            
+            logger.info(f"Audio file saved with status: {audio_file.status}, file path: {audio_file.file.path}")
+            
+            # Verify the audio file is queryable
+            verify_audio = AudioFile.objects.filter(project=child_project, status='uploaded')
+            logger.info(f"Verification: Found {verify_audio.count()} uploaded audio files in child project")
+            
+            child_project.status = 'ready'
+            child_project.save()
+            
+            logger.info(f"Child project {child_project.id} setup complete - Status: {child_project.status}, Audio files: {verify_audio.count()}")
+            
+            return Response({
+                'success': True,
+                'message': 'Created new iteration project',
+                'child_project_id': child_project.id,
+                'iteration_number': child_project.iteration_number
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to create child project: {str(e)}")
+            return Response({'error': f'Failed to create iteration project: {str(e)}'}, 
+                          status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 # ========================= LEGACY VIEWS (BACKWARD COMPATIBILITY) =========================
 
@@ -1683,7 +2140,8 @@ class AudioFileTranscribeView(APIView):
         from .models import AudioFile
         audio_file = get_object_or_404(AudioFile, id=audio_file_id, project=project)
         
-        if audio_file.status not in ['pending', 'failed']:
+        # Allow transcription for pending, failed, or uploaded status
+        if audio_file.status not in ['pending', 'failed', 'uploaded']:
             return Response({'error': f'Audio file cannot be transcribed. Current status: {audio_file.status}'}, 
                           status=status.HTTP_400_BAD_REQUEST)
         
