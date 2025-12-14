@@ -1,5 +1,5 @@
 from celery import shared_task
-import whisper
+import whisper  # Re-enabled - Whisper works with Python 3.13
 import difflib
 import datetime
 
@@ -7,7 +7,7 @@ import os
 import redis
 from collections import defaultdict
 import re
-from pydub import AudioSegment, silence
+# from pydub import AudioSegment, silence  # Temporarily disabled for Python 3.13 compatibility
 from django.conf import settings
 from .models import AudioProject, TranscriptionSegment, TranscriptionWord
 from .services.docker_manager import docker_celery_manager
@@ -16,6 +16,22 @@ import tempfile
 import logging
 
 logger = logging.getLogger(__name__)
+
+def ensure_ffmpeg_in_path():
+    """
+    Ensure FFmpeg is in the PATH environment variable.
+    This is needed for Whisper to work on Windows.
+    """
+    ffmpeg_path = r"C:\ffmpeg\ffmpeg-8.0-essentials_build\bin"
+    if os.path.exists(ffmpeg_path):
+        current_path = os.environ.get('PATH', '')
+        if ffmpeg_path not in current_path:
+            os.environ['PATH'] = ffmpeg_path + os.pathsep + current_path
+            logger.info(f"Added FFmpeg to PATH: {ffmpeg_path}")
+        return True
+    else:
+        logger.warning(f"FFmpeg not found at {ffmpeg_path}")
+        return False
 
 @shared_task(bind=True)
 def transcribe_all_project_audio_task(self, project_id):
@@ -49,6 +65,9 @@ def transcribe_all_project_audio_task(self, project_id):
         
         r.set(f"progress:{task_id}", 5)
         logger.info(f"Starting transcription for project {project_id} with {audio_files.count()} audio files")
+        
+        # Ensure FFmpeg is available for Whisper
+        ensure_ffmpeg_in_path()
         
         # Load Whisper model once
         model = whisper.load_model("base")
@@ -164,6 +183,9 @@ def transcribe_audio_file_task(self, audio_file_id):
         audio_file.save()
         
         r.set(f"progress:{task_id}", 10)
+        
+        # Ensure FFmpeg is available for Whisper
+        ensure_ffmpeg_in_path()
         
         # Step 1: Transcribe audio with word timestamps
         logger.info(f"Starting transcription for audio file {audio_file_id}")

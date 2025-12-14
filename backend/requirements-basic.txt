@@ -1,0 +1,72 @@
+# Django Framework
+Django==5.2.1
+djangorestframework==3.16.0
+
+# Celery for background tasks
+celery==5.5.2
+redis==6.1.0
+
+# Essential dependencies
+python-dotenv==1.2.1
+stripe==13.0.1
+
+# Data processing
+numpy==2.2.6
+
+# Text processing
+nltk==3.9.1
+regex==2024.11.6
+
+# HTTP requests
+requests==2.32.3
+
+# CORS headers for frontend communication
+django-cors-headers==4.6.0
+
+# File processing
+openpyxl==3.1.5
+PyPDF2==3.0.1
+
+# Core dependencies
+asgiref==3.8.1
+sqlparse==0.5.3
+tzdata==2025.2
+
+# Celery dependencies
+amqp==5.3.1
+billiard==4.2.1
+kombu==5.5.3
+vine==5.1.0
+click==8.2.1
+click-didyoumean==0.3.1
+click-plugins==1.1.1
+click-repl==0.3.0
+
+# Additional utilities
+colorama==0.4.6
+tqdm==4.67.1
+more-itertools==10.6.0
+
+# PyTorch (CPU version for compatibility)
+torch==2.9.0+cpu
+torchvision==0.24.0+cpu
+torchaudio==2.9.0+cpu
+
+# Audio processing (requires manual install due to Python 3.13 compatibility)
+# pydub==0.25.1  # Commented out due to audioop compatibility issue with Python 3.13
+# ffmpeg-python==0.2.0  # Commented out due to pydub dependency
+
+# OpenAI Whisper and dependencies
+openai-whisper==20250625
+numba==0.62.1
+tiktoken==0.12.0
+
+# Additional dependencies from automatic installation
+typing-extensions==4.15.0
+filelock==3.19.1
+fsspec==2025.9.0
+jinja2==3.1.6
+networkx==3.5
+pillow==11.3.0
+sympy==1.14.0
+llvmlite==0.45.1

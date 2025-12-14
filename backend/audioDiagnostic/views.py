@@ -35,7 +35,7 @@ from .tasks import (
     process_confirmed_deletions_task
 )
 from celery.result import AsyncResult
-from pydub import AudioSegment
+# from pydub import AudioSegment  # Temporarily disabled for Python 3.13 compatibility
 
 # ========================= NEW PROJECT-BASED VIEWS =========================
 

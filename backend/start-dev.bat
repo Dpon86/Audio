@@ -65,7 +65,7 @@ if "%FRONTEND_FLAG%"=="1" (
 )
 echo.
 
-python manage.py runserver
+py manage.py runserver
 
 echo.
 echo 🛑 Django server stopped

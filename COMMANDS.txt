@@ -1,0 +1,73 @@
+=============================================================
+  QUICK COMMAND REFERENCE - Copy & Paste These Commands
+=============================================================
+
+✅ FFmpeg FIXED in code! Restart Celery worker.
+   See docs\troubleshooting\FFMPEG_FIXED_CODE_LEVEL.md for details
+
+START BACKEND (Terminal 1):
+----------------------------
+cd C:\Users\NickD\Documents\Github\Audio\backend
+.\start-dev-venv.ps1
+
+
+RESTART CELERY ONLY (if already running):
+------------------------------------------
+cd C:\Users\NickD\Documents\Github\Audio\backend
+.\start-celery.bat
+(This is the new reliable version with FFmpeg!)
+
+
+START FRONTEND (Terminal 2):
+----------------------------
+cd C:\Users\NickD\Documents\Github\Audio
+.\scripts\startup\start-frontend.ps1
+
+
+SIMPLE FRONTEND START (Alternative):
+------------------------------------
+cd C:\Users\NickD\Documents\Github\Audio
+.\scripts\startup\start-frontend-simple.ps1
+
+
+YOUR URLs:
+----------
+Frontend:    http://localhost:3000
+Backend:     http://localhost:8000
+Admin:       http://localhost:8000/admin
+
+
+ADMIN LOGIN:
+------------
+Username:    Nick
+Password:    admin123
+(Change password after first login!)
+
+
+STOP SERVICES:
+--------------
+Press Ctrl+C in each terminal window
+
+
+FILES UPDATED:
+--------------
+✓ scripts\startup\start-frontend.ps1 (FIXED - no emoji, clean quotes)
+✓ scripts\startup\start-frontend-simple.ps1 (FIXED - simplified version)
+✓ backend/start-dev-venv.ps1 (UPDATED - uses start-celery.bat)
+✓ backend/start-celery.bat (NEW - reliable FFmpeg support)
+✓ backend/start-dev-venv.bat (WORKING)
+
+
+DOCUMENTATION:
+--------------
+Read docs\setup-guides\START_HERE.md for complete guide
+Read docs\troubleshooting\FINAL_FIX_CELERY.md for FFmpeg + Celery fix
+
+
+STATUS:
+-------
+All scripts fixed and ready to use!
+FFmpeg installed at: C:\ffmpeg\ffmpeg-8.0-essentials_build\bin
+Database has superuser 'Nick' (password: admin123)
+✅ CODE FIX APPLIED: tasks.py now adds FFmpeg to PATH automatically
+⚠️ RESTART CELERY WORKER to apply the code fix!
