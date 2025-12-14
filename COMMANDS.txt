@@ -8,13 +8,13 @@
 START BACKEND (Terminal 1):
 ----------------------------
 cd C:\Users\NickD\Documents\Github\Audio\backend
-.\start-dev-venv.ps1
+.\scripts\startup\start-dev-venv.ps1
 
 
 RESTART CELERY ONLY (if already running):
 ------------------------------------------
 cd C:\Users\NickD\Documents\Github\Audio\backend
-.\start-celery.bat
+.\scripts\startup\start-celery.bat
 (This is the new reliable version with FFmpeg!)
 
 
@@ -53,9 +53,15 @@ FILES UPDATED:
 --------------
 ✓ scripts\startup\start-frontend.ps1 (FIXED - no emoji, clean quotes)
 ✓ scripts\startup\start-frontend-simple.ps1 (FIXED - simplified version)
-✓ backend/start-dev-venv.ps1 (UPDATED - uses start-celery.bat)
-✓ backend/start-celery.bat (NEW - reliable FFmpeg support)
-✓ backend/start-dev-venv.bat (WORKING)
+✓ backend\scripts\startup\start-dev-venv.ps1 (UPDATED - uses start-celery.bat)
+✓ backend\scripts\startup\start-celery.bat (NEW - reliable FFmpeg support)
+✓ backend\scripts\startup\start-dev-venv.bat (WORKING)
+
+
+SCRIPTS LOCATION:
+-----------------
+Root scripts:      scripts\startup\, scripts\utilities\
+Backend scripts:   backend\scripts\startup\, backend\scripts\setup\
 
 
 DOCUMENTATION:

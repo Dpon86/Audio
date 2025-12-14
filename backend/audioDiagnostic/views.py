@@ -13,11 +13,14 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import authentication_classes, permission_classes
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication, TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
+from .serializers import (
+    AudioProjectSerializer, ProjectCreateSerializer, AudioFileSerializer,
+    PDFUploadSerializer, AudioUploadSerializer, DuplicateConfirmationSerializer
+)
+from .throttles import UploadRateThrottle, TranscribeRateThrottle, ProcessRateThrottle
 
 from django.http import JsonResponse, FileResponse, Http404, HttpResponseBadRequest
-from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
-from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404
 
@@ -39,7 +42,6 @@ from celery.result import AsyncResult
 
 # ========================= NEW PROJECT-BASED VIEWS =========================
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ProjectListCreateView(APIView):
     """
     GET: List user's projects
@@ -70,16 +72,12 @@ class ProjectListCreateView(APIView):
         return Response({'projects': project_data})
 
     def post(self, request):
-        title = request.data.get('title', '').strip()
-        if not title:
-            return Response({'error': 'Title is required'}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = ProjectCreateSerializer(data=request.data, context={'request': request})
+        if not serializer.is_valid():
+            return Response({'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         
         # Create project for the authenticated user
-        project = AudioProject.objects.create(
-            user=request.user,
-            title=title,
-            status='setup'
-        )
+        project = serializer.save()
         
         return Response({
             'project': {
@@ -90,7 +88,6 @@ class ProjectListCreateView(APIView):
             }
         }, status=status.HTTP_201_CREATED)
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ProjectDetailView(APIView):
     """
     GET: Get project details including segments
@@ -245,8 +242,10 @@ class ProjectDetailView(APIView):
                     if os.path.exists(file_path):
                         os.remove(file_path)
                         deleted_files.append(file_path)
-                except Exception as e:
+                except OSError as e:
                     logger.warning(f"Could not delete file {file_path}: {str(e)}")
+                except PermissionError as e:
+                    logger.warning(f"Permission denied deleting file {file_path}: {str(e)}")
             
             username = request.user.username if hasattr(request, 'user') and request.user.is_authenticated else 'anonymous'
             logger.info(f"Project '{project_title}' (ID: {project_id_str}) deleted by user {username}")
@@ -262,10 +261,20 @@ class ProjectDetailView(APIView):
             return Response({
                 'error': f'Project not found'
             }, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            logger.error(f"Error deleting project {project_id}: {str(e)}", exc_info=True)
+        except ValueError as e:
+            logger.error(f"Invalid project ID format: {project_id}")
             return Response({
-                'error': f'Failed to delete project: {str(e)}'
+                'error': 'Invalid project ID format'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except PermissionError as e:
+            logger.error(f"Permission error deleting project {project_id}: {str(e)}")
+            return Response({
+                'error': 'Insufficient permissions to delete project files'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.error(f"Unexpected error deleting project {project_id}: {str(e)}", exc_info=True)
+            return Response({
+                'error': 'An unexpected error occurred while deleting the project'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def patch(self, request, project_id):
@@ -305,7 +314,6 @@ class ProjectDetailView(APIView):
             'pdf_chapter_title': project.pdf_chapter_title
         })
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ProjectTranscriptView(APIView):
     """
     GET: Get full transcript for all audio files in the project
@@ -363,13 +371,13 @@ class ProjectTranscriptView(APIView):
             'transcript_data': transcript_data
         })
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ProjectUploadPDFView(APIView):
     """
     POST: Upload PDF file for project
     """
     authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
+    throttle_classes = [UploadRateThrottle]
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request, project_id):
@@ -393,13 +401,13 @@ class ProjectUploadPDFView(APIView):
             'pdf_filename': pdf_file.name
         })
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ProjectUploadAudioView(APIView):
     """
     POST: Upload audio file for project
     """
     authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
+    throttle_classes = [UploadRateThrottle]
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request, project_id):
@@ -445,7 +453,6 @@ class ProjectUploadAudioView(APIView):
             'project_status': project.status
         })
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ProjectTranscribeView(APIView):
     """
     POST: Step 1-4: Transcribe ALL audio files in project with word timestamps
@@ -453,6 +460,7 @@ class ProjectTranscribeView(APIView):
     """
     authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
+    throttle_classes = [TranscribeRateThrottle]
 
     def post(self, request, project_id):
         project = get_object_or_404(AudioProject, id=project_id, user=request.user)
@@ -483,7 +491,6 @@ class ProjectTranscribeView(APIView):
             'phase': 'transcription'
         })
 
-@method_decorator(csrf_exempt, name='dispatch')  
 class ProjectProcessView(APIView):
     """
     POST: Step 5-10: Process transcribed audio files for duplicates
@@ -491,6 +498,8 @@ class ProjectProcessView(APIView):
     """
     authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ProcessRateThrottle]
+    throttle_classes = [ProcessRateThrottle]
 
     def post(self, request, project_id):
         project = get_object_or_404(AudioProject, id=project_id, user=request.user)
@@ -525,7 +534,6 @@ class ProjectProcessView(APIView):
             'phase': 'duplicate_processing'
         })
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ProjectStatusView(APIView):
     """
     GET: Get processing status and progress
@@ -574,7 +582,6 @@ class ProjectStatusView(APIView):
             
         return Response(response_data)
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ProjectDownloadView(APIView):
     """
     GET: Download processed audio file
@@ -603,7 +610,6 @@ class ProjectDownloadView(APIView):
 
 # ========================= NEW STEP-BY-STEP PROCESSING VIEWS =========================
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ProjectMatchPDFView(APIView):
     """
     POST: Step 1 - Match audio transcript to PDF section/chapter
@@ -1017,7 +1023,6 @@ class ProjectMatchPDFView(APIView):
         
         return "PDF Beginning (auto-detected)"
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ProjectRefinePDFBoundariesView(APIView):
     """
     POST: User refines the PDF match boundaries by selecting exact start and end positions
@@ -1106,7 +1111,6 @@ class ProjectRefinePDFBoundariesView(APIView):
             return Response({'error': f'Failed to refine boundaries: {str(e)}'}, 
                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ProjectDetectDuplicatesView(APIView):
     """
     POST: Step 2 - Compare audio transcript against PDF to detect duplicates
@@ -1253,7 +1257,6 @@ class ProjectDetectDuplicatesView(APIView):
             'similarity_score': difflib.SequenceMatcher(None, pdf_section, transcript).ratio()
         }
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ProjectDuplicatesReviewView(APIView):
     """
     GET: Step 3 - Get detected duplicates for interactive review
@@ -1329,7 +1332,6 @@ class ProjectDuplicatesReviewView(APIView):
             return Response({'error': f'Failed to get duplicate review data: {str(e)}'}, 
                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ProjectConfirmDeletionsView(APIView):
     """
     POST: Step 4 - Accept user-confirmed deletions and process final audio
@@ -1685,7 +1687,6 @@ class ProjectRedetectDuplicatesView(APIView):
 
 
 
-@csrf_exempt
 def upload_chunk(request):
     if request.method == 'POST':
         upload_id = request.POST['upload_id']
@@ -1701,7 +1702,6 @@ def upload_chunk(request):
         return JsonResponse({'status': 'chunk received'})
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
-@csrf_exempt
 def assemble_chunks(request):
     if request.method == 'POST':
         import datetime
@@ -1794,7 +1794,6 @@ def save_uploaded_file(uploaded_file):
 
 
 
-@csrf_exempt
 def cut_audio(request):
     if request.method != "POST":
         logger.error("cut_audio: Not a POST request")
@@ -1865,7 +1864,6 @@ def cut_audio(request):
 
 #------------------------------Comparing Views ----------------
 
-@method_decorator(csrf_exempt, name='dispatch')
 class AnalyzePDFView(APIView):
     """
     POST: Accepts a PDF file and transcription data, starts analysis task.
@@ -1891,7 +1889,6 @@ class AnalyzePDFView(APIView):
 
 #------------------------------n8n-------------------------------
 
-@method_decorator(csrf_exempt, name='dispatch')
 class N8NTranscribeView(APIView):
     """
     On POST, finds the latest .wav file in the specified folder and starts transcription.
@@ -1918,7 +1915,6 @@ class N8NTranscribeView(APIView):
         return Response({"task_id": task.id, "filename": filename}, status=status.HTTP_202_ACCEPTED)
     
 
-@method_decorator(csrf_exempt, name='dispatch')
 class TranscriptionStatusWordsView(APIView):
     """
     Check the status of the transcribe_audio_words_task by task_id.
@@ -1937,7 +1933,6 @@ class TranscriptionStatusWordsView(APIView):
         return JsonResponse(data)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class AudioFileListView(APIView):
     """
     GET: List all audio files in a project
@@ -1973,7 +1968,6 @@ class AudioFileListView(APIView):
         })
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class AudioFileDetailView(APIView):
     """
     GET: Get details of a specific audio file
@@ -2044,7 +2038,6 @@ class AudioFileDetailView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class AudioFileProcessView(APIView):
     """
     POST: Process a specific audio file
@@ -2082,7 +2075,6 @@ class AudioFileProcessView(APIView):
         })
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class AudioFileStatusView(APIView):
     """
     GET: Get status of a specific audio file
@@ -2127,7 +2119,6 @@ class AudioFileStatusView(APIView):
         })
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class AudioFileTranscribeView(APIView):
     """
     POST: Transcribe a specific audio file (step 1 of 2-step process)
@@ -2160,7 +2151,6 @@ class AudioFileTranscribeView(APIView):
         })
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class AudioFileRestartView(APIView):
     """
     POST: Restart transcription for an audio file (clears task and resets status)
@@ -2198,7 +2188,6 @@ class AudioFileRestartView(APIView):
         })
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class InfrastructureStatusView(APIView):
     """
     GET: Get Docker and Celery infrastructure status
@@ -2234,7 +2223,6 @@ class InfrastructureStatusView(APIView):
                           status=status.HTTP_400_BAD_REQUEST)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class TaskStatusView(APIView):
     """
     GET: Check status of background tasks to prevent frontend timeouts
@@ -2310,7 +2298,6 @@ class TaskStatusView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ProjectStatusView(APIView):
     """
     GET: Check project status and any running tasks

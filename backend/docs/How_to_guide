@@ -1,0 +1,373 @@
+# Audio Duplicate Detection - How To Guide
+## 🚀 **Current System (Updated October 2025)**
+
+This system now features **automatic Docker/Celery infrastructure management** with a **2-step transcription workflow**. Docker containers start automatically when needed and shut down to save resources.
+
+---
+
+## 🎯 **Quick Start (Recommended)**
+
+### **Option 1: One-Click Startup Script** ⭐ **EASIEST**
+```bash
+# From project root directory
+./start-dev.bat
+
+# This will:
+# 1. Check Docker Desktop is running
+# 2. Start Django API server (http://localhost:8000)
+# 3. Start React frontend (http://localhost:3000) 
+# 4. Docker/Celery auto-starts when you transcribe audio
+```
+
+### **Option 2: Django Management Command**
+```bash
+cd backend
+
+# Start backend only
+python manage.py rundev
+
+# Start backend + frontend together
+python manage.py rundev --frontend
+
+# With verbose output for debugging
+python manage.py rundev --frontend --celery-verbose
+```
+
+---
+
+## 🏗️ **System Architecture (2025 Update)**
+
+### **Automatic Infrastructure Management**
+- **Docker containers**: Start automatically when you click "Transcribe"
+- **Redis + Celery**: Auto-configured for background processing
+- **Auto-shutdown**: Containers stop 60 seconds after tasks complete
+- **Resource efficient**: Only runs when actively processing audio
+
+### **2-Step Processing Workflow**
+1. **Step 1 - Transcribe**: Convert audio to text using OpenAI Whisper
+2. **Step 2 - Process**: Detect and remove duplicate content
+3. **Download Results**: Get cleaned audio file without repetitions
+
+---
+
+## 🔧 **Prerequisites**
+
+### **Required Software**
+- **Python 3.12+**: Backend Django application
+- **Node.js 16+**: Frontend React application  
+- **Docker Desktop**: For automatic Celery/Redis management
+- **Git**: Version control
+
+### **Check Docker Status**
+```bash
+# Run diagnostic script to verify Docker setup
+docker-diagnostic.bat
+
+# Or check manually
+docker --version
+docker info
+```
+
+---
+
+## 📋 **Step-by-Step Setup**
+
+### **1. Install Dependencies**
+```bash
+# Backend dependencies
+cd backend
+pip install -r requirements.txt
+
+# Frontend dependencies  
+cd ../frontend/audio-waveform-visualizer
+npm install
+```
+
+### **2. Database Setup**
+```bash
+cd backend
+python manage.py migrate
+python manage.py createsuperuser  # Optional: admin access
+```
+
+### **3. Start Development Environment**
+```bash
+# Option A: Use startup script (recommended) 
+./start-dev.bat
+# ✅ Automatically runs system checks and fixes issues
+
+# Option B: Django management command
+cd backend
+python manage.py rundev --frontend
+# ✅ Includes comprehensive system validation
+
+# Option C: Manual system check first (optional)
+python manage.py system_check --fix --verbose
+python manage.py rundev --frontend
+```
+
+---
+
+## 🎨 **How to Use the Application**
+
+### **1. Access the Interface**
+- **Frontend**: http://localhost:3000 
+- **Backend API**: http://localhost:8000/api/
+- **Admin Panel**: http://localhost:8000/admin/
+
+### **2. Create Your First Project**
+1. Go to http://localhost:3000
+2. Click "Create New Project"  
+3. Enter project title
+4. Upload PDF document (the book/text being read)
+5. Upload audio recording (your reading of the book)
+
+### **3. Process Audio (2-Step Workflow)**
+1. Click **"1. Transcribe"** - Converts audio to text
+   - Docker containers start automatically
+   - Status shows "Transcribing..." with progress
+   - Completes when status shows "Transcribed"
+
+2. Click **"2. Detect Duplicates"** - Finds repetitive content
+   - Compares transcription against PDF text
+   - Removes duplicate words/sentences/paragraphs 
+   - Always keeps the LAST occurrence of repeated content
+
+3. **Download Results** - Get cleaned audio file
+   - Click download button when processing complete
+   - Receive audio file with duplicates removed
+
+---
+
+## � **Automatic System Validation (New)**
+
+### **Startup Checks** ⭐ **Automatic**
+Every time you start the system, it automatically:
+
+1. **🔄 Resets Stuck Tasks**: Clears any orphaned transcription/processing tasks
+2. **📊 Database Validation**: Ensures migrations are up to date
+3. **🐳 Docker Status**: Verifies Docker Desktop is available
+4. **📦 Dependencies**: Checks critical Python packages are installed
+5. **📁 Directory Setup**: Creates required media directories
+6. **🔒 Permissions**: Validates file system access
+
+### **Manual System Diagnostics**
+```bash
+# Run comprehensive system check
+python manage.py system_check --verbose
+
+# Automatically fix detected issues
+python manage.py system_check --fix
+
+# Reset only stuck processing tasks
+python manage.py reset_stuck_tasks --dry-run  # Preview changes
+python manage.py reset_stuck_tasks            # Apply changes
+```
+
+### **What Gets Automatically Fixed**
+- ✅ **Stuck audio files** → Reset to "pending" status
+- ✅ **Orphaned projects** → Reset from "processing" to "pending"  
+- ✅ **Missing directories** → Created automatically
+- ✅ **Database migrations** → Applied if needed
+- ✅ **Task ID cleanup** → Cleared from stuck records
+
+---
+
+## �🐳 **Docker Infrastructure (Automatic)**
+
+### **Infrastructure Status Monitoring**
+- View Docker/Celery status in the UI header
+- Green badge: Containers running
+- Red badge: Containers stopped  
+- Task counter: Active background processes
+
+### **Manual Docker Management (Advanced)**
+```bash
+# Check container status
+docker compose ps
+
+# Manual start (usually not needed)
+cd backend
+docker compose up -d
+
+# Manual stop
+docker compose down
+
+# View logs
+docker compose logs celery_worker
+```
+
+---
+
+## 🔍 **Debugging & Troubleshooting**
+
+### **Common Issues & Solutions**
+
+#### **Docker Desktop Not Running**
+```
+Error: "The system cannot find the file specified"
+Solution: Start Docker Desktop and wait for it to fully load
+Check: Look for Docker whale icon in system tray
+```
+
+#### **Port Already in Use**
+```
+Error: "Address already in use"
+Solution: Kill existing processes or change ports
+Commands: 
+  netstat -ano | findstr :8000
+  netstat -ano | findstr :3000
+```
+
+#### **Infrastructure Status Shows "Stopped"**
+```
+Cause: Docker Desktop not running or containers failed to start
+Solution: 
+  1. Ensure Docker Desktop is running
+  2. Run docker-diagnostic.bat
+  3. Check Docker logs: docker compose logs
+```
+
+### **Verbose Debugging**
+```bash
+# See detailed Celery output
+python manage.py rundev --frontend --celery-verbose
+
+# Run Django with debug output
+python manage.py runserver --verbosity=2
+
+# Check Redis connection
+docker compose exec redis redis-cli ping
+```
+
+### **System Diagnostic Commands**
+```bash
+# Comprehensive system check
+python manage.py system_check --verbose
+
+# Reset stuck tasks only
+python manage.py reset_stuck_tasks
+
+# Fix all detected issues automatically
+python manage.py system_check --fix
+
+# Check Django API
+curl http://localhost:8000/api/projects/
+
+# Check infrastructure status
+curl http://localhost:8000/api/infrastructure/status/
+
+# Test file upload
+# Use browser to upload files at http://localhost:3000
+```
+
+---
+
+## 📊 **Service URLs & Ports**
+
+| Service | URL | Purpose |
+|---------|-----|---------|
+| 🌐 React Frontend | http://localhost:3000 | Main user interface |
+| 🔧 Django API | http://localhost:8000/api/ | Backend REST API |
+| 👑 Admin Panel | http://localhost:8000/admin/ | Database management |
+| � Redis | localhost:6379 | Task queue (internal) |
+| ⚡ Celery | Background | Audio processing (internal) |
+
+---
+
+## 🎯 **Expected Workflow**
+
+### **Complete User Journey**
+```
+1. Start application → start-dev.bat
+2. Create project → Enter title, upload PDF + audio
+3. Transcribe audio → Click "1. Transcribe" (Docker auto-starts)
+4. Wait for completion → Status: "Transcribed"  
+5. Process duplicates → Click "2. Detect Duplicates"
+6. Download results → Get cleaned audio file
+7. Containers auto-shutdown → 60 seconds after completion
+```
+
+### **Infrastructure Lifecycle**
+```
+User Action → Docker Starts → Processing → Task Complete → 60s Timer → Docker Stops
+```
+
+---
+
+## ⚠️ **Important Notes**
+
+### **System Requirements**
+- **Docker Desktop MUST be running** for audio processing
+- **Both frontend and backend** needed for full functionality
+- **Large files supported**: Up to 500MB audio, 100MB PDF
+- **Processing time**: ~5-10 minutes per hour of audio
+
+### **Development vs Production**
+- This guide is for **development setup**
+- For production deployment, see `PRODUCTION_DEPLOYMENT.md`
+- Current setup uses SQLite (dev) and local file storage
+- Authentication temporarily disabled for development
+
+### **File Formats Supported**
+- **Audio**: WAV, MP3, M4A, FLAC, OGG
+- **Documents**: PDF (text-based preferred)
+
+---
+
+## 🚨 **If Something Goes Wrong**
+
+### **Quick Reset**
+```bash
+# Stop everything
+docker compose down
+# Kill any remaining processes
+taskkill /F /IM python.exe /T
+taskkill /F /IM node.exe /T
+
+# Restart fresh
+start-dev.bat
+```
+
+### **Get Help**
+1. **Run diagnostic**: `docker-diagnostic.bat`
+2. **System validation**: `python manage.py system_check --verbose`
+3. **Check logs**: Look at console output
+4. **Verify Docker**: Ensure Docker Desktop is running
+5. **Test basic setup**: Try creating a simple project first
+
+---
+
+## 🎉 **What Happens During Startup**
+
+### **Automatic Startup Sequence**
+When you run `start-dev.bat`, the system automatically:
+
+```
+[1/5] ✅ Docker Installation Check
+[2/5] ✅ Docker Compose Availability  
+[3/5] 🔍 System Readiness Checks
+      → Reset stuck transcription/processing tasks
+      → Validate database migrations
+      → Check file permissions
+      → Create missing directories
+      → Verify dependencies
+[4/5] 🚀 Django API Server (port 8000)
+[5/5] ⚛️  React Frontend (port 3000)
+```
+
+### **Zero Configuration Required**
+- **No manual Docker commands** - containers start automatically when needed
+- **No manual task cleanup** - stuck tasks reset automatically  
+- **No directory setup** - media folders created automatically
+- **No migration management** - database updates applied automatically
+
+### **Ready for Production**
+- All security warnings noted (see `PRODUCTION_DEPLOYMENT.md`)
+- Comprehensive error handling and recovery
+- Automatic resource management and cleanup
+- Full system validation on every startup
+
+---
+
+**🎉 The system now includes automatic validation, stuck task recovery, and zero-configuration startup for the best developer experience!**

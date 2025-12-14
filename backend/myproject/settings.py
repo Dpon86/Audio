@@ -24,12 +24,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 import os
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
+
 load_dotenv()
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-t(b3z_-m$j5c(yf!9tce2ea3scijrtynm9a%&v1k)hut!989oz')
+# Require SECRET_KEY - no default for security
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    raise ImproperlyConfigured(
+        "SECRET_KEY environment variable is required. "
+        "Generate one with: python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'"
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
+# Default to False for security
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 
 ALLOWED_HOSTS = [
@@ -123,7 +132,19 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.MultiPartParser',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20
+    'PAGE_SIZE': 20,
+    # Rate limiting to prevent abuse
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',      # Anonymous users: 100 requests per hour
+        'user': '1000/hour',     # Authenticated users: 1000 requests per hour
+        'upload': '50/hour',     # File uploads: 50 per hour
+        'transcribe': '10/hour', # Transcription tasks: 10 per hour (expensive)
+        'process': '20/hour',    # Processing tasks: 20 per hour
+    }
 }
 
 # CORS Configuration
@@ -260,9 +281,18 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY', 'pk_test_...')  # Add your test key
-STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY', 'sk_test_...')  # Add your test key
-STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', 'whsec_...')  # Add your webhook secret
+# Stripe configuration - require environment variables for security
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
+
+# Validate Stripe keys if billing features are enabled
+if not all([STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET]):
+    import warnings
+    warnings.warn(
+        "Stripe keys not configured. Set STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, "
+        "and STRIPE_WEBHOOK_SECRET environment variables to enable billing features."
+    )
 
 # Email configuration (for user registration emails)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # Development - prints to console

@@ -72,6 +72,12 @@ class AudioProject(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'status']),  # Common filter pattern
+            models.Index(fields=['user', '-created_at']),  # List user's projects
+            models.Index(fields=['status', '-created_at']),  # Filter by status
+            models.Index(fields=['parent_project']),  # Iteration lookup
+        ]
     
     def __str__(self):
         return f"{self.title} - {self.user.username}"
@@ -116,6 +122,11 @@ class AudioFile(models.Model):
     class Meta:
         ordering = ['order_index', 'created_at']
         unique_together = ['project', 'order_index']
+        indexes = [
+            models.Index(fields=['project', 'status']),  # Common filter pattern
+            models.Index(fields=['project', 'order_index']),  # Ordering files
+            models.Index(fields=['status']),  # Status filtering
+        ]
     
     def __str__(self):
         return f"{self.project.title} - {self.title}"
@@ -153,6 +164,12 @@ class TranscriptionSegment(models.Model):
     
     class Meta:
         ordering = ['segment_index']
+        indexes = [
+            models.Index(fields=['audio_file', 'segment_index']),  # Common query pattern
+            models.Index(fields=['audio_file', 'start_time']),  # Time-based queries
+            models.Index(fields=['duplicate_group_id']),  # Duplicate grouping
+            models.Index(fields=['is_duplicate']),  # Filter duplicates
+        ]
     
     def __str__(self):
         return f"{self.audio_file.title} - Segment {self.segment_index}: {self.text[:50]}..."
@@ -168,6 +185,10 @@ class TranscriptionWord(models.Model):
     
     class Meta:
         ordering = ['word_index']
+        indexes = [
+            models.Index(fields=['segment', 'word_index']),  # Ordering words
+            models.Index(fields=['audio_file', 'start_time']),  # Time-based queries
+        ]
     
     def __str__(self):
         return f"{self.word} ({self.start_time:.2f}s)"

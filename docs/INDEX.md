@@ -35,22 +35,33 @@
 
 ## 📜 Scripts
 
-### Startup Scripts (`../scripts/startup/`)
+### Root Startup Scripts (`../scripts/startup/`)
 - **start-frontend.ps1** / **start-frontend-simple.ps1** - Frontend startup
-- **start-dev.bat** / **start-dev-simple.bat** / **start-dev-enhanced.bat** - Backend startup variations
-- **stop-dev.bat** / **stop-dev-simple.bat** / **stop-dev-enhanced.bat** - Shutdown scripts
 
-### Utility Scripts (`../scripts/utilities/`)
+### Root Utility Scripts (`../scripts/utilities/`)
 - **install-ffmpeg.ps1** - Automated FFmpeg installer
 - **docker-cleanup.bat** / **docker-diagnostic.bat** - Docker utilities
 - **setup-docker.bat** / **setup-environment.bat** - Environment setup
 - **check-status.bat** - System status checker
 - **prevent-sleep.bat** / **restore-sleep.bat** - Sleep prevention utilities
 - **check_user.py** / **test_authentication.py** - Testing utilities
+- Plus old startup scripts (start-dev.bat, stop-dev.bat, etc.)
+
+### Backend Scripts (`../backend/scripts/`)
+**Startup** (`startup/`)
+- **start-dev-venv.ps1** - ⭐ Main backend startup (Django + Celery + Redis)
+- **start-celery.bat** - Standalone Celery with FFmpeg
+- **restart-celery.ps1** - Restart Celery worker
+- **start-dev-venv.bat** / **start-dev.bat** / **start-dev.sh** - Alternative startup options
+
+**Setup** (`setup/`)
+- **setup-venv.ps1** - ⭐ Virtual environment setup
+- **setup-venv.bat** - Batch version of setup
 
 ## 🔗 External References
 
 - **README.md** (root) - Project overview
-- **COMMANDS.txt** (root) - Quick command reference
+- **COMMANDS.txt** (root) - ⭐ Quick command reference (UPDATED PATHS)
+- **backend/README.md** - Backend scripts & setup guide
 - **backend/** - Django backend code
 - **frontend/** - React frontend code

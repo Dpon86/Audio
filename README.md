@@ -34,17 +34,15 @@ A production-ready Django + React application that **automatically detects and r
 ```bash
 # 1. Clone repository
 git clone https://github.com/Dpon86/Audio.git
-cd "Audio repetative detection"
+cd Audio
 
 # 2. Install dependencies (one-time setup)
 cd backend
-pip install -r requirements.txt
-cd ../frontend/audio-waveform-visualizer
-npm install
+.\scripts\setup\setup-venv.ps1  # Creates venv & installs all dependencies
 
 # 3. Start everything with one command
-cd ../../
-start-dev.bat
+cd ..
+.\scripts\startup\start-dev.bat  # Or use backend\scripts\startup\start-dev-venv.ps1
 ```
 
 This will:
@@ -63,12 +61,17 @@ git clone https://github.com/Dpon86/Audio.git
 cd "Audio repetative detection"
 ```
 
-### **2. Backend Dependencies**
+### **2. Backend Setup (Automated)**
 ```bash
 cd backend
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py createsuperuser  # Optional: admin access
+.\scripts\setup\setup-venv.ps1  # Windows PowerShell
+# OR
+.\scripts\setup\setup-venv.bat  # Windows Command Prompt
+
+# This automatically:
+# - Creates Python virtual environment
+# - Installs all dependencies from requirements-basic.txt
+# - Sets up the database
 ```
 
 ### **3. Frontend Dependencies**
@@ -77,38 +80,52 @@ cd ../frontend/audio-waveform-visualizer
 npm install
 ```
 
-### **4. Database Initialization**
+### **4. Create Admin User (Optional)**
 ```bash
 cd ../../backend
-python manage.py migrate
+.\venv\Scripts\Activate.ps1
+python manage.py createsuperuser
 ```
 
 ### **5. Start Development Environment**
 
-**Option A: Automated (Recommended)**
+**Option A: Backend + Frontend (Recommended)**
 ```bash
-start-dev.bat  # Windows
+# Terminal 1: Start Backend (Django + Celery + Redis)
+cd backend
+.\scripts\startup\start-dev-venv.ps1
+
+# Terminal 2: Start Frontend
+cd ..
+.\scripts\startup\start-frontend.ps1
+```
+
+**Option B: Quick Frontend Only**
+```bash
+.\scripts\startup\start-frontend-simple.ps1
+```
+
+**Option C: Legacy Scripts (Still Available)**
+```bash
+.\scripts\startup\start-dev.bat  # Windows
 # OR
-./start-dev.sh  # Mac/Linux
+.\scripts\startup\start-dev.sh  # Mac/Linux
 ```
 
-**Option B: Django Command**
+**Option D: Manual (Advanced Users)**
 ```bash
+# Terminal 1: Activate venv and start Django
 cd backend
-python manage.py rundev --frontend
-```
-
-**Option C: Manual (Advanced Users)**
-```bash
-# Terminal 1: Backend
-cd backend
+.\venv\Scripts\Activate.ps1
 python manage.py runserver
 
-# Terminal 2: Frontend  
+# Terminal 2: Start Celery worker
+cd backend
+.\scripts\startup\start-celery.bat
+
+# Terminal 3: Frontend  
 cd frontend/audio-waveform-visualizer
 npm start
-
-# Docker/Celery starts automatically when processing audio
 ```
 
 ---
@@ -139,28 +156,54 @@ npm start
 
 ## 🏗️ **System Architecture**
 
-### **Project Structure**
+### **Project Structure (Organized 2025)**
 ```
-Audio repetative detection/
-├── ARCHITECTURE.md              # 📋 Complete system documentation
-├── PRODUCTION_DEPLOYMENT.md     # 🚀 Production setup guide  
-├── start-dev.bat               # ⚡ One-click startup script
-├── docker-diagnostic.bat       # 🔍 Docker troubleshooting
-├── backend/                    # 🐍 Django REST API
-│   ├── audioDiagnostic/       # Main application
-│   │   ├── models.py          # Database schema
-│   │   ├── views.py           # API endpoints
-│   │   ├── tasks.py           # Background processing
-│   │   └── services/          # Infrastructure management
-│   ├── myproject/settings.py  # Configuration hub
-│   ├── docker-compose.yml     # Container orchestration
-│   ├── requirements.txt       # Python dependencies
-│   └── How_to_guide          # Updated setup instructions
-├── frontend/audio-waveform-visualizer/ # ⚛️ React Interface
-│   ├── src/screens/           # Main UI components
-│   ├── src/components/        # Reusable components  
-│   └── package.json          # Node.js dependencies
-└── README.md                 # This file
+Audio/
+├── COMMANDS.txt                # ⚡ Quick command reference
+├── README.md                  # This file
+├── package.json               # Root dependencies
+├── docs/                      # 📚 All documentation
+│   ├── INDEX.md              # Documentation navigation guide
+│   ├── architecture/         # System architecture & planning
+│   │   ├── ARCHITECTURE.md
+│   │   ├── IMPLEMENTATION_SUMMARY.md
+│   │   └── PRODUCTION_DEPLOYMENT.md
+│   ├── setup-guides/         # Setup & startup instructions
+│   │   ├── START_HERE.md    # ⭐ Main setup guide
+│   │   └── QUICK_START_WORKING.md
+│   └── troubleshooting/      # Common issues & fixes
+│       ├── FFMPEG_FIXED_CODE_LEVEL.md
+│       └── INSTALL_FFMPEG.md
+├── scripts/                   # 🔧 Root-level scripts
+│   ├── startup/              # Frontend & legacy startup scripts
+│   │   ├── start-frontend.ps1
+│   │   └── start-dev.bat
+│   └── utilities/            # Helper & diagnostic scripts
+│       ├── install-ffmpeg.ps1
+│       └── docker-diagnostic.bat
+├── backend/                   # 🐍 Django REST API
+│   ├── README.md             # Backend-specific guide
+│   ├── scripts/
+│   │   ├── startup/          # Backend startup scripts
+│   │   │   ├── start-dev-venv.ps1  # ⭐ Main backend startup
+│   │   │   ├── start-celery.bat
+│   │   │   └── restart-celery.ps1
+│   │   └── setup/            # Environment setup
+│   │       └── setup-venv.ps1     # ⭐ Virtual environment setup
+│   ├── docs/                 # Backend documentation
+│   ├── audioDiagnostic/      # Main application
+│   │   ├── models.py         # Database schema
+│   │   ├── views.py          # API endpoints
+│   │   ├── tasks.py          # Background processing (Celery)
+│   │   └── services/         # Infrastructure management
+│   ├── myproject/settings.py # Configuration hub
+│   ├── docker-compose.yml    # Container orchestration
+│   ├── requirements.txt      # Python dependencies
+│   └── venv/                 # Virtual environment (created by setup)
+└── frontend/audio-waveform-visualizer/ # ⚛️ React Interface
+    ├── src/screens/          # Main UI components
+    ├── src/components/       # Reusable components  
+    └── package.json          # Node.js dependencies
 ```
 
 ### **🔄 Processing Architecture**
@@ -232,7 +275,7 @@ React UI → Django API → Docker Manager → Celery Worker → OpenAI Whisper 
 
 # Problem: Containers won't start
 # Solution: Run diagnostic script
-docker-diagnostic.bat
+.\scripts\utilities\docker-diagnostic.bat
 ```
 
 #### **🔌 Port Conflicts**  
@@ -248,25 +291,34 @@ taskkill /F /PID <process_id>  # Kill conflicting process
 ```bash
 # Problem: Import errors or missing packages
 # Solutions:
-pip install -r requirements.txt     # Reinstall Python deps
-npm install                         # Reinstall Node deps
-python manage.py migrate           # Update database schema
+cd backend
+.\scripts\setup\setup-venv.ps1     # Recreate venv & reinstall deps
+# OR manually:
+.\venv\Scripts\Activate.ps1
+pip install -r requirements-basic.txt
+python manage.py migrate
+
+# Frontend:
+cd frontend/audio-waveform-visualizer
+npm install
 ```
 
 ### **🔧 Advanced Debugging**
 ```bash
-# Verbose Django output
-python manage.py rundev --frontend --celery-verbose
-
 # Check infrastructure status
 curl http://localhost:8000/api/infrastructure/status/
 
 # View Docker logs
+cd backend
 docker compose logs celery_worker
 
+# Restart just Celery
+.\scripts\startup\restart-celery.ps1
+
 # Reset everything
+cd backend
 docker compose down
-start-dev.bat
+.\scripts\startup\start-dev-venv.ps1
 ```
 
 ---
@@ -274,14 +326,18 @@ start-dev.bat
 ## 📚 **Documentation**
 
 ### **📋 Complete Guides**
-- **[ARCHITECTURE.md](ARCHITECTURE.md)**: Detailed system architecture and file structure
-- **[PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md)**: Production setup and security
-- **[How_to_guide](backend/How_to_guide)**: Updated setup and usage instructions
-- **[Frontend Setup Guide](frontend/SETUP_GUIDE.md)**: React development workflow
+- **[docs/INDEX.md](docs/INDEX.md)**: ⭐ Main documentation navigation
+- **[COMMANDS.txt](COMMANDS.txt)**: Quick command reference
+- **[docs/setup-guides/START_HERE.md](docs/setup-guides/START_HERE.md)**: Complete setup guide
+- **[backend/README.md](backend/README.md)**: Backend scripts & setup reference
+- **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)**: System architecture
+- **[docs/architecture/PRODUCTION_DEPLOYMENT.md](docs/architecture/PRODUCTION_DEPLOYMENT.md)**: Production deployment
+- **[frontend/SETUP_GUIDE.md](frontend/SETUP_GUIDE.md)**: React development workflow
 
-### **🔧 Reference Files**
-- **[Frontend Dependencies](frontend/FRONTEND_DEPENDENCIES.md)**: Complete JS dependency docs
-- **[Package Templates](frontend/)**: Minimal and enhanced package.json configs
+### **🔧 Troubleshooting**
+- **[docs/troubleshooting/FFMPEG_FIXED_CODE_LEVEL.md](docs/troubleshooting/FFMPEG_FIXED_CODE_LEVEL.md)**: FFmpeg setup
+- **[docs/troubleshooting/INSTALL_FFMPEG.md](docs/troubleshooting/INSTALL_FFMPEG.md)**: FFmpeg installation
+- **[backend/docs/](backend/docs/)**: Backend-specific documentation
 
 ---
 
