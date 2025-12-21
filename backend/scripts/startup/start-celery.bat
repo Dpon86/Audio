@@ -32,6 +32,8 @@ echo.
 echo Starting Celery worker...
 echo Press Ctrl+C to stop
 echo.
+echo NOTE: To reload after code changes, restart this window
+echo.
 
 celery -A myproject worker --loglevel=info --pool=solo
 

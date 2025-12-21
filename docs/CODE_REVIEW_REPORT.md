@@ -1571,9 +1571,9 @@ jobs:
 7. ✅ Add environment variable validation
 
 **Acceptance Criteria:**
-- [ ] No secrets in code
-- [ ] Rate limiting active (100/hour anon, 1000/hour user)
-- [ ] All inputs validated via serializers
+- [x] No secrets in code
+- [x] Rate limiting active (100/hour anon, 1000/hour user)
+- [x] All inputs validated via serializers
 - [ ] Security scan passes (bandit, safety)
 
 ---
@@ -1591,9 +1591,9 @@ jobs:
 7. ✅ Move Stripe logic to service layer
 
 **Acceptance Criteria:**
-- [ ] No file over 500 lines
+- [x] No file over 500 lines (views/tasks split into modules)
 - [ ] All queries use select_related/prefetch_related
-- [ ] Specific exception types used
+- [x] Specific exception types used (improved in delete method)
 - [ ] Component hierarchy max 3 levels deep
 
 ---
@@ -1605,10 +1605,10 @@ jobs:
 1. ✅ Write unit tests for models
 2. ✅ Write API tests for all endpoints
 3. ✅ Write task tests (with mocks)
-4. ✅ Add frontend component tests
-5. ✅ Set up coverage reporting (target: 80%)
-6. ✅ Add API documentation (drf-spectacular)
-7. ✅ Set up linting (flake8, black, eslint)
+4. [ ] Add frontend component tests
+5. [ ] Set up coverage reporting (target: 80%)
+6. [ ] Add API documentation (drf-spectacular)
+7. [ ] Set up linting (flake8, black, eslint)
 
 **Acceptance Criteria:**
 - [ ] 80%+ test coverage
@@ -1622,15 +1622,15 @@ jobs:
 **Goal:** Production-ready infrastructure
 
 **Tasks:**
-1. ✅ Migrate to PostgreSQL
-2. ✅ Implement Whisper model caching
-3. ✅ Add structured logging
-4. ✅ Set up Sentry error tracking
-5. ✅ Add Prometheus metrics
-6. ✅ Fix FFmpeg path (cross-platform)
-7. ✅ Fix frontend API URLs (env-based)
-8. ✅ Use CPU-only PyTorch
-9. ✅ Pin all dependencies
+1. [ ] Migrate to PostgreSQL
+2. [ ] Implement Whisper model caching
+3. [ ] Add structured logging
+4. [ ] Set up Sentry error tracking
+5. [ ] Add Prometheus metrics
+6. [ ] Fix FFmpeg path (cross-platform)
+7. [ ] Fix frontend API URLs (env-based)
+8. [ ] Use CPU-only PyTorch
+9. [ ] Pin all dependencies
 
 **Acceptance Criteria:**
 - [ ] PostgreSQL in production
@@ -1644,14 +1644,14 @@ jobs:
 **Goal:** Automated deployments
 
 **Tasks:**
-1. ✅ Set up GitHub Actions CI
-2. ✅ Add automated testing in CI
-3. ✅ Add security scanning in CI
-4. ✅ Set up staging environment
-5. ✅ Configure deployment pipeline
-6. ✅ Add health check endpoints
-7. ✅ Set up log aggregation
-8. ✅ Configure alerts
+1. [ ] Set up GitHub Actions CI
+2. [ ] Add automated testing in CI
+3. [ ] Add security scanning in CI
+4. [ ] Set up staging environment
+5. [ ] Configure deployment pipeline
+6. [ ] Add health check endpoints
+7. [ ] Set up log aggregation
+8. [ ] Configure alerts
 
 **Acceptance Criteria:**
 - [ ] Automated tests on PR

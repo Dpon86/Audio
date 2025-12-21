@@ -885,6 +885,43 @@ const ProjectDetailPage = () => {
       setProcessing(true);
       setProgress(0);
       
+      // Check infrastructure status first
+      const infraResponse = await fetchWithAuth('/api/infrastructure/status/', {}, token);
+      if (infraResponse.ok) {
+        const infraData = await infraResponse.json();
+        
+        // If infrastructure is not running, start it
+        if (!infraData.redis_running || !infraData.celery_running) {
+          const confirmStart = window.confirm(
+            "⚠️ Infrastructure not ready:\n\n" +
+            `Redis: ${infraData.redis_running ? '✅ Running' : '❌ Stopped'}\n` +
+            `Celery: ${infraData.celery_running ? '✅ Running' : '❌ Stopped'}\n\n` +
+            "Would you like to start the infrastructure now?"
+          );
+          
+          if (!confirmStart) {
+            setProcessing(false);
+            return;
+          }
+          
+          // Start infrastructure
+          const startResponse = await fetchWithAuth('/api/infrastructure/start/', {
+            method: 'POST'
+          }, token);
+          
+          if (!startResponse.ok) {
+            alert("❌ Failed to start infrastructure. Please check Docker and try again.");
+            setProcessing(false);
+            return;
+          }
+          
+          // Wait a moment for services to start
+          alert("✅ Infrastructure starting... Please wait a moment.");
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+      }
+      
+      // Proceed with deletion processing
       const response = await fetchWithAuth(`/api/projects/${projectId}/confirm-deletions/`, {
         method: "POST",
         body: JSON.stringify({
@@ -894,16 +931,33 @@ const ProjectDetailPage = () => {
       
       if (response.ok) {
         const data = await response.json();
-        alert(`Processing ${data.confirmed_count} confirmed deletions...`);
-        startProgressPolling(); // Monitor progress
-        fetchProjectDetails(); // Refresh to get updated status
+        alert(`Processing ${data.confirmed_count} confirmed deletions...\n\nThis will:\n1. Remove duplicate segments\n2. Generate clean audio\n3. Automatically validate against PDF`);
+        
+        // Monitor progress and auto-validate on completion
+        startProgressPolling(async () => {
+          // On completion, automatically trigger PDF validation
+          await fetchProjectDetails();
+          
+          // Give UI a moment to update
+          setTimeout(async () => {
+            try {
+              // Auto-trigger PDF validation
+              await validateAgainstPDF();
+            } catch (error) {
+              console.error('Auto-validation failed:', error);
+            }
+          }, 1000);
+        });
       } else {
         const errorData = await response.json();
         alert(errorData.error || "Failed to process deletions");
         setProcessing(false);
       }
     } catch (error) {
-      alert("Failed to confirm deletions");
+      // Ignore abort errors
+      if (error.name !== 'AbortError') {
+        alert("Failed to confirm deletions");
+      }
       setProcessing(false);
     }
   };
@@ -964,7 +1018,26 @@ const ProjectDetailPage = () => {
                 clearInterval(progressInterval);
                 setValidationResults(progressData.results);
                 setIsValidatingPDF(false);
-                alert("PDF validation complete! Check results below.");
+                
+                // Check match percentage and alert accordingly
+                const matchPercentage = progressData.results.match_percentage;
+                if (matchPercentage < 90) {
+                  alert(
+                    `⚠️ PDF Validation Complete\n\n` +
+                    `Match: ${matchPercentage}%\n\n` +
+                    `Only ${matchPercentage}% of PDF words were found in the clean transcript.\n\n` +
+                    `This is below the 90% threshold. You can:\n` +
+                    `• Try different deletion selections\n` +
+                    `• Create an iteration project for another pass\n` +
+                    `• Accept the current result if it's good enough`
+                  );
+                } else {
+                  alert(
+                    `✅ PDF Validation Complete!\n\n` +
+                    `Match: ${matchPercentage}%\n\n` +
+                    `Great! ${matchPercentage}% of PDF words were found in the clean transcript.`
+                  );
+                }
               } else if (progressData.status === 'FAILURE') {
                 clearInterval(progressInterval);
                 setValidationError(progressData.error || "Validation failed");
@@ -1248,7 +1321,7 @@ const ProjectDetailPage = () => {
     }
   };
 
-  const startProgressPolling = () => {
+  const startProgressPolling = (onComplete) => {
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
     }
@@ -1265,7 +1338,12 @@ const ProjectDetailPage = () => {
           if (data.status === 'completed' || data.status === 'transcribed' || data.status === 'ready') {
             setProcessing(false);
             clearInterval(progressIntervalRef.current);
-            fetchProjectDetails(); // Refresh project data
+            await fetchProjectDetails(); // Refresh project data
+            
+            // Call completion callback if provided
+            if (onComplete && typeof onComplete === 'function') {
+              setTimeout(() => onComplete(), 500);
+            }
           } else if (data.status === 'failed') {
             setProcessing(false);
             clearInterval(progressIntervalRef.current);
@@ -1557,6 +1635,22 @@ const ProjectDetailPage = () => {
                   <div className="progress-fill" style={{width: `${progress}%`}}></div>
                 </div>
                 <p>Progress: {progress}%</p>
+                <div className="transcribe-actions">
+                  <button 
+                    className="action-btn btn-warning"
+                    onClick={async () => {
+                      if (window.confirm('Are you sure you want to restart transcription? This will stop the current process and start over.')) {
+                        setProcessing(false);
+                        setProgress(0);
+                        // Wait a moment for the current task to settle
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        startTranscription();
+                      }
+                    }}
+                  >
+                    🔄 Restart Transcription
+                  </button>
+                </div>
               </div>
             )}
             
@@ -1588,6 +1682,23 @@ const ProjectDetailPage = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {(project.status === 'failed' || project.status === 'error') && (
+              <div className="transcription-failed">
+                <p className="error-message">❌ Transcription Failed</p>
+                <p>An error occurred during transcription. You can try again or check the logs.</p>
+                <button 
+                  className="action-btn btn-warning"
+                  onClick={() => {
+                    if (window.confirm('Retry transcription? This will start the process over.')) {
+                      startTranscription();
+                    }
+                  }}
+                >
+                  🔄 Retry Transcription
+                </button>
               </div>
             )}
           </div>
@@ -1845,6 +1956,21 @@ const ProjectDetailPage = () => {
                   <div className="progress-fill" style={{width: `${progress}%`}}></div>
                 </div>
                 <p>Progress: {progress}%</p>
+              </div>
+            )}
+            
+            {project.status === 'failed' && project.duplicates_confirmed_for_deletion && (
+              <div className="processing-failed">
+                <h4>❌ Processing Failed</h4>
+                <p className="error-message">{project.error_message || 'An error occurred during processing'}</p>
+                <button 
+                  className="retry-btn btn-warning"
+                  onClick={() => confirmDeletions(project.duplicates_confirmed_for_deletion)}
+                  disabled={processing}
+                >
+                  🔄 Retry Processing
+                </button>
+                <p className="help-text">If the error persists, contact support or restart the application.</p>
               </div>
             )}
           </div>
@@ -2384,8 +2510,46 @@ const ProjectDetailPage = () => {
                           <h4>⚠️ Low Match Percentage</h4>
                           <p>
                             Only {validationResults.match_percentage}% of PDF words were found in the transcript.
-                            Consider reviewing the deletion selections or re-recording missing sections.
+                            This is below the 90% quality threshold.
                           </p>
+                          <div style={{marginTop: '15px', display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
+                            <button 
+                              className="primary-btn"
+                              onClick={() => {
+                                // Reset to allow re-running duplicate detection
+                                if (window.confirm(
+                                  'This will let you review and select different duplicates to delete.\n\n' +
+                                  'The current deletion selection will be reset. Continue?'
+                                )) {
+                                  setValidationResults(null);
+                                  setDuplicateReview(null);
+                                  alert('You can now go back to Step 2c to review duplicates again and make different selections.');
+                                  // Scroll to duplicate review section
+                                  setTimeout(() => {
+                                    const element = document.querySelector('.duplicate-review');
+                                    if (element) {
+                                      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                    }
+                                  }, 100);
+                                }
+                              }}
+                            >
+                              ↻ Try Different Deletions
+                            </button>
+                            <button 
+                              className="secondary-btn"
+                              onClick={() => {
+                                if (window.confirm(
+                                  'This will create a new iteration project using your clean audio.\n\n' +
+                                  'You can then run the full workflow again to remove any remaining duplicates.\n\nContinue?'
+                                )) {
+                                  createIterationProject();
+                                }
+                              }}
+                            >
+                              🔄 Create Iteration Project
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>

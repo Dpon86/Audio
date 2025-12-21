@@ -88,6 +88,36 @@ const ProjectPage = () => {
     }
   };
 
+  const deleteProject = async (projectId, projectTitle, e) => {
+    e.stopPropagation(); // Prevent card click from triggering
+    
+    if (!window.confirm(`Are you sure you want to delete "${projectTitle}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8000/api/projects/${projectId}/`, {
+        method: "DELETE",
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        // Remove project from state
+        setProjects(prev => prev.filter(p => p.id !== projectId));
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || "Failed to delete project");
+      }
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      alert("Failed to delete project");
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed': return '#4CAF50';
@@ -196,10 +226,19 @@ const ProjectPage = () => {
             >
               <div className="project-card-header">
                 <h3>{project.title}</h3>
-                <div
-                  className="status-indicator"
-                  style={{ backgroundColor: getStatusColor(project.status) }}
-                ></div>
+                <div className="header-actions">
+                  <div
+                    className="status-indicator"
+                    style={{ backgroundColor: getStatusColor(project.status) }}
+                  ></div>
+                  <button
+                    className="delete-project-btn"
+                    onClick={(e) => deleteProject(project.id, project.title, e)}
+                    title="Delete project"
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
               
               <div className="project-info">

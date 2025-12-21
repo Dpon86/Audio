@@ -2,8 +2,6 @@
 echo Stopping Audio Duplicate Detection Development Environment...
 echo.
 
-cd /d "%~dp0backend"
-
 echo [1/6] Stopping Django development server...
 REM Kill by window title
 taskkill /F /FI "WINDOWTITLE eq Django Server*" >nul 2>&1
@@ -35,12 +33,19 @@ taskkill /F /FI "WINDOWTITLE eq Celery Worker*" >nul 2>&1
 echo ✅ Celery worker stopped
 
 echo [4/6] Stopping Docker containers...
-docker-compose down >nul 2>&1
+cd /d "%~dp0..\..\backend"
+docker compose down >nul 2>&1
 if %errorlevel% equ 0 (
     echo ✅ Docker containers stopped
 ) else (
-    echo ⚠️ Docker containers were not running
+    docker stop redis >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo ✅ Redis container stopped
+    ) else (
+        echo ⚠️ Docker containers were not running
+    )
 )
+cd /d "%~dp0"
 
 echo [5/6] Cleaning up orphaned containers...
 docker container prune -f >nul 2>&1

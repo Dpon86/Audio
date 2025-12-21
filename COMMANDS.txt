@@ -46,7 +46,11 @@ Password:    admin123
 
 STOP SERVICES:
 --------------
-Press Ctrl+C in each terminal window
+cd C:\Users\NickD\Documents\Github\Audio
+.\scripts\startup\stop-dev.ps1
+(Stops Django, React, Celery, and Docker containers)
+
+OR press Ctrl+C in each terminal window
 
 
 FILES UPDATED:

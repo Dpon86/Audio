@@ -13,7 +13,8 @@ import ProfilePage from "./components/Auth/ProfilePage";
 // Main application pages
 import FrontPage from "./screens/frontpage";
 import ProjectPage from "./screens/ProjectPage";
-import ProjectDetailPage from "./screens/ProjectDetailPage";
+import ProjectDetailPageNew from "./screens/ProjectDetailPageNew"; // NEW: Tab-based UI
+import ProjectDetailPage from "./screens/ProjectDetailPage"; // LEGACY: Keep for backward compatibility
 
 // Legacy pages (for backward compatibility)
 import AudioPage from "./screens/AudioPage";
@@ -43,6 +44,15 @@ function App() {
             />
             <Route 
               path="/project/:projectId" 
+              element={
+                <ProtectedRoute>
+                  <ProjectDetailPageNew />
+                </ProtectedRoute>
+              } 
+            />
+            {/* Legacy single-page view */}
+            <Route 
+              path="/project/:projectId/legacy" 
               element={
                 <ProtectedRoute>
                   <ProjectDetailPage />

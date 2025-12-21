@@ -40,7 +40,7 @@ timeout /t 3 /nobreak >nul
 if "%FRONTEND_FLAG%"=="1" (
     echo.
     echo 🚀 Starting React frontend...
-    start "React Frontend" cmd /k "cd /d \"C:\Users\user\Documents\GitHub\Audio repetative detection\frontend\audio-waveform-visualizer\" && npm start"
+    start "React Frontend" cmd /k "cd /d \"%~dp0..\..\..\frontend\audio-waveform-visualizer\" && npm start"
     echo ⏳ Waiting for frontend to start...
     timeout /t 3 /nobreak >nul
 )

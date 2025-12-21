@@ -95,6 +95,8 @@ class AudioFile(models.Model):
         ('uploaded', 'Uploaded'),           # File uploaded, waiting for transcription
         ('transcribing', 'Transcribing'),   # Being transcribed
         ('transcribed', 'Transcribed'),     # Transcription complete
+        ('processing', 'Processing'),       # Processing duplicates
+        ('processed', 'Processed'),         # Duplicates removed, clean audio ready
         ('failed', 'Failed'),
     ]
     
@@ -106,9 +108,16 @@ class AudioFile(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='uploaded')
     task_id = models.CharField(max_length=100, null=True, blank=True)
     
-    # Transcription results (stored per file)
+    # New fields for tab-based architecture
+    duration_seconds = models.FloatField(null=True, blank=True)  # Audio duration
+    processed_duration_seconds = models.FloatField(null=True, blank=True)  # Processed audio duration after duplicate removal
+    file_size_bytes = models.BigIntegerField(null=True, blank=True)  # File size
+    format = models.CharField(max_length=10, null=True, blank=True)  # mp3, wav, m4a, etc.
+    processed_audio = models.FileField(upload_to='processed/', null=True, blank=True)  # Clean audio after duplicate removal
+    
+    # Legacy transcription field (kept for backwards compatibility)
     transcript_text = models.TextField(null=True, blank=True)
-    original_duration = models.FloatField(null=True, blank=True)  # seconds
+    original_duration = models.FloatField(null=True, blank=True)  # seconds (legacy)
     error_message = models.TextField(null=True, blank=True)
     
     # Order and organization (important for proper sequencing)
@@ -118,6 +127,7 @@ class AudioFile(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    last_processed_at = models.DateTimeField(null=True, blank=True)  # When last processed
     
     class Meta:
         ordering = ['order_index', 'created_at']
@@ -133,10 +143,60 @@ class AudioFile(models.Model):
     
     @property
     def has_transcription(self):
-        return bool(self.transcript_text)
+        # Check both new Transcription model and legacy field
+        return hasattr(self, 'transcription') or bool(self.transcript_text)
+    
+    @property
+    def has_processed_audio(self):
+        return bool(self.processed_audio)
+
+class Transcription(models.Model):
+    """One transcription per audio file - Created in Tab 2"""
+    audio_file = models.OneToOneField(AudioFile, on_delete=models.CASCADE, related_name='transcription')
+    full_text = models.TextField()
+    word_count = models.IntegerField(default=0)
+    confidence_score = models.FloatField(null=True, blank=True)  # Average confidence
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # PDF matching results (from Tab 4)
+    matched_pdf_section = models.TextField(null=True, blank=True)
+    pdf_start_page = models.IntegerField(null=True, blank=True)
+    pdf_end_page = models.IntegerField(null=True, blank=True)
+    pdf_match_percentage = models.FloatField(null=True, blank=True)
+    pdf_match_confidence = models.FloatField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['audio_file']),
+        ]
+    
+    def __str__(self):
+        return f"Transcription for {self.audio_file.filename}"
+
+class DuplicateGroup(models.Model):
+    """Track duplicate groups for a single audio file - Tab 3"""
+    audio_file = models.ForeignKey(AudioFile, on_delete=models.CASCADE, related_name='duplicate_groups')
+    group_id = models.CharField(max_length=100)
+    duplicate_text = models.TextField()
+    occurrence_count = models.IntegerField()
+    total_duration_seconds = models.FloatField()  # Time saved if all removed
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['audio_file', 'group_id']),
+        ]
+    
+    def __str__(self):
+        return f"Duplicate Group {self.group_id} in {self.audio_file.filename}"
 
 class TranscriptionSegment(models.Model):
+    # Support both legacy (audio_file) and new (transcription) relationships
     audio_file = models.ForeignKey(AudioFile, on_delete=models.CASCADE, related_name='segments', null=True, blank=True)
+    transcription = models.ForeignKey(Transcription, on_delete=models.CASCADE, related_name='segments', null=True, blank=True)
+    
     text = models.TextField()
     start_time = models.FloatField()  # seconds from start of THIS audio file
     end_time = models.FloatField()    # seconds from start of THIS audio file  

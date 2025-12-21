@@ -3,7 +3,7 @@ Serializers for the audioDiagnostic app.
 Provides input validation and serialization for API endpoints.
 """
 from rest_framework import serializers
-from .models import AudioProject, AudioFile, TranscriptionSegment, TranscriptionWord, ProcessingResult
+from .models import AudioProject, AudioFile, TranscriptionSegment, TranscriptionWord, ProcessingResult, Transcription, DuplicateGroup
 
 
 class AudioProjectSerializer(serializers.ModelSerializer):
@@ -47,14 +47,30 @@ class AudioProjectSerializer(serializers.ModelSerializer):
 
 class AudioFileSerializer(serializers.ModelSerializer):
     """Serializer for AudioFile model"""
+    transcription = serializers.SerializerMethodField()
     
     class Meta:
         model = AudioFile
         fields = [
             'id', 'project', 'audio_file', 'title', 'order_index', 'duration',
-            'status', 'transcription', 'created_at', 'updated_at'
+            'status', 'transcription', 'created_at', 'updated_at', 'filename',
+            'file_size_bytes', 'duration_seconds', 'error_message'
         ]
         read_only_fields = ['id', 'duration', 'status', 'transcription', 'created_at', 'updated_at']
+    
+    def get_transcription(self, obj):
+        """Get nested transcription data if exists"""
+        try:
+            if hasattr(obj, 'transcription') and obj.transcription:
+                return {
+                    'id': obj.transcription.id,
+                    'text': obj.transcription.full_text,
+                    'word_count': obj.transcription.word_count,
+                    'confidence_score': obj.transcription.confidence_score
+                }
+        except Transcription.DoesNotExist:
+            pass
+        return None
     
     def validate_title(self, value):
         """Validate audio file title"""
@@ -238,3 +254,128 @@ class DuplicateConfirmationSerializer(serializers.Serializer):
                     raise serializers.ValidationError(f"Each deletion item must have '{field}' field")
         
         return value
+
+# ============================================================================
+# NEW SERIALIZERS FOR TAB-BASED ARCHITECTURE
+# ============================================================================
+
+class AudioFileDetailSerializer(serializers.ModelSerializer):
+    """Detailed serializer for AudioFile with tab-based workflow info"""
+    has_transcription = serializers.SerializerMethodField()
+    has_processed_audio = serializers.SerializerMethodField()
+    transcription_id = serializers.SerializerMethodField()
+    transcription = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = AudioFile
+        fields = [
+            'id', 'project', 'filename', 'title', 'file', 'status',
+            'duration_seconds', 'processed_duration_seconds', 'file_size_bytes', 'format', 'processed_audio',
+            'order_index', 'chapter_number', 'section_number',
+            'has_transcription', 'has_processed_audio', 'transcription_id', 'transcription',
+            'error_message', 'created_at', 'updated_at', 'last_processed_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'has_transcription', 
+                            'has_processed_audio', 'transcription_id', 'transcription']
+    
+    def get_has_transcription(self, obj):
+        return obj.has_transcription
+    
+    def get_has_processed_audio(self, obj):
+        return obj.has_processed_audio
+    
+    def get_transcription_id(self, obj):
+        if hasattr(obj, 'transcription'):
+            return obj.transcription.id
+        return None
+    
+    def get_transcription(self, obj):
+        """Get nested transcription data if exists"""
+        try:
+            if hasattr(obj, 'transcription') and obj.transcription:
+                return {
+                    'id': obj.transcription.id,
+                    'text': obj.transcription.full_text,
+                    'word_count': obj.transcription.word_count,
+                    'confidence_score': obj.transcription.confidence_score
+                }
+        except Transcription.DoesNotExist:
+            pass
+        return None
+
+
+class TranscriptionSerializer(serializers.ModelSerializer):
+    """Serializer for Transcription model"""
+    audio_file_filename = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Transcription
+        fields = [
+            'id', 'audio_file', 'audio_file_filename', 'full_text', 'word_count',
+            'confidence_score', 'matched_pdf_section', 'pdf_start_page', 'pdf_end_page',
+            'pdf_match_percentage', 'pdf_match_confidence', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'audio_file_filename']
+    
+    def get_audio_file_filename(self, obj):
+        return obj.audio_file.filename
+
+
+class DuplicateGroupSerializer(serializers.ModelSerializer):
+    """Serializer for DuplicateGroup model"""
+    
+    class Meta:
+        model = DuplicateGroup
+        fields = [
+            'id', 'audio_file', 'group_id', 'duplicate_text', 'occurrence_count',
+            'total_duration_seconds', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
+class AudioFileUploadSerializer(serializers.ModelSerializer):
+    """Serializer for uploading audio files"""
+    
+    class Meta:
+        model = AudioFile
+        fields = ['project', 'file', 'title', 'order_index']
+    
+    def validate_file(self, value):
+        """Validate audio file format and size"""
+        allowed_formats = ['mp3', 'wav', 'm4a', 'flac', 'ogg']
+        file_ext = value.name.split('.')[-1].lower()
+        
+        if file_ext not in allowed_formats:
+            raise serializers.ValidationError(
+                f"Invalid file format. Allowed: {', '.join(allowed_formats)}"
+            )
+        
+        # Check file size (max 500MB)
+        max_size = 500 * 1024 * 1024  # 500MB in bytes
+        if value.size > max_size:
+            raise serializers.ValidationError(
+                f"File size cannot exceed 500MB. Current size: {value.size / (1024 * 1024):.2f}MB"
+            )
+        
+        return value
+    
+    def create(self, validated_data):
+        """Create AudioFile and extract metadata"""
+        audio_file = super().create(validated_data)
+        
+        # Extract file metadata
+        audio_file.filename = validated_data['file'].name
+        audio_file.file_size_bytes = validated_data['file'].size
+        audio_file.format = validated_data['file'].name.split('.')[-1].lower()
+        
+        # Extract audio duration (using pydub or similar)
+        try:
+            from pydub import AudioSegment
+            audio = AudioSegment.from_file(audio_file.file.path)
+            audio_file.duration_seconds = len(audio) / 1000.0  # Convert to seconds
+        except Exception as e:
+            # If duration extraction fails, set to None
+            audio_file.duration_seconds = None
+        
+        audio_file.save()
+        return audio_file

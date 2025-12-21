@@ -153,6 +153,11 @@ class DockerCeleryManager:
     
     def _start_shutdown_timer(self):
         """Start a timer to shutdown infrastructure after delay"""
+        # DISABLED: Auto-shutdown causes Celery Redis connection issues
+        # Infrastructure will remain running until manually stopped
+        logger.info("Auto-shutdown disabled - infrastructure will remain running")
+        return
+        
         if self.shutdown_timer:
             self.shutdown_timer.cancel()
         

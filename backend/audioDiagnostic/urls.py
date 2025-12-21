@@ -1,5 +1,55 @@
 from django.urls import path
-from .views import *
+from .views import (
+    # Project CRUD
+    ProjectListCreateView, ProjectDetailView, ProjectTranscriptView,
+    ProjectStatusView, ProjectDownloadView,
+    # Uploads
+    ProjectUploadPDFView, ProjectUploadAudioView,
+    # Transcription
+    ProjectTranscribeView, AudioFileListView, AudioFileDetailView,
+    AudioFileTranscribeView, AudioFileRestartView,
+    AudioTaskStatusWordsView, TranscriptionStatusWordsView,
+    # Processing
+    ProjectProcessView, AudioFileProcessView,
+    # Duplicates
+    ProjectDetectDuplicatesView, ProjectDuplicatesReviewView,
+    ProjectConfirmDeletionsView, ProjectVerifyCleanupView,
+    ProjectRedetectDuplicatesView, ProjectRefinePDFBoundariesView,
+    # PDF Matching
+    ProjectMatchPDFView, ProjectValidatePDFView, ProjectValidationProgressView,
+    # Infrastructure
+    InfrastructureStatusView, TaskStatusView,
+    # Legacy
+    upload_chunk, assemble_chunks, download_audio, cut_audio,
+    AnalyzePDFView, N8NTranscribeView, AudioTaskStatusSentencesView,
+)
+# Tab-based architecture views
+from .views.tab1_file_management import (
+    AudioFileListView as Tab1AudioFileListView,
+    AudioFileDetailDeleteView,
+    AudioFileStatusView as Tab1AudioFileStatusView,
+)
+from .views.tab2_transcription import (
+    SingleFileTranscribeView,
+    SingleFileTranscriptionResultView,
+    SingleFileTranscriptionStatusView,
+    TranscriptionDownloadView,
+)
+from .views.tab3_duplicate_detection import (
+    SingleFileDetectDuplicatesView,
+    SingleFileDuplicatesReviewView,
+    SingleFileConfirmDeletionsView,
+    SingleFileProcessingStatusView,
+    SingleFileProcessedAudioView,
+    SingleFileStatisticsView,
+)
+from .views.tab4_pdf_comparison import (
+    SingleTranscriptionPDFCompareView,
+    SingleTranscriptionPDFResultView,
+    SingleTranscriptionPDFStatusView,
+    SingleTranscriptionSideBySideView,
+    SingleTranscriptionRetryComparisonView,
+)
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import HttpResponse
@@ -38,8 +88,36 @@ urlpatterns = [
     path('projects/<int:project_id>/audio-files/<int:audio_file_id>/transcribe/', AudioFileTranscribeView.as_view(), name='audio-file-transcribe'),
     path('projects/<int:project_id>/audio-files/<int:audio_file_id>/restart/', AudioFileRestartView.as_view(), name='audio-file-restart'),
     path('projects/<int:project_id>/audio-files/<int:audio_file_id>/process/', AudioFileProcessView.as_view(), name='audio-file-process'),
-    path('projects/<int:project_id>/audio-files/<int:audio_file_id>/status/', AudioFileStatusView.as_view(), name='audio-file-status'),
     path('projects/<int:project_id>/transcript/', ProjectTranscriptView.as_view(), name='project-transcript'),
+    
+    # ============================================================================
+    # TAB-BASED ARCHITECTURE ENDPOINTS
+    # ============================================================================
+    # Tab 1: File Management Hub
+    path('api/projects/<int:project_id>/files/', Tab1AudioFileListView.as_view(), name='tab1-audio-files'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/', AudioFileDetailDeleteView.as_view(), name='tab1-audio-file-detail'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/status/', Tab1AudioFileStatusView.as_view(), name='tab1-audio-file-status'),
+    
+    # Tab 2: Transcription
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/transcribe/', SingleFileTranscribeView.as_view(), name='tab2-transcribe'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/transcription/', SingleFileTranscriptionResultView.as_view(), name='tab2-transcription-result'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/transcription/status/', SingleFileTranscriptionStatusView.as_view(), name='tab2-transcription-status'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/transcription/download/', TranscriptionDownloadView.as_view(), name='tab2-transcription-download'),
+    
+    # Tab 3: Duplicate Detection
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/detect-duplicates/', SingleFileDetectDuplicatesView.as_view(), name='tab3-detect-duplicates'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/duplicates/', SingleFileDuplicatesReviewView.as_view(), name='tab3-duplicates-review'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/confirm-deletions/', SingleFileConfirmDeletionsView.as_view(), name='tab3-confirm-deletions'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/processing-status/', SingleFileProcessingStatusView.as_view(), name='tab3-processing-status'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/processed-audio/', SingleFileProcessedAudioView.as_view(), name='tab3-processed-audio'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/statistics/', SingleFileStatisticsView.as_view(), name='tab3-statistics'),
+    
+    # Tab 4: PDF Comparison
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/compare-pdf/', SingleTranscriptionPDFCompareView.as_view(), name='tab4-compare-pdf'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/pdf-result/', SingleTranscriptionPDFResultView.as_view(), name='tab4-pdf-result'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/pdf-status/', SingleTranscriptionPDFStatusView.as_view(), name='tab4-pdf-status'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/side-by-side/', SingleTranscriptionSideBySideView.as_view(), name='tab4-side-by-side'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/retry-comparison/', SingleTranscriptionRetryComparisonView.as_view(), name='tab4-retry-comparison'),
     
     # Infrastructure Management
     path('infrastructure/status/', InfrastructureStatusView.as_view(), name='infrastructure-status'),
