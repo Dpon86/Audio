@@ -1,6 +1,6 @@
 """
-Tab 4: PDF Comparison APIs
-Compare a single transcription against the project's PDF
+Tab 5: PDF Comparison APIs (Previously Tab 4)
+Compare transcription against PDF - find matching section, missing content, extra content
 """
 from rest_framework import status
 from rest_framework.views import APIView
@@ -8,21 +8,21 @@ from rest_framework.response import Response
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication, BasicAuthentication
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+from celery.result import AsyncResult
 
-from ..models import AudioProject, AudioFile, Transcription
-from ..serializers import TranscriptionSerializer
-from ..tasks.pdf_comparison_tasks import compare_transcription_to_pdf_task
+from ..models import AudioProject, AudioFile
+from ..tasks.compare_pdf_task import compare_transcription_to_pdf_task
 
 
 class SingleTranscriptionPDFCompareView(APIView):
     """
-    POST: Compare a single transcription against the project's PDF
+    POST: Start PDF comparison for a single audio file
     """
     authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id, audio_file_id):
-        """Start PDF comparison for a single transcription"""
+        """Start PDF comparison for audio file's transcription"""
         project = get_object_or_404(AudioProject, id=project_id, user=request.user)
         audio_file = get_object_or_404(AudioFile, id=audio_file_id, project=project)
         
@@ -34,23 +34,21 @@ class SingleTranscriptionPDFCompareView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         # Check if audio file has transcription
-        if not hasattr(audio_file, 'transcription'):
+        if not audio_file.transcript_text:
             return Response({
                 'success': False,
                 'error': 'Audio file must be transcribed first'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        transcription = audio_file.transcription
-        
         # Start comparison task
         try:
-            task = compare_transcription_to_pdf_task.delay(transcription.id, project.id)
+            task = compare_transcription_to_pdf_task.delay(audio_file.id)
             
             return Response({
                 'success': True,
                 'message': 'PDF comparison started',
                 'task_id': task.id,
-                'transcription_id': transcription.id
+                'audio_file_id': audio_file.id
             })
         except Exception as e:
             return Response({
@@ -61,7 +59,7 @@ class SingleTranscriptionPDFCompareView(APIView):
 
 class SingleTranscriptionPDFResultView(APIView):
     """
-    GET: Get PDF comparison results for a single transcription
+    GET: Get PDF comparison results for a single audio file
     """
     authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
@@ -71,30 +69,13 @@ class SingleTranscriptionPDFResultView(APIView):
         project = get_object_or_404(AudioProject, id=project_id, user=request.user)
         audio_file = get_object_or_404(AudioFile, id=audio_file_id, project=project)
         
-        if not hasattr(audio_file, 'transcription'):
-            return Response({
-                'success': False,
-                'error': 'Audio file has no transcription'
-            }, status=status.HTTP_404_NOT_FOUND)
-        
-        transcription = audio_file.transcription
-        
         # Check if comparison has been done
-        if not transcription.pdf_validation_status:
+        if not audio_file.pdf_comparison_completed:
             return Response({
                 'success': False,
                 'message': 'No PDF comparison results available',
                 'has_results': False
             })
-        
-        # Parse validation result if stored as JSON
-        validation_result = transcription.pdf_validation_result
-        if isinstance(validation_result, str):
-            import json
-            try:
-                validation_result = json.loads(validation_result)
-            except:
-                validation_result = {}
         
         return Response({
             'success': True,

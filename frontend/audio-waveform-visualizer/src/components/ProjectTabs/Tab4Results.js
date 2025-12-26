@@ -167,13 +167,10 @@ const Tab4Results = () => {
     }
 
     let isActive = true;
-    let currentAbortController = null;
+    const abortController = new AbortController(); // Create once, persist for cleanup
 
     const pollTaskStatus = async () => {
       if (!isActive) return;
-      
-      // Create a new AbortController for this specific request
-      currentAbortController = new AbortController();
       
       try {
         const response = await fetch(
@@ -183,7 +180,7 @@ const Tab4Results = () => {
               'Authorization': `Token ${token}`,
               'Content-Type': 'application/json'
             },
-            signal: currentAbortController.signal
+            signal: abortController.signal
           }
         );
 
@@ -227,9 +224,7 @@ const Tab4Results = () => {
     // Cleanup on unmount
     return () => {
       isActive = false;
-      if (currentAbortController) {
-        currentAbortController.abort();
-      }
+      abortController.abort();
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
@@ -245,11 +240,18 @@ const Tab4Results = () => {
 
     // Clean up existing instance
     if (wavesurfer) {
-      wavesurfer.destroy();
+      try {
+        wavesurfer.destroy();
+      } catch (error) {
+        console.error('Error destroying previous wavesurfer:', error);
+      }
     }
 
+    let ws = null;
+    let mounted = true;
+
     try {
-      const ws = WaveSurfer.create({
+      ws = WaveSurfer.create({
         container: waveformRef.current,
         waveColor: '#4a90e2',
         progressColor: '#2563eb',
@@ -267,26 +269,44 @@ const Tab4Results = () => {
       ws.load(audioUrl);
       
       ws.on('ready', () => {
-        setDuration(ws.getDuration());
+        if (mounted) {
+          setDuration(ws.getDuration());
+        }
       });
 
-      ws.on('play', () => setIsPlaying(true));
-      ws.on('pause', () => setIsPlaying(false));
-      ws.on('finish', () => setIsPlaying(false));
+      ws.on('play', () => {
+        if (mounted) setIsPlaying(true);
+      });
+      
+      ws.on('pause', () => {
+        if (mounted) setIsPlaying(false);
+      });
+      
+      ws.on('finish', () => {
+        if (mounted) setIsPlaying(false);
+      });
       
       ws.on('audioprocess', (time) => {
-        setCurrentTime(time);
+        if (mounted) setCurrentTime(time);
       });
 
       ws.on('seek', () => {
-        setCurrentTime(ws.getCurrentTime());
+        if (mounted) setCurrentTime(ws.getCurrentTime());
       });
 
-      setWavesurfer(ws);
+      if (mounted) {
+        setWavesurfer(ws);
+      }
 
       return () => {
+        mounted = false;
         if (ws) {
-          ws.destroy();
+          try {
+            ws.destroy();
+          } catch (error) {
+            // Silently ignore cleanup errors
+            console.debug('WaveSurfer cleanup error (expected):', error);
+          }
         }
       };
     } catch (error) {

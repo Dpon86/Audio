@@ -115,6 +115,7 @@ class ProjectDetailView(APIView):
                 'title': project.title,
                 'status': project.status,
                 'has_pdf': bool(project.pdf_file),
+                'pdf_file': project.pdf_file.url if project.pdf_file else None,  # Add PDF URL
                 'audio_files_count': project.audio_files.count(),
                 'transcribed_files_count': project.audio_files.filter(status='transcribed').count(),
                 'uploaded_files_count': project.audio_files.filter(status='uploaded').count(),

@@ -115,6 +115,42 @@ class AudioFile(models.Model):
     format = models.CharField(max_length=10, null=True, blank=True)  # mp3, wav, m4a, etc.
     processed_audio = models.FileField(upload_to='processed/', null=True, blank=True)  # Clean audio after duplicate removal
     
+    # Preview/Review fields for Tab 3 (Review Deletions)
+    preview_audio = models.FileField(upload_to='previews/', null=True, blank=True)  # Preview audio with deletions applied
+    preview_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('none', 'None'),
+            ('generating', 'Generating'),
+            ('ready', 'Ready'),
+            ('failed', 'Failed'),
+        ],
+        default='none'
+    )
+    preview_generated_at = models.DateTimeField(null=True, blank=True)
+    preview_metadata = models.JSONField(null=True, blank=True)  # Stores deletion_regions, stats, etc.
+    
+    # Tab 4 Review/Comparison fields (Post-Processing Analysis)
+    comparison_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('none', 'Not Compared'),
+            ('pending', 'Pending Review'),
+            ('reviewed', 'Reviewed'),
+            ('approved', 'Approved'),
+        ],
+        default='none'
+    )
+    comparison_metadata = models.JSONField(null=True, blank=True)  # Stores deletion regions, stats for comparison
+    reviewed_at = models.DateTimeField(null=True, blank=True)  # When file was reviewed
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_files')
+    comparison_notes = models.TextField(null=True, blank=True)  # User notes about the comparison
+    
+    # Tab 5 PDF Comparison fields
+    pdf_comparison_results = models.JSONField(null=True, blank=True)  # Full comparison results (match, missing, extra, stats)
+    pdf_comparison_completed = models.BooleanField(default=False)  # Whether comparison has been done
+    pdf_ignored_sections = models.JSONField(null=True, blank=True)  # List of text sections to ignore (narrator, chapter titles, etc.)
+    
     # Legacy transcription field (kept for backwards compatibility)
     transcript_text = models.TextField(null=True, blank=True)
     original_duration = models.FloatField(null=True, blank=True)  # seconds (legacy)

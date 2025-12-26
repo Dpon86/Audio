@@ -13,7 +13,10 @@ const Tab1Files = () => {
     projectId,
     audioFiles,
     refreshAudioFiles,
-    removeAudioFile
+    removeAudioFile,
+    projectData,
+    setProjectData,
+    refreshProjectData
   } = useProjectTab();
 
   const [uploading, setUploading] = useState(false);
@@ -22,29 +25,13 @@ const Tab1Files = () => {
   const [transcribingFiles, setTranscribingFiles] = useState({}); // Track which files are transcribing
   const [taskIds, setTaskIds] = useState({}); // Track Celery task IDs
   const [uploadingPdf, setUploadingPdf] = useState(false);
-  const [projectData, setProjectData] = useState(null);
 
-  // Load project data including PDF info
+  // Load project data including PDF info on mount
   useEffect(() => {
-    const loadProjectData = async () => {
-      try {
-        const response = await fetch(`http://localhost:8000/api/projects/${projectId}/`, {
-          headers: {
-            'Authorization': `Token ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setProjectData(data);
-        }
-      } catch (error) {
-        console.error('Error loading project data:', error);
-      }
-    };
-    
-    loadProjectData();
-  }, [projectId, token]);
+    if (token) {
+      refreshProjectData(token);
+    }
+  }, [refreshProjectData, token]);
 
   // Load files on mount and set up polling
   useEffect(() => {
@@ -278,10 +265,6 @@ const Tab1Files = () => {
         console.log('PDF upload response:', data);
         console.log('PDF file path:', data.pdf_file);
         setProjectData(data);
-        // Force a re-render by updating state
-        setTimeout(() => {
-          setProjectData(prevData => ({ ...prevData, pdf_file: data.pdf_file }));
-        }, 100);
         alert('PDF uploaded successfully!');
       } else {
         const errorData = await response.json();

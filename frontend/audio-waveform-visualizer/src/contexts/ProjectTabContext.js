@@ -25,6 +25,29 @@ export const ProjectTabProvider = ({ children, projectId }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Load project data including PDF
+  const refreshProjectData = useCallback(async (token) => {
+    if (!projectId || !token) return;
+    
+    try {
+      const response = await fetch(`http://localhost:8000/api/projects/${projectId}/`, {
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setProjectData(data.project || data);
+        return data.project || data;
+      }
+    } catch (err) {
+      console.error('Error loading project data:', err);
+      setError(err.message);
+    }
+  }, [projectId]);
+
   // Refresh audio files list (used by multiple tabs)
   const refreshAudioFiles = useCallback(async (token) => {
     if (!projectId || !token) return;
@@ -101,6 +124,7 @@ export const ProjectTabProvider = ({ children, projectId }) => {
     projectId,
     projectData,
     setProjectData,
+    refreshProjectData,
     
     // Audio Files
     audioFiles,

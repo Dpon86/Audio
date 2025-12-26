@@ -19,18 +19,19 @@ The Audio Duplicate Detection system is built with a **microservices architectur
 │              React Frontend (Port 3000)                     │
 │  ┌──────────┬──────────┬──────────┬──────────┬──────────┐   │
 │  │  Tab 1   │  Tab 2   │  Tab 3   │  Tab 4   │  Tab 5   │   │ ✅ UPDATED
-│  │  Upload  │Transcribe│Duplicates│ Results  │ Compare  │   │
+│  │  Files   │Duplicates│ Results  │ Review   │ Compare  │   │
 │  └──────────┴──────────┴──────────┴──────────┴──────────┘   │
 │         │ ProjectTabContext (Shared State)                  │
 └─────────┼───────────────────────────────────────────────────┘
           │
-          │ REST API (18 new endpoints)
+          │ REST API (22 endpoints)
           ↓
 ┌─────────────────────────────────────────────────────────────┐
 │              Django API (Port 8000)                         │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │ Views: tab1_file_management, tab2_transcription,     │   │
-│  │        tab3_duplicate_detection, tab4_pdf_comparison │   │ ✅ NEW
+│  │ Views: tab1_file_management, tab2_duplicate_detection│   │
+│  │        tab3_results, tab4_review_comparison,         │   │ ✅ UPDATED
+│  │        tab5_pdf_comparison                           │   │
 │  └──────────────────────────────────────────────────────┘   │
 │         │ Celery Background Tasks                           │
 └─────────┼───────────────────────────────────────────────────┘
@@ -41,6 +42,7 @@ The Audio Duplicate Detection system is built with a **microservices architectur
 │  - transcribe_single_audio_file_task                        │ ✅ NEW
 │  - detect_duplicates_single_file_task                       │ ✅ NEW
 │  - process_deletions_single_file_task                       │ ✅ NEW
+│  - generate_comparison_report_task (processed vs original)  │ ✅ NEW
 │  - compare_transcription_to_pdf_task                        │ ✅ NEW
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -94,8 +96,9 @@ The Audio Duplicate Detection system is built with a **microservices architectur
 #### **`ProjectDetailPageNew.js`** ✅ **NEW - Tab-Based Architecture**
 - **Purpose:** Modern tab-based interface for individual file processing
 - **Architecture:**
-  - 5-tab layout: Upload & Transcribe, Duplicates, Results, Compare PDF
+  - 5-tab layout: Files, Duplicates, Results, Review, Compare PDF
   - Shared state via ProjectTabContext
+  - Tab workflow: Upload → Transcribe → Detect → Process → Review → Compare
   - Each tab accesses same file list
   - File selection persists across tabs
 - **Features:**
@@ -106,13 +109,15 @@ The Audio Duplicate Detection system is built with a **microservices architectur
 - **API Calls:** Uses new tab-specific endpoints (see API section)
 - **Components:**
   - `ProjectTabs`: Navigation component
-  - `Tab1Files`: Upload & transcribe (merged workflow)
-  - `Tab3Duplicates`: Single-file duplicate detection
-  - `Tab4Results`: Processed audio playback & download ✅ NEW
-  - `Tab4ComparePDF`: PDF validation (stub)
+  - `Tab1Files`: Upload & file management (merged upload + transcribe)
+  - `Tab2Duplicates`: Single-file duplicate detection
+  - `Tab3Results`: Processed audio playback & download
+  - `Tab4Review`: Project-wide comparison (processed vs original vs PDF vs deletions) ✅ UPDATED
+  - `Tab5ComparePDF`: PDF validation
 - **State Management:** 
   - ProjectTabContext: Shared file list, selection, navigation
   - File status updates propagate to all tabs
+  - Comparison state for review workflow
   - Loading states per operation
 
 #### **`ProjectDetailPage.js`** 🔄 **LEGACY - Single-Page Architecture**
@@ -133,84 +138,188 @@ The Audio Duplicate Detection system is built with a **microservices architectur
 **Location:** `src/components/ProjectTabs/`
 
 ##### **`ProjectTabs.js`**
-- **Purpose:** Tab navigation with visual indicators
-- **Features:**
-  - 4 tabs with icons (📁 🔍 ✅ 📄)
+- **5 tabs with icons:** 📁 Files, 🔍 Duplicates, ✅ Results, 👁️ Review, 📄 Compare PDF
   - Active tab highlighting
-  - Badge counts (file count, etc.)
+  - Badge counts (file count, pending deletions, etc.)
   - Smooth transitions
   - Responsive design
 
 ##### **`Tab1Files.js`** ✅ IMPLEMENTED (100%)
-- **Purpose:** File management hub - central file list
+- **Purpose:** File management and transcription hub
 - **Features:**
   - Drag & drop file upload (MP3, WAV, M4A, FLAC, OGG)
   - File grid with cards (filename, duration, size, status)
   - Status badges (uploaded/processing/transcribed/processed/failed)
-  - Quick action buttons (Transcribe, Find Duplicates, Compare PDF)
+  - Transcribe button (triggers transcription for individual files)
+  - Quick action buttons (Find Duplicates, Compare PDF)
   - Delete with confirmation
   - Real-time status updates
   - Cross-tab navigation (click button → switch tab with file pre-selected)
 - **API Calls:**
   - `GET /api/projects/{id}/files/` - List files
   - `POST /api/projects/{id}/files/` - Upload files
+  - `POST /api/projects/{id}/files/{id}/transcribe/` - Start transcription
   - `DELETE /api/projects/{id}/files/{id}/` - Delete file
   - `GET /api/projects/{id}/files/{id}/status/` - Poll status
 
-##### **`Tab2Transcribe.js`** ✅ IMPLEMENTED (60%)
-- **Purpose:** Individual file transcription
-- **Features:**
-  - File selector dropdown (shows all uploaded files)
-  - Pre-selection when navigating from Tab 1
-  - "Start Transcription" button
-  - Progress bar with polling (0-100%)
-  - Transcription results display (text + word count)
-  - Status updates propagate to Tab 1
-- **API Calls:**
-  - `POST /api/projects/{id}/files/{id}/transcribe/`
-  - `GET /api/projects/{id}/files/{id}/transcription/`
-  - `GET /api/projects/{id}/files/{id}/transcription/status/`
-  - `GET /api/projects/{id}/files/{id}/transcription/download/`
-- **TODO:** Segment display, download buttons, audio preview
-
-##### **`Tab3Duplicates.js`** ✅ IMPLEMENTED (95%)
-- **Purpose:** Single-file duplicate detection and review
+##### **`Tab2Duplicates.js`** ✅ IMPLEMENTED (95%)
+- **Purpose:** Single-file duplicate detection and selection
 - **Features:**
   - File selector (transcribed files only)
   - "Detect Duplicates" button with auto-polling
   - Interactive duplicate group cards (expandable)
-  - Checkbox confirmation (auto-selects all except last)
-  - "Confirm Deletions" button
-  - Navigates to Results tab on completion
-- **Backend Ready:** All APIs implemented and functional
+  - Checkbox selection (auto-selects all except last occurrence)
+  - Group metadata (occurrence count, total duration)
+  - Visual indicators (kept vs deleted segments)
+  - "Confirm & Process" button → Navigates to Tab 3 Results
+- **API Calls:**
+  - `POST /api/projects/{id}/files/{id}/detect-duplicates/`
+  - `GET /api/projects/{id}/files/{id}/duplicates/`
+- **Backend:** All APIs implemented and functional
 
-##### **`Tab4Results.js`** ✅ NEW (100%)
-- **Purpose:** Processed audio playback and download
+##### **`Tab3Results.js`** ✅ IMPLEMENTED (100%)
+- **Purpose:** Final processed audio playback and download
 - **Features:**
   - File selector (processed files only: status='processed')
   - Statistics cards:
     * Original duration
-    * Clean duration
+    * Clean duration (final)
     * Time saved (with percentage)
   - WaveSurfer audio player:
     * Visual waveform display
     * Play/Pause/Stop controls
     * Time progress display
   - Download button (exports clean WAV file)
+  - Processing status indicator during deletion task
+  - "Review Changes" button → Navigates to Tab 4 Review
   - Empty state messages
-- **Integration:** Auto-navigates here after confirming deletions in Tab 3
+- **API Calls:**
+  - `POST /api/projects/{id}/files/{id}/confirm-deletions/` - Process final deletions
+  - `GET /tasks/{task_id}/status/` - Poll processing status
+  - `GET /media/processed/{filename}` - Stream processed audio
 
-##### **`Tab4ComparePDF.js`** ⏳ STUB (10%)
-- **Purpose:** Compare transcription to PDF
-- **Planned Features:**
-  - File selector (transcribed/processed files)
-  - "Compare to PDF" button
-  - Match percentage badge (color-coded)
-  - Side-by-side comparison view
-  - Text highlighting (matched/unmatched)
-  - Statistics display
-  - Retry with custom settings
-- **Backend Ready:** All APIs implemented, needs frontend UI
+##### **`Tab4Review.js`** ✅ NEW - Project-Wide Comparison
+- **Purpose:** Compare processed audio against original, PDF transcript, and detected deletions across entire project
+- **Scope:** PROJECT-WIDE (not per-file) - Shows all files and their transformations
+- **Features:**
+  - **Multi-File Comparison View:**
+    * Grid/list of all processed files in project
+    * Each row shows: Filename, Original Duration, Final Duration, Time Saved, Status
+    * Select files to compare side-by-side
+  - **Dual Audio Player:**
+    * Left: Original audio with waveform
+    * Right: Processed audio with waveform
+    * Synchronized playback (play both simultaneously)
+    * Individual playback controls
+    * Time-synced highlighting of deletion regions
+  - **Deletion Regions Overlay:**
+    * Red highlighted regions on original waveform showing what was removed
+    * Timestamps of deletions displayed
+    * Click region to jump to that timestamp
+    * Hover shows segment text that was deleted
+  - **PDF Transcript Comparison:**
+    * Side-by-side view of:
+      - PDF transcript (if uploaded)
+      - Original transcription
+      - Processed transcription (after deletions)
+    * Highlight differences and deletions
+    * Scroll-synced navigation
+  - **Statistics Dashboard:**
+    * Project-wide metrics:
+      - Total files processed
+      - Total time saved across all files
+      - Total deletions count
+      - Average compression ratio
+    * Per-file breakdown table
+  - **Verification Actions:**
+    * "Mark as Reviewed" button per file
+    * "Export Comparison Report" (PDF or CSV)
+    * "Revert File" - Restore specific file to original
+    * "Approve All" - Mark entire project as reviewed
+- **API Calls:**
+  - `GET /api/projects/{id}/comparison/` - Get all files with comparison data
+  - `GET /api/projects/{id}/files/{id}/comparison-details/` - Detailed comparison for one file
+  - `GET /api/projects/{id}/files/{id}/deletion-regions/` - Get deletion regions
+  - `POST /api/projects/{id}/files/{id}/mark-reviewed/` - Mark file as reviewed
+  - `POST /api/projects/{id}/export-comparison/` - Generate comparison report
+  - `POST /api/projects/{id}/files/{id}/revert/` - Revert file to original
+- **Technical Details:**
+  - Uses WaveSurfer.js RegionsPlugin for deletion highlighting
+  - Synchronized audio playback using Web Audio API
+  - PDF rendering using PDF.js
+  - Comparison data cached on backend for performance
+  - Real-time status updates if files still processing
+
+##### **`Tab5ComparePDF.js`** ✅ IMPLEMENTED (100%) - December 2025
+- **Purpose:** Sequence alignment comparison between transcript and PDF book
+- **Problem Domain:**
+  - PDF = Full book text (entire reference, e.g., 100K words)
+  - Transcript = Audio section (partial, e.g., 10K words from middle of book)
+  - Transcript may contain: missing words/sentences, extra content (narrator info, chapter markers), duplicates, variations
+  - Goal: Find where transcript starts in PDF, measure accuracy, identify differences
+- **Comparison Algorithm: Modified Myers Diff (Word-Level Sequence Alignment)**
+  - **Phase 1 - Find Starting Point:**
+    * Sliding window search (100 words from transcript start)
+    * Scan PDF with normalized word matching
+    * Stop when 85%+ match found (early exit optimization)
+    * Result: Starting position in PDF + confidence score
+  - **Phase 2 - Sequence Alignment:**
+    * Extract PDF section (transcript length × 1.2 buffer for missing content)
+    * Myers diff algorithm on word arrays (like Git diff)
+    * Build edit graph: MATCH, DELETE (missing from transcript), INSERT (extra in transcript)
+    * Find shortest edit path (optimal alignment)
+    * Complexity: O((N+M)*D) where D=differences, very fast for high similarity (90%+)
+  - **Phase 3 - Classify & Aggregate:**
+    * Group consecutive operations into sections
+    * Missing content: Consecutive DELETE operations (in PDF, not in transcript)
+    * Extra content: Consecutive INSERT operations (in transcript, not in PDF)
+    * Classify extra: chapter markers, narrator info, duplicates, other
+    * Match to TranscriptionSegments for timestamps
+- **Features:**
+  - File selector (transcribed files only)
+  - "Start Comparison" button with progress polling
+  - **Matched PDF Section Display:**
+    * Shows exact section of PDF being compared
+    * Character positions and confidence score
+    * Preview of matched text (scrollable)
+  - **Missing Content List:**
+    * Sentences/words in PDF but not in transcript
+    * Word counts and match percentages
+    * Position in PDF for context
+  - **Extra Content List:**
+    * Content in transcript not in PDF
+    * Classification: chapter_marker, narrator_info, duplicate, other
+    * Timestamps (start/end time) for deletion marking
+    * "Ignore This" button (mark as acceptable)
+    * "Mark for Deletion" button (with timestamp confirmation)
+  - **Ignored Sections Management:**
+    * View all ignored sections
+    * Remove from ignored list
+    * Auto-recompare after changes
+  - **Side-by-Side Comparison:**
+    * Color-coded alignment view
+    * Green = matching content
+    * Orange = extra in transcript
+    * Pink = missing from transcript
+  - **Statistics Dashboard:**
+    * Match quality (excellent/good/fair/poor)
+    * Coverage % (PDF words found in transcript)
+    * Accuracy % (transcript words matching PDF)
+    * Word counts (transcript, PDF, missing, extra)
+  - **Reset Comparison:** Clear all results and start fresh
+- **API Calls:**
+  - `POST /api/projects/{id}/files/{id}/compare-pdf/` - Start comparison task
+  - `GET /api/projects/{id}/files/{id}/pdf-result/` - Get comparison results
+  - `GET /api/projects/{id}/files/{id}/pdf-status/` - Poll progress
+  - `GET /api/projects/{id}/files/{id}/side-by-side/` - Get aligned comparison
+  - `POST /api/projects/{id}/files/{id}/ignored-sections/` - Save ignored sections
+  - `POST /api/projects/{id}/files/{id}/mark-for-deletion/` - Mark segments for deletion
+  - `POST /api/projects/{id}/files/{id}/reset-comparison/` - Reset results
+- **Backend:** Fully implemented with Myers diff algorithm
+- **Documentation:** 
+  - `docs/architecture/PDF_COMPARISON_SOLUTION.md` - Detailed algorithm explanation
+  - `docs/PDF_COMPARISON_ALGORITHM_IMPROVEMENTS.md` - Implementation details
+  - `docs/TAB5_PDF_COMPARISON_ENHANCEMENTS.md` - Feature documentation
 
 #### **Shared Context** ✅ NEW
 **Location:** `src/contexts/`

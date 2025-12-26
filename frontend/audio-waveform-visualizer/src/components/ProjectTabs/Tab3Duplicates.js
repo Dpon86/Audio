@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useProjectTab } from '../../contexts/ProjectTabContext';
 import { useAuth } from '../../contexts/AuthContext';
+import WaveSurfer from 'wavesurfer.js';
 import './Tab3Duplicates.css';
 
 /**
@@ -24,6 +25,13 @@ const Tab3Duplicates = () => {
   const [selectedDeletions, setSelectedDeletions] = useState([]);
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const [processing, setProcessing] = useState(false);
+
+  // Audio player state
+  const [wavesurfer, setWavesurfer] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const waveformRef = useRef(null);
 
   // Load duplicate groups when file is selected
   useEffect(() => {
@@ -85,6 +93,118 @@ const Tab3Duplicates = () => {
     } catch (error) {
       console.error('Error loading duplicate groups:', error);
     }
+  };
+
+  // Initialize WaveSurfer when file is selected
+  useEffect(() => {
+    if (!selectedAudioFile || !selectedAudioFile.audio_file || !waveformRef.current) {
+      return;
+    }
+
+    // Clean up existing instance
+    if (wavesurfer) {
+      try {
+        wavesurfer.destroy();
+      } catch (error) {
+        console.error('Error destroying previous wavesurfer:', error);
+      }
+    }
+
+    let ws = null;
+    let mounted = true;
+
+    try {
+      ws = WaveSurfer.create({
+        container: waveformRef.current,
+        waveColor: '#4a90e2',
+        progressColor: '#2563eb',
+        cursorColor: '#1e40af',
+        barWidth: 2,
+        barRadius: 3,
+        cursorWidth: 1,
+        height: 120,
+        barGap: 2,
+        responsive: true,
+        normalize: true,
+      });
+
+      const audioUrl = `http://localhost:8000${selectedAudioFile.audio_file}`;
+      ws.load(audioUrl);
+      
+      ws.on('ready', () => {
+        if (mounted) {
+          setDuration(ws.getDuration());
+        }
+      });
+
+      ws.on('play', () => {
+        if (mounted) setIsPlaying(true);
+      });
+      
+      ws.on('pause', () => {
+        if (mounted) setIsPlaying(false);
+      });
+      
+      ws.on('finish', () => {
+        if (mounted) setIsPlaying(false);
+      });
+      
+      ws.on('audioprocess', (time) => {
+        if (mounted) setCurrentTime(time);
+      });
+
+      ws.on('seek', () => {
+        if (mounted) setCurrentTime(ws.getCurrentTime());
+      });
+
+      if (mounted) {
+        setWavesurfer(ws);
+      }
+
+      return () => {
+        mounted = false;
+        if (ws) {
+          try {
+            ws.destroy();
+          } catch (error) {
+            console.debug('WaveSurfer cleanup error (expected):', error);
+          }
+        }
+      };
+    } catch (error) {
+      console.error('Error initializing waveform:', error);
+    }
+  }, [selectedAudioFile]);
+
+  // Audio player controls
+  const handlePlayPause = () => {
+    if (wavesurfer) {
+      wavesurfer.playPause();
+    }
+  };
+
+  const handleStop = () => {
+    if (wavesurfer) {
+      wavesurfer.stop();
+      setIsPlaying(false);
+      setCurrentTime(0);
+    }
+  };
+
+  const seekToTime = (timeInSeconds) => {
+    if (wavesurfer && duration > 0) {
+      wavesurfer.seekTo(timeInSeconds / duration);
+      if (!isPlaying) {
+        wavesurfer.play();
+      }
+    }
+  };
+
+  const formatTime = (seconds) => {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleClearResults = () => {
@@ -292,6 +412,37 @@ const Tab3Duplicates = () => {
         )}
       </div>
 
+      {/* Audio Player */}
+      {selectedAudioFile && selectedAudioFile.audio_file && (
+        <div className="tab3-audio-player">
+          <div className="audio-player-header">
+            <h4>🎵 Audio Player</h4>
+            <div className="audio-time">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </div>
+          </div>
+          
+          <div ref={waveformRef} className="waveform-container"></div>
+          
+          <div className="audio-controls">
+            <button 
+              onClick={handlePlayPause} 
+              className="control-btn play-btn"
+              disabled={!wavesurfer}
+            >
+              {isPlaying ? '⏸️ Pause' : '▶️ Play'}
+            </button>
+            <button 
+              onClick={handleStop} 
+              className="control-btn stop-btn"
+              disabled={!wavesurfer}
+            >
+              ⏹️ Stop
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Results */}
       {duplicateGroups.length > 0 && (
         <div className="duplicate-results">
@@ -309,7 +460,15 @@ const Tab3Duplicates = () => {
               
               return (
                 <div key={group.group_id} className="duplicate-group-card">
-                  <div className="group-header" onClick={() => toggleGroup(group.group_id)}>
+                  <div 
+                    className="group-header" 
+                    onClick={() => {
+                      toggleGroup(group.group_id);
+                      if (segments.length > 0 && segments[0].start_time != null) {
+                        seekToTime(segments[0].start_time);
+                      }
+                    }}
+                  >
                     <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
                     <div className="group-info">
                       <h4>Duplicate Group {groupIndex + 1}</h4>
@@ -355,7 +514,20 @@ const Tab3Duplicates = () => {
                             </div>
 
                             <div className="occurrence-details">
-                              <p><strong>Time:</strong> {segment.start_time?.toFixed(1)}s - {segment.end_time?.toFixed(1)}s ({(segment.end_time - segment.start_time)?.toFixed(1)}s)</p>
+                              <p>
+                                <strong>Time:</strong> 
+                                <span 
+                                  className="timestamp-link"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    seekToTime(segment.start_time);
+                                  }}
+                                  title="Click to jump to this timestamp in audio"
+                                >
+                                  🎯 {segment.start_time?.toFixed(1)}s - {segment.end_time?.toFixed(1)}s
+                                </span>
+                                ({(segment.end_time - segment.start_time)?.toFixed(1)}s)
+                              </p>
                               <p className="occurrence-text"><strong>Text:</strong> "{segment.text}"</p>
                               <p style={{fontSize: '0.8rem', color: '#666', marginTop: '0.5rem'}}>
                                 <strong>DEBUG:</strong> is_duplicate={String(segment.is_duplicate)}, is_kept={String(segment.is_kept)}, is_last_occurrence={String(segment.is_last_occurrence)}

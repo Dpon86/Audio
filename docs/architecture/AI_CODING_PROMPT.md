@@ -27,15 +27,22 @@
    - ~~Transcribe with word-level timestamps using OpenAI Whisper~~ NOW IN TAB 1
    - ~~Return transcription to Tab 1 for use in other tabs~~ NOW IN TAB 1
    - ~~Show transcription progress and results~~ NOW IN TAB 1
-5. **Tab 3 - Detect & Delete Duplicates**: Process ONE audio file at a time ✅ IMPLEMENTED
+6. **Tab 3 - Detect & Delete Duplicates**: Process ONE audio file at a time ✅ IMPLEMENTED
    - Select a transcribed audio file from Tab 1
    - Detect duplicates within THAT SINGLE audio file only
    - Present duplicates with audio playback for review
    - User confirms which duplicates to delete (keeping LAST occurrence)
-   - Generate clean audio file for that specific recording
-   - Automatically navigate to Tab 4 (Results) after processing
-6. **Tab 4 - Results**: View and download processed audio ✅ NEW
-   - Automatically shown after confirming deletions in Tab 3
+   - Navigate to Tab 4 (Review) with pending deletions
+7. **Tab 4 - Review Deletions**: Preview and restore capability ✅ NEW
+   - Automatically shown after selecting deletions in Tab 3
+   - Visual deletion timeline with grouped segments
+   - Audio preview player (WaveSurfer) showing processed audio
+   - Real-time highlighting of deletion zones as audio plays
+   - Restore individual segments or groups before final processing
+   - Statistics preview (duration savings, deletion count)
+   - Confirm & Process button → Navigate to Tab 5 (Results)
+8. **Tab 5 - Results**: View and download processed audio ✅ IMPLEMENTED
+   - Automatically shown after confirming deletions in Tab 4
    - Statistics display:
      * Original duration vs clean duration
      * Time saved and percentage reduction
@@ -43,13 +50,29 @@
    - Play/Pause/Stop controls with time progress
    - Download button for clean WAV audio file
    - Empty state when no processed files exist
-7. **Tab 5 - Compare to PDF**: Validate transcription against PDF
-   - Select a transcription from Tab 1
-   - Compare transcription to PDF book content
-   - Find location/section within PDF that matches
-   - Calculate match percentage (% of transcription found in PDF)
-   - Display side-by-side comparison with highlighting
-   - Show coverage statistics and missing content report
+9. **Tab 5 - Compare PDF**: Sequence alignment comparison ✅ IMPLEMENTED (December 2025)
+   - **PDF Context**: Full book text (100,000+ words, correct reference)
+   - **Transcript Context**: Section of book (10,000 words, with possible errors)
+   - **Comparison Algorithm**: Modified Myers Diff (word-level sequence alignment)
+     * Phase 1: Find starting point in PDF using sliding window (100-word chunks)
+     * Phase 2: Extract PDF section (transcript length × 1.2) and perform alignment
+     * Phase 3: Classify differences and aggregate into missing/extra sections
+   - **Handles**:
+     * Missing content (words/sentences in PDF but not in transcript)
+     * Extra content (narrator info: "Chapter One", "Narrated by X")
+     * Repeated/duplicate content (reading errors)
+     * Natural speech variations and transcription errors
+   - **Results Display**:
+     * Matched PDF section preview with confidence score
+     * Missing content list (in PDF, not in transcript)
+     * Extra content list with classification (chapter markers, narrator info, duplicates)
+     * Timestamps for extra content (for deletion marking)
+     * Statistics: accuracy %, word counts, coverage %
+   - **User Actions**:
+     * Ignore sections (mark as acceptable narrator info)
+     * Mark extra content for deletion (with timestamps)
+     * View side-by-side alignment (color-coded: match/missing/extra)
+   - **See**: `docs/architecture/PDF_COMPARISON_SOLUTION.md` for algorithm details
 
 **🎯 Enhanced User Control Features:**
 - **Side-by-side PDF comparison** with text highlighting

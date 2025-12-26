@@ -797,6 +797,195 @@ def detect_duplicates_against_pdf_task(segments, pdf_section, full_transcript, t
     }
 
 
+def find_silence_boundary(audio_segment, target_time_ms, search_window_ms=500, silence_thresh=-40, min_silence_len=100):
+    """
+    Find the nearest silence boundary to a target time in an audio segment.
+    
+    Args:
+        audio_segment: pydub.AudioSegment object
+        target_time_ms: Target time in milliseconds
+        search_window_ms: How far to search before/after target (default 500ms)
+        silence_thresh: Silence threshold in dBFS (default -40dB)
+        min_silence_len: Minimum silence length in ms (default 100ms)
+    
+    Returns:
+        int: Adjusted time in milliseconds (nearest silence boundary)
+    """
+    from pydub import silence
+    
+    # Define search range
+    search_start = max(0, target_time_ms - search_window_ms)
+    search_end = min(len(audio_segment), target_time_ms + search_window_ms)
+    
+    # Extract the search window
+    search_segment = audio_segment[search_start:search_end]
+    
+    # Detect silence in the search window
+    silent_ranges = silence.detect_silence(
+        search_segment,
+        min_silence_len=min_silence_len,
+        silence_thresh=silence_thresh
+    )
+    
+    if not silent_ranges:
+        # No silence found, return original time
+        return target_time_ms
+    
+    # Find the silence closest to our target
+    target_offset = target_time_ms - search_start
+    best_boundary = target_time_ms
+    min_distance = float('inf')
+    
+    for silence_start, silence_end in silent_ranges:
+        # Check both start and end of silence
+        for boundary in [silence_start, silence_end]:
+            distance = abs(boundary - target_offset)
+            if distance < min_distance:
+                min_distance = distance
+                best_boundary = search_start + boundary
+    
+    return best_boundary
+
+
+@shared_task(bind=True)
+def refine_duplicate_timestamps_task(self, audio_file_id):
+    """
+    Refine the start/end times of duplicate segments by aligning them
+    to the nearest silence boundaries in the audio waveform.
+    This prevents cutting off words mid-speech.
+    
+    Should be called after detect_duplicates_single_file_task.
+    """
+    task_id = self.request.id
+    r = get_redis_connection()
+    
+    if not docker_celery_manager.setup_infrastructure():
+        raise Exception("Failed to set up Docker and Celery infrastructure")
+    
+    docker_celery_manager.register_task(task_id)
+    
+    try:
+        from audioDiagnostic.models import AudioFile, DuplicateGroup
+        from pydub import AudioSegment
+        import os
+        
+        # Get audio file
+        audio_file = AudioFile.objects.get(id=audio_file_id)
+        
+        # Check if we have audio file path
+        if not audio_file.audio_file:
+            raise ValueError("Audio file path not found")
+        
+        audio_file.status = 'processing'
+        audio_file.task_id = task_id
+        audio_file.save()
+        
+        r.set(f"progress:{task_id}", 10)
+        self.update_state(state='PROGRESS', meta={'progress': 10, 'message': 'Loading audio...'})
+        
+        # Load audio file
+        audio_path = audio_file.audio_file.path
+        logger.info(f"Loading audio from: {audio_path}")
+        audio = AudioSegment.from_file(audio_path)
+        
+        # Get all duplicate groups for this file
+        duplicate_groups = DuplicateGroup.objects.filter(audio_file=audio_file)
+        
+        if not duplicate_groups.exists():
+            logger.warning(f"No duplicate groups found for audio file {audio_file_id}")
+            audio_file.status = 'transcribed'
+            audio_file.save()
+            return {
+                'success': True,
+                'message': 'No duplicate groups to refine',
+                'segments_refined': 0
+            }
+        
+        r.set(f"progress:{task_id}", 20)
+        self.update_state(state='PROGRESS', meta={'progress': 20, 'message': 'Analyzing duplicate boundaries...'})
+        
+        # Get all segments that belong to duplicate groups
+        all_segments = []
+        for group in duplicate_groups:
+            segments = list(group.segments.all())
+            all_segments.extend(segments)
+        
+        total_segments = len(all_segments)
+        logger.info(f"Refining {total_segments} duplicate segments")
+        
+        # Refine each segment's timestamps
+        segments_refined = 0
+        for idx, segment in enumerate(all_segments):
+            # Calculate progress
+            progress = 20 + int((idx / total_segments) * 70)
+            r.set(f"progress:{task_id}", progress)
+            
+            if idx % 10 == 0:  # Update every 10 segments
+                self.update_state(
+                    state='PROGRESS',
+                    meta={
+                        'progress': progress,
+                        'message': f'Refining segment {idx + 1}/{total_segments}...'
+                    }
+                )
+            
+            # Convert times to milliseconds
+            start_ms = int(segment.start_time * 1000)
+            end_ms = int(segment.end_time * 1000)
+            
+            # Find better boundaries
+            refined_start_ms = find_silence_boundary(audio, start_ms, search_window_ms=500)
+            refined_end_ms = find_silence_boundary(audio, end_ms, search_window_ms=500)
+            
+            # Convert back to seconds
+            new_start = refined_start_ms / 1000.0
+            new_end = refined_end_ms / 1000.0
+            
+            # Only update if the change is significant (> 0.05 seconds)
+            if abs(new_start - segment.start_time) > 0.05 or abs(new_end - segment.end_time) > 0.05:
+                logger.info(
+                    f"Segment {segment.id}: "
+                    f"start {segment.start_time:.2f}s -> {new_start:.2f}s, "
+                    f"end {segment.end_time:.2f}s -> {new_end:.2f}s"
+                )
+                segment.start_time = new_start
+                segment.end_time = new_end
+                segment.save()
+                segments_refined += 1
+        
+        r.set(f"progress:{task_id}", 90)
+        self.update_state(state='PROGRESS', meta={'progress': 90, 'message': 'Finalizing...'})
+        
+        # Update audio file status
+        audio_file.status = 'transcribed'
+        audio_file.save()
+        
+        r.set(f"progress:{task_id}", 100)
+        logger.info(f"Timestamp refinement complete: {segments_refined}/{total_segments} segments adjusted")
+        
+        return {
+            'success': True,
+            'audio_file_id': audio_file_id,
+            'total_segments': total_segments,
+            'segments_refined': segments_refined,
+            'message': f'Refined {segments_refined} out of {total_segments} segment timestamps'
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in refine_duplicate_timestamps_task: {str(e)}")
+        try:
+            from audioDiagnostic.models import AudioFile
+            audio_file = AudioFile.objects.get(id=audio_file_id)
+            audio_file.status = 'failed'
+            audio_file.error_message = str(e)
+            audio_file.save()
+        except:
+            pass
+        raise
+    finally:
+        docker_celery_manager.unregister_task(task_id)
+
+
 @shared_task(bind=True)
 def detect_duplicates_single_file_task(self, audio_file_id):
     """
@@ -953,15 +1142,26 @@ def detect_duplicates_single_file_task(self, audio_file_id):
         audio_file.status = 'transcribed'  # Return to transcribed (ready for review)
         audio_file.save()
         
-        r.set(f"progress:{task_id}", 100)
+        r.set(f"progress:{task_id}", 95)
         logger.info(f"Duplicate detection complete for audio file {audio_file_id}: {groups_created} groups found")
+        
+        # Chain the timestamp refinement task if duplicates were found
+        if groups_created > 0:
+            self.update_state(state='PROGRESS', meta={'progress': 95, 'message': 'Refining timestamps at silence boundaries...'})
+            logger.info(f"Chaining timestamp refinement task for audio file {audio_file_id}")
+            
+            # Call the refinement task
+            refine_result = refine_duplicate_timestamps_task.apply_async(args=[audio_file_id])
+            logger.info(f"Timestamp refinement task started with ID: {refine_result.id}")
+        
+        r.set(f"progress:{task_id}", 100)
         
         return {
             'success': True,
             'audio_file_id': audio_file_id,
             'duplicate_groups_found': groups_created,
             'total_duplicates': sum(len(g) for g in duplicate_groups),
-            'message': f'Found {groups_created} duplicate groups'
+            'message': f'Found {groups_created} duplicate groups, refining timestamps...'
         }
         
     except Exception as e:
@@ -1117,3 +1317,154 @@ def process_deletions_single_file_task(self, audio_file_id, segment_ids_to_delet
     finally:
         docker_celery_manager.unregister_task(task_id)
 
+
+@shared_task(bind=True)
+def preview_deletions_task(self, audio_file_id, segment_ids_to_delete):
+    """
+    Generate preview audio with deletions applied for Tab 3 (Review Deletions).
+    Creates temporary audio file with selected segments removed.
+    
+    Args:
+        audio_file_id: ID of the audio file
+        segment_ids_to_delete: List of segment IDs to delete
+    
+    Returns:
+        dict with preview audio URL and deletion regions metadata
+    """
+    task_id = self.request.id
+    r = get_redis_connection()
+    
+    if not docker_celery_manager.setup_infrastructure():
+        raise Exception("Failed to set up Docker and Celery infrastructure")
+    
+    docker_celery_manager.register_task(task_id)
+    
+    try:
+        from audioDiagnostic.models import AudioFile, TranscriptionSegment
+        from django.core.files import File
+        import time
+        
+        logger.info(f"Starting preview generation for audio file {audio_file_id}")
+        r.set(f"progress:{task_id}", 10)
+        
+        # Get audio file and transcription
+        audio_file = AudioFile.objects.get(id=audio_file_id)
+        audio_file.preview_status = 'generating'
+        audio_file.save()
+        
+        if not audio_file.transcription:
+            raise ValueError("Audio file must be transcribed first")
+        
+        # Load original audio
+        audio = AudioSegment.from_file(audio_file.file.path)
+        original_duration = len(audio) / 1000.0
+        
+        r.set(f"progress:{task_id}", 30)
+        
+        # Get all segments ordered by time
+        all_segments = audio_file.transcription.segments.all().order_by('start_time')
+        
+        # Build clean audio (excluding marked segments)
+        clean_audio = AudioSegment.empty()
+        deletion_regions = []
+        kept_regions = []
+        current_time = 0.0
+        
+        logger.info(f"Processing {all_segments.count()} segments, deleting {len(segment_ids_to_delete)} segments")
+        
+        for segment in all_segments:
+            start_ms = int(segment.start_time * 1000)
+            end_ms = int(segment.end_time * 1000)
+            segment_duration = segment.end_time - segment.start_time
+            
+            if segment.id in segment_ids_to_delete:
+                # This segment will be deleted - record region in preview timeline
+                deletion_regions.append({
+                    'region_id': len(deletion_regions) + 1,
+                    'start_time': current_time,
+                    'end_time': current_time,  # Duration is 0 in preview since it's deleted
+                    'original_start': segment.start_time,
+                    'original_end': segment.end_time,
+                    'duration': segment_duration,
+                    'text': segment.text,
+                    'segment_ids': [segment.id],
+                    'is_deleted': True
+                })
+                # Don't add this segment to clean audio
+            else:
+                # Keep this segment
+                segment_audio = audio[start_ms:end_ms]
+                clean_audio += segment_audio
+                
+                # Record kept region
+                kept_regions.append({
+                    'start_time': current_time,
+                    'end_time': current_time + segment_duration,
+                    'duration': segment_duration,
+                    'segment_id': segment.id
+                })
+                
+                current_time += segment_duration
+        
+        r.set(f"progress:{task_id}", 70)
+        
+        # Export preview audio
+        preview_filename = f'preview_{audio_file_id}_{int(time.time())}.wav'
+        preview_path = os.path.join(settings.MEDIA_ROOT, 'previews', preview_filename)
+        
+        # Ensure previews directory exists
+        os.makedirs(os.path.dirname(preview_path), exist_ok=True)
+        
+        logger.info(f"Exporting preview audio to {preview_path}")
+        clean_audio.export(preview_path, format='wav')
+        
+        r.set(f"progress:{task_id}", 90)
+        
+        # Calculate preview duration
+        preview_duration = len(clean_audio) / 1000.0
+        time_saved = original_duration - preview_duration
+        
+        # Store preview metadata
+        preview_metadata = {
+            'deletion_regions': deletion_regions,
+            'kept_regions': kept_regions,
+            'original_duration': original_duration,
+            'preview_duration': preview_duration,
+            'time_saved': time_saved,
+            'segments_deleted': len(segment_ids_to_delete),
+            'generated_at': timezone.now().isoformat()
+        }
+        
+        # Update audio file with preview
+        with open(preview_path, 'rb') as f:
+            audio_file.preview_audio.save(preview_filename, File(f), save=False)
+        
+        audio_file.preview_status = 'ready'
+        audio_file.preview_generated_at = timezone.now()
+        audio_file.preview_metadata = preview_metadata
+        audio_file.save()
+        
+        r.set(f"progress:{task_id}", 100)
+        logger.info(f"Preview generation complete for audio file {audio_file_id}")
+        
+        return {
+            'success': True,
+            'audio_file_id': audio_file_id,
+            'preview_audio_url': audio_file.preview_audio.url,
+            'preview_status': 'ready',
+            'metadata': preview_metadata
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in preview_deletions_task: {str(e)}")
+        try:
+            from audioDiagnostic.models import AudioFile
+            audio_file = AudioFile.objects.get(id=audio_file_id)
+            audio_file.preview_status = 'failed'
+            audio_file.error_message = str(e)
+            audio_file.save()
+        except:
+            pass
+        raise
+    finally:
+        docker_celery_manager.unregister_task(task_id)

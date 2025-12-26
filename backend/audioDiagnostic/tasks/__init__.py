@@ -25,6 +25,7 @@ from .duplicate_tasks import (
     detect_duplicates_against_pdf_task,
     detect_duplicates_single_file_task,  # NEW: Tab 3 individual file duplicate detection
     process_deletions_single_file_task,  # NEW: Tab 3 generate clean audio
+    refine_duplicate_timestamps_task,  # NEW: Tab 3 refine timestamps at silence boundaries
 )
 
 # PDF matching and validation tasks
@@ -41,10 +42,20 @@ from .pdf_tasks import (
     extract_chapter_title_task,
 )
 
-# PDF comparison tasks (Tab 4)
+# PDF comparison tasks (Tab 4 - old)
 from .pdf_comparison_tasks import (
-    compare_transcription_to_pdf_task,  # NEW: Tab 4 PDF comparison
+    compare_transcription_to_pdf_task as compare_transcription_to_pdf_task_old,  # OLD: Tab 4 PDF comparison
     batch_compare_transcriptions_to_pdf_task,  # NEW: Tab 4 batch comparison
+)
+
+# PDF comparison tasks (Tab 5 - new)
+from .compare_pdf_task import (
+    compare_transcription_to_pdf_task,  # NEW: Tab 5 PDF comparison (algorithmic)
+)
+
+# AI-powered PDF comparison tasks (Tab 5 - AI version)
+from .ai_pdf_comparison_task import (
+    ai_compare_transcription_to_pdf_task,  # NEW: Tab 5 AI-powered PDF comparison
 )
 
 # Audio processing tasks
@@ -84,6 +95,7 @@ __all__ = [
     'detect_duplicates_against_pdf_task',
     'detect_duplicates_single_file_task',  # NEW
     'process_deletions_single_file_task',  # NEW
+    'refine_duplicate_timestamps_task',  # NEW
     
     # PDF tasks
     'match_pdf_to_audio_task',
@@ -99,6 +111,7 @@ __all__ = [
     
     # PDF comparison tasks (NEW)
     'compare_transcription_to_pdf_task',
+    'ai_compare_transcription_to_pdf_task',  # NEW: AI-powered comparison
     'batch_compare_transcriptions_to_pdf_task',
     
     # Audio processing tasks

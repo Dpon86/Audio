@@ -6,12 +6,13 @@ import ProjectTabs from "../components/ProjectTabs/ProjectTabs";
 import Tab1Files from "../components/ProjectTabs/Tab1Files";
 import Tab3Duplicates from "../components/ProjectTabs/Tab3Duplicates";
 import Tab4Results from "../components/ProjectTabs/Tab4Results";
-import Tab4ComparePDF from "../components/ProjectTabs/Tab4ComparePDF";
+import Tab4Review from "../components/Tab4Review";
+import Tab5ComparePDF from "../components/ProjectTabs/Tab5ComparePDF";
 import "./ProjectDetailPageNew.css";
 
 /**
  * New Tab-Based Project Detail Page
- * Replaces the old single-page workflow with 4 independent tabs
+ * Replaces the old single-page workflow with 5 independent tabs
  */
 const ProjectDetailPageNew = () => {
   const { projectId } = useParams();
@@ -107,7 +108,8 @@ const ProjectDetailPageNew = () => {
           {activeTab === 'files' && <Tab1Files />}
           {activeTab === 'duplicates' && <Tab3Duplicates />}
           {activeTab === 'results' && <Tab4Results />}
-          {activeTab === 'compare' && <Tab4ComparePDF />}
+          {activeTab === 'review' && <Tab4Review />}
+          {activeTab === 'compare' && <Tab5ComparePDF />}
         </div>
       </div>
     </ProjectTabProvider>

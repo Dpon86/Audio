@@ -3,13 +3,14 @@ import './ProjectTabs.css';
 
 /**
  * Tab Navigation Component
- * Provides tab switching UI for the 4-tab architecture
+ * Provides tab switching UI for the 5-tab architecture
  */
 const ProjectTabs = ({ activeTab, onTabChange, tabCounts = {} }) => {
   const tabs = [
     { id: 'files', label: 'Upload & Transcribe', icon: '📁', description: 'Upload & transcribe audio files' },
     { id: 'duplicates', label: 'Duplicates', icon: '🔍', description: 'Find & remove repeats' },
     { id: 'results', label: 'Results', icon: '✅', description: 'View processed audio' },
+    { id: 'review', label: 'Review', icon: '👁️', description: 'Compare processed vs original' },
     { id: 'compare', label: 'Compare PDF', icon: '📄', description: 'Validate against PDF' }
   ];
 

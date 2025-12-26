@@ -40,6 +40,13 @@ if not SECRET_KEY:
 # Default to False for security
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
+# OpenAI API Configuration
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+if not OPENAI_API_KEY:
+    import warnings
+    warnings.warn(
+        "OPENAI_API_KEY not configured. Set OPENAI_API_KEY environment variable to enable AI-powered PDF comparison."
+    )
 
 ALLOWED_HOSTS = [
     '192.168.148.110',  # Your local network IP

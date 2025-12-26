@@ -43,12 +43,20 @@ from .views.tab3_duplicate_detection import (
     SingleFileProcessedAudioView,
     SingleFileStatisticsView,
 )
-from .views.tab4_pdf_comparison import (
-    SingleTranscriptionPDFCompareView,
-    SingleTranscriptionPDFResultView,
-    SingleTranscriptionPDFStatusView,
-    SingleTranscriptionSideBySideView,
-    SingleTranscriptionRetryComparisonView,
+from .views.tab4_review_comparison import (
+    ProjectComparisonView,
+    FileComparisonDetailView,
+    mark_file_reviewed,
+    get_deletion_regions,
+)
+from .views.tab5_pdf_comparison import (
+    StartPDFComparisonView,
+    PDFComparisonResultView,
+    PDFComparisonStatusView,
+    SideBySideComparisonView,
+    MarkIgnoredSectionsView,
+    ResetPDFComparisonView,
+    MarkContentForDeletionView,
 )
 from django.conf import settings
 from django.conf.urls.static import static
@@ -104,20 +112,30 @@ urlpatterns = [
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/transcription/status/', SingleFileTranscriptionStatusView.as_view(), name='tab2-transcription-status'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/transcription/download/', TranscriptionDownloadView.as_view(), name='tab2-transcription-download'),
     
-    # Tab 3: Duplicate Detection
-    path('api/projects/<int:project_id>/files/<int:audio_file_id>/detect-duplicates/', SingleFileDetectDuplicatesView.as_view(), name='tab3-detect-duplicates'),
-    path('api/projects/<int:project_id>/files/<int:audio_file_id>/duplicates/', SingleFileDuplicatesReviewView.as_view(), name='tab3-duplicates-review'),
+    # Tab 2: Duplicate Detection
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/detect-duplicates/', SingleFileDetectDuplicatesView.as_view(), name='tab2-detect-duplicates'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/duplicates/', SingleFileDuplicatesReviewView.as_view(), name='tab2-duplicates-review'),
+    
+    # Tab 3: Results (Processing)
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/confirm-deletions/', SingleFileConfirmDeletionsView.as_view(), name='tab3-confirm-deletions'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/processing-status/', SingleFileProcessingStatusView.as_view(), name='tab3-processing-status'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/processed-audio/', SingleFileProcessedAudioView.as_view(), name='tab3-processed-audio'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/statistics/', SingleFileStatisticsView.as_view(), name='tab3-statistics'),
     
-    # Tab 4: PDF Comparison
-    path('api/projects/<int:project_id>/files/<int:audio_file_id>/compare-pdf/', SingleTranscriptionPDFCompareView.as_view(), name='tab4-compare-pdf'),
-    path('api/projects/<int:project_id>/files/<int:audio_file_id>/pdf-result/', SingleTranscriptionPDFResultView.as_view(), name='tab4-pdf-result'),
-    path('api/projects/<int:project_id>/files/<int:audio_file_id>/pdf-status/', SingleTranscriptionPDFStatusView.as_view(), name='tab4-pdf-status'),
-    path('api/projects/<int:project_id>/files/<int:audio_file_id>/side-by-side/', SingleTranscriptionSideBySideView.as_view(), name='tab4-side-by-side'),
-    path('api/projects/<int:project_id>/files/<int:audio_file_id>/retry-comparison/', SingleTranscriptionRetryComparisonView.as_view(), name='tab4-retry-comparison'),
+    # Tab 4: Review/Comparison (NEW - Project-wide comparison)
+    path('api/projects/<int:project_id>/comparison/', ProjectComparisonView.as_view(), name='tab4-project-comparison'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/comparison-details/', FileComparisonDetailView.as_view(), name='tab4-file-comparison'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/mark-reviewed/', mark_file_reviewed, name='tab4-mark-reviewed'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/deletion-regions/', get_deletion_regions, name='tab4-deletion-regions'),
+    
+    # Tab 5: PDF Comparison
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/compare-pdf/', StartPDFComparisonView.as_view(), name='tab5-compare-pdf'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/pdf-result/', PDFComparisonResultView.as_view(), name='tab5-pdf-result'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/pdf-status/', PDFComparisonStatusView.as_view(), name='tab5-pdf-status'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/side-by-side/', SideBySideComparisonView.as_view(), name='tab5-side-by-side'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/ignored-sections/', MarkIgnoredSectionsView.as_view(), name='tab5-ignored-sections'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/reset-comparison/', ResetPDFComparisonView.as_view(), name='tab5-reset-comparison'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/mark-for-deletion/', MarkContentForDeletionView.as_view(), name='tab5-mark-for-deletion'),
     
     # Infrastructure Management
     path('infrastructure/status/', InfrastructureStatusView.as_view(), name='infrastructure-status'),
