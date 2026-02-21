@@ -179,8 +179,15 @@ class AudioFile(models.Model):
     
     @property
     def has_transcription(self):
-        # Check both new Transcription model and legacy field
-        return hasattr(self, 'transcription') or bool(self.transcript_text)
+        """Check if this audio file has been transcribed"""
+        try:
+            # Check new Transcription model (OneToOne relationship)
+            if hasattr(self, '_transcription_cache'):
+                return self._transcription_cache is not None
+            return self.transcription is not None
+        except (Transcription.DoesNotExist, AttributeError):
+            # Fall back to legacy transcript_text field or status check
+            return bool(self.transcript_text) or self.status == 'transcribed'
     
     @property
     def has_processed_audio(self):

@@ -873,7 +873,7 @@ def refine_duplicate_timestamps_task(self, audio_file_id):
         audio_file = AudioFile.objects.get(id=audio_file_id)
         
         # Check if we have audio file path
-        if not audio_file.audio_file:
+        if not audio_file.file:
             raise ValueError("Audio file path not found")
         
         audio_file.status = 'processing'
@@ -884,7 +884,7 @@ def refine_duplicate_timestamps_task(self, audio_file_id):
         self.update_state(state='PROGRESS', meta={'progress': 10, 'message': 'Loading audio...'})
         
         # Load audio file
-        audio_path = audio_file.audio_file.path
+        audio_path = audio_file.file.path
         logger.info(f"Loading audio from: {audio_path}")
         audio = AudioSegment.from_file(audio_path)
         

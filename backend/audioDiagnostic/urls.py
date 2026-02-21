@@ -42,6 +42,7 @@ from .views.tab3_duplicate_detection import (
     SingleFileProcessingStatusView,
     SingleFileProcessedAudioView,
     SingleFileStatisticsView,
+    UpdateSegmentTimesView,
 )
 from .views.tab4_review_comparison import (
     ProjectComparisonView,
@@ -115,6 +116,7 @@ urlpatterns = [
     # Tab 2: Duplicate Detection
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/detect-duplicates/', SingleFileDetectDuplicatesView.as_view(), name='tab2-detect-duplicates'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/duplicates/', SingleFileDuplicatesReviewView.as_view(), name='tab2-duplicates-review'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/segments/<int:segment_id>/', UpdateSegmentTimesView.as_view(), name='tab2-update-segment-times'),
     
     # Tab 3: Results (Processing)
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/confirm-deletions/', SingleFileConfirmDeletionsView.as_view(), name='tab3-confirm-deletions'),

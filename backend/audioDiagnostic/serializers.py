@@ -285,8 +285,12 @@ class AudioFileDetailSerializer(serializers.ModelSerializer):
         return obj.has_processed_audio
     
     def get_transcription_id(self, obj):
-        if hasattr(obj, 'transcription'):
-            return obj.transcription.id
+        """Get transcription ID if exists"""
+        try:
+            if hasattr(obj, 'transcription') and obj.transcription:
+                return obj.transcription.id
+        except (Transcription.DoesNotExist, AttributeError):
+            pass
         return None
     
     def get_transcription(self, obj):
@@ -299,8 +303,16 @@ class AudioFileDetailSerializer(serializers.ModelSerializer):
                     'word_count': obj.transcription.word_count,
                     'confidence_score': obj.transcription.confidence_score
                 }
-        except Transcription.DoesNotExist:
+        except (Transcription.DoesNotExist, AttributeError):
             pass
+        # Fall back to legacy transcript_text if available
+        if hasattr(obj, 'transcript_text') and obj.transcript_text:
+            return {
+                'id': None,
+                'text': obj.transcript_text,
+                'word_count': len(obj.transcript_text.split()) if obj.transcript_text else 0,
+                'confidence_score': None
+            }
         return None
 
 

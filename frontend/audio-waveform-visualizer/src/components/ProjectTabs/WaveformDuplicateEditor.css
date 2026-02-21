@@ -1,0 +1,440 @@
+/* ========================================
+   Waveform Editor Container
+   ======================================== */
+
+.waveform-editor-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* ========================================
+   Header Section
+   ======================================== */
+
+.waveform-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.waveform-editor-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+/* ========================================
+   Zoom Controls
+   ======================================== */
+
+.waveform-zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #f8fafc;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+}
+
+.zoom-btn {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: white;
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.zoom-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.zoom-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.zoom-slider {
+  width: 200px;
+  height: 6px;
+  cursor: pointer;
+  accent-color: #2563eb;
+}
+
+.zoom-level {
+  font-size: 0.9rem;
+  color: #64748b;
+  font-weight: 600;
+  min-width: 40px;
+  text-align: center;
+}
+
+/* ========================================
+   Waveform Container
+   ======================================== */
+
+.waveform-wrapper {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.waveform-container {
+  width: 100%;
+  min-height: 200px;
+  max-height: 250px;
+  background: #f8fafc;
+  border-radius: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 2px solid #e2e8f0;
+}
+
+/* Loading State */
+.waveform-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(248, 250, 252, 0.95);
+  color: #64748b;
+  font-size: 1.1rem;
+  z-index: 10;
+  border-radius: 6px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e2e8f0;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ========================================
+   Playback Controls
+   ======================================== */
+
+.waveform-playback-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 2px solid #e2e8f0;
+}
+
+.waveform-control-btn {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.waveform-control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.play-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.play-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+}
+
+.stop-btn {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.stop-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);
+}
+
+.refresh-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+}
+
+/* ========================================
+   Time Display
+   ======================================== */
+
+.waveform-time-display {
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  color: #1e293b;
+  font-weight: 600;
+  margin-left: auto;
+  padding: 0.5rem 1rem;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+/* ========================================
+   Silence Alignment Controls
+   ======================================== */
+
+.waveform-silence-controls {
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.silence-controls-header {
+  margin-bottom: 1rem;
+}
+
+.silence-controls-header h5 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.25rem 0;
+}
+
+.silence-help-text {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.silence-controls-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.silence-threshold-control {
+  flex: 1;
+  min-width: 300px;
+}
+
+.silence-threshold-control label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.5rem;
+}
+
+.threshold-slider {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  accent-color: #8b5cf6;
+}
+
+.threshold-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.align-btn {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  white-space: nowrap;
+}
+
+.align-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(139, 92, 246, 0.3);
+}
+
+/* ========================================
+   Legend
+   ======================================== */
+
+.waveform-legend {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend-color {
+  width: 24px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.legend-color.delete {
+  background: rgba(239, 68, 68, 0.5);
+}
+
+.legend-color.keep {
+  background: rgba(34, 197, 94, 0.5);
+}
+
+.legend-help {
+  margin-left: auto;
+  color: #64748b;
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+/* ========================================
+   Region Styling (WaveSurfer regions)
+   ======================================== */
+
+/* Custom styling for region labels */
+[data-region-label] {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+/* Resize handles */
+.wavesurfer-handle {
+  background: rgba(0, 0, 0, 0.5) !important;
+  width: 6px !important;
+  cursor: ew-resize !important;
+}
+
+.wavesurfer-handle:hover {
+  background: rgba(0, 0, 0, 0.8) !important;
+  width: 8px !important;
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+
+@media (max-width: 1024px) {
+  .waveform-editor-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .waveform-zoom-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .zoom-slider {
+    flex: 1;
+    max-width: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .waveform-container {
+    min-height: 250px;
+  }
+
+  .waveform-editor-container {
+    padding: 1rem;
+  }
+
+  .zoom-slider {
+    width: 120px;
+  }
+
+  .waveform-legend {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .legend-help {
+    width: 100%;
+    margin-left: 0;
+    text-align: center;
+  }
+
+  .waveform-playback-controls {
+    flex-wrap: wrap;
+  }
+
+  .waveform-time-display {
+    width: 100%;
+    text-align: center;
+    margin-left: 0;
+  }
+
+  .silence-controls-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .silence-threshold-control {
+    min-width: 100%;
+  }
+
+  .align-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .waveform-editor-title {
+    font-size: 1rem;
+  }
+
+  .waveform-control-btn {
+    padding: 0.375rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .zoom-btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+  }
+}

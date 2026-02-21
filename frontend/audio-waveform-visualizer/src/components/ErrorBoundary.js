@@ -36,7 +36,7 @@ class ErrorBoundary extends React.Component {
             <summary>Error details (click to expand)</summary>
             <p><strong>Error:</strong> {this.state.error && this.state.error.toString()}</p>
             <p><strong>Stack trace:</strong></p>
-            <pre>{this.state.errorInfo.componentStack}</pre>
+            <pre>{this.state.errorInfo && this.state.errorInfo.componentStack}</pre>
           </details>
           <button 
             onClick={() => {

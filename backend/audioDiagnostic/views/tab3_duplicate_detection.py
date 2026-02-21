@@ -315,3 +315,89 @@ class SingleFileStatisticsView(APIView):
                 'has_processed_audio': bool(audio_file.processed_audio)
             }
         })
+
+
+class UpdateSegmentTimesView(APIView):
+    """
+    PATCH: Update start_time and end_time for a specific transcription segment
+    Used when user drags region boundaries in waveform editor
+    """
+    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def patch(self, request, project_id, audio_file_id, segment_id):
+        """Update segment boundary times"""
+        # Verify ownership and get segment
+        try:
+            segment = TranscriptionSegment.objects.select_related(
+                'transcription__audio_file__project'
+            ).get(
+                id=segment_id,
+                transcription__audio_file_id=audio_file_id,
+                transcription__audio_file__project_id=project_id,
+                transcription__audio_file__project__user=request.user
+            )
+        except TranscriptionSegment.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': 'Segment not found or access denied'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get new times from request
+        new_start = request.data.get('start_time')
+        new_end = request.data.get('end_time')
+        
+        # Validate inputs
+        if new_start is None and new_end is None:
+            return Response({
+                'success': False,
+                'error': 'At least one of start_time or end_time must be provided'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Update times
+        if new_start is not None:
+            try:
+                segment.start_time = float(new_start)
+            except (ValueError, TypeError):
+                return Response({
+                    'success': False,
+                    'error': 'Invalid start_time value'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if new_end is not None:
+            try:
+                segment.end_time = float(new_end)
+            except (ValueError, TypeError):
+                return Response({
+                    'success': False,
+                    'error': 'Invalid end_time value'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate time logic
+        if segment.end_time <= segment.start_time:
+            return Response({
+                'success': False,
+                'error': 'End time must be after start time'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate minimum duration (0.1 seconds)
+        if segment.end_time - segment.start_time < 0.1:
+            return Response({
+                'success': False,
+                'error': 'Segment duration must be at least 0.1 seconds'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Save changes
+        segment.save()
+        
+        return Response({
+            'success': True,
+            'segment': {
+                'id': segment.id,
+                'start_time': segment.start_time,
+                'end_time': segment.end_time,
+                'duration': segment.end_time - segment.start_time,
+                'text': segment.text
+            }
+        })
+

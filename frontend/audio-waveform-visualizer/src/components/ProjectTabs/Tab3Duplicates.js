@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useProjectTab } from '../../contexts/ProjectTabContext';
 import { useAuth } from '../../contexts/AuthContext';
 import WaveSurfer from 'wavesurfer.js';
+import WaveformDuplicateEditor from './WaveformDuplicateEditor';
 import './Tab3Duplicates.css';
 
 /**
@@ -25,6 +26,7 @@ const Tab3Duplicates = () => {
   const [selectedDeletions, setSelectedDeletions] = useState([]);
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const [processing, setProcessing] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState(null);
 
   // Audio player state
   const [wavesurfer, setWavesurfer] = useState(null);
@@ -205,6 +207,84 @@ const Tab3Duplicates = () => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Handle group selection from waveform
+  const handleGroupSelect = (groupId) => {
+    console.log('Group selected:', groupId);
+    setSelectedGroupId(groupId);
+    
+    // Optionally expand the group in the list
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev);
+      newSet.add(groupId);
+      return newSet;
+    });
+  };
+
+  // Handle region boundary updates from waveform
+  const handleRegionUpdate = async (groupId, segmentId, newStartTime, newEndTime) => {
+    console.log(`\n---- MANUAL DRAG UPDATE ----`);
+    console.log(`📝 Region: group=${groupId}, segment=${segmentId}`);
+    console.log(`📝 New times: ${newStartTime.toFixed(2)}s - ${newEndTime.toFixed(2)}s`);
+    
+    try {
+      // Save to backend FIRST (before optimistic update)
+      console.log(`📤 Sending PATCH to: /api/projects/${projectId}/files/${selectedAudioFile.id}/segments/${segmentId}/`);
+      console.log(`📤 Payload:`, { start_time: newStartTime, end_time: newEndTime });
+      
+      const response = await fetch(
+        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/segments/${segmentId}/`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Token ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            start_time: newStartTime,
+            end_time: newEndTime
+          })
+        }
+      );
+
+      console.log(`📥 Response status: ${response.status} ${response.statusText}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ PATCH failed:`, errorText);
+        throw new Error(`Failed to update segment times: ${response.status}`);
+      }
+      
+      const responseData = await response.json();
+      console.log(`✅ Backend updated successfully:`, responseData);
+
+      // Now update local state to match backend
+      setDuplicateGroups(prevGroups =>
+        prevGroups.map(group => {
+          if (group.group_id !== groupId) return group;
+
+          return {
+            ...group,
+            segments: group.segments.map(seg =>
+              seg.id === segmentId
+                ? { ...seg, start_time: newStartTime, end_time: newEndTime }
+                : seg
+            )
+          };
+        })
+      );
+      
+      console.log(`✅ Local state updated`);
+      console.log(`---- UPDATE COMPLETE ----\n`);
+
+    } catch (error) {
+      console.error('\n❌❌❌ ERROR UPDATING SEGMENT:', error);
+      console.error('Error details:', error.message);
+      console.log(`---- UPDATE FAILED ----\n`);
+      // Don't reload - just show the error
+      alert(`Failed to update segment: ${error.message}`);
+    }
   };
 
   const handleClearResults = () => {
@@ -412,34 +492,33 @@ const Tab3Duplicates = () => {
         )}
       </div>
 
-      {/* Audio Player */}
-      {selectedAudioFile && selectedAudioFile.audio_file && (
-        <div className="tab3-audio-player">
-          <div className="audio-player-header">
-            <h4>🎵 Audio Player</h4>
-            <div className="audio-time">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </div>
-          </div>
-          
-          <div ref={waveformRef} className="waveform-container"></div>
-          
-          <div className="audio-controls">
-            <button 
-              onClick={handlePlayPause} 
-              className="control-btn play-btn"
-              disabled={!wavesurfer}
-            >
-              {isPlaying ? '⏸️ Pause' : '▶️ Play'}
-            </button>
-            <button 
-              onClick={handleStop} 
-              className="control-btn stop-btn"
-              disabled={!wavesurfer}
-            >
-              ⏹️ Stop
-            </button>
-          </div>
+      {/* Interactive Waveform Editor */}
+      {selectedAudioFile && selectedAudioFile.file && duplicateGroups.length > 0 && (
+        <WaveformDuplicateEditor
+          audioFile={selectedAudioFile.file}
+          duplicateGroups={duplicateGroups}
+          selectedGroupId={selectedGroupId}
+          onRegionUpdate={handleRegionUpdate}
+          onGroupSelect={handleGroupSelect}
+          onRefresh={loadDuplicateGroups}
+        />
+      )}
+      
+      {/* Debug: Show why waveform isn't rendering */}
+      {duplicateGroups.length > 0 && !selectedAudioFile?.file && (
+        <div style={{
+          padding: '1rem',
+          background: '#fef2f2',
+          border: '1px solid #fca5a5',
+          borderRadius: '6px',
+          marginBottom: '1rem',
+          color: '#991b1b'
+        }}>
+          ⚠️ Waveform not showing: No audio file path found. 
+          Selected file: {selectedAudioFile?.filename || 'none'}
+          {selectedAudioFile && (
+            <div><small>Audio file path: {selectedAudioFile.file || 'MISSING'}</small></div>
+          )}
         </div>
       )}
 
@@ -457,13 +536,19 @@ const Tab3Duplicates = () => {
             {duplicateGroups.map((group, groupIndex) => {
               const isExpanded = expandedGroups.has(group.group_id);
               const segments = group.segments || group.occurrences || [];
+              const isSelected = selectedGroupId === group.group_id;
               
               return (
-                <div key={group.group_id} className="duplicate-group-card">
+                <div 
+                  key={group.group_id} 
+                  className={`duplicate-group-card ${isSelected ? 'selected' : ''}`}
+                  data-group-id={group.group_id}
+                >
                   <div 
                     className="group-header" 
                     onClick={() => {
                       toggleGroup(group.group_id);
+                      handleGroupSelect(group.group_id);
                       if (segments.length > 0 && segments[0].start_time != null) {
                         seekToTime(segments[0].start_time);
                       }
@@ -471,7 +556,7 @@ const Tab3Duplicates = () => {
                   >
                     <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
                     <div className="group-info">
-                      <h4>Duplicate Group {groupIndex + 1}</h4>
+                      <h4>Duplicate Group {duplicateGroups.length - groupIndex}</h4>
                       <p className="group-text">"{group.duplicate_text?.substring(0, 150) || (segments[0]?.text?.substring(0, 150)) || 'No text'}{(group.duplicate_text?.length > 150 || segments[0]?.text?.length > 150) ? '...' : ''}"</p>
                       <div className="group-meta">
                         <span>📊 {group.occurrence_count || segments.length} occurrences</span>

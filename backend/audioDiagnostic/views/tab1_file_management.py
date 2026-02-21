@@ -27,7 +27,7 @@ class AudioFileListView(APIView):
     def get(self, request, project_id):
         """Get all audio files for a project"""
         project = get_object_or_404(AudioProject, id=project_id, user=request.user)
-        audio_files = AudioFile.objects.filter(project=project).order_by('order_index', 'created_at')
+        audio_files = AudioFile.objects.filter(project=project).select_related('transcription').order_by('order_index', 'created_at')
         
         serializer = AudioFileDetailSerializer(audio_files, many=True)
         
