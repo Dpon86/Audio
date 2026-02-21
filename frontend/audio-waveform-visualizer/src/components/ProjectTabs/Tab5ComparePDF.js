@@ -1,25 +1,46 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useProjectTab } from '../../contexts/ProjectTabContext';
 import { useAuth } from '../../contexts/AuthContext';
+import PDFRegionSelector from '../PDFRegionSelector';
+import PreciseComparisonDisplay from '../PreciseComparisonDisplay';
 
 /**
  * Tab 5: PDF Comparison
  * Compare transcription to PDF document
+ * - AI Mode: Automatic semantic comparison using GPT-4
+ * - Precise Mode: Word-by-word comparison with 3-word lookahead
+ * - Manual PDF region selection for precise comparisons
  * - Find where audio starts in PDF
  * - Identify missing content (in PDF but not in audio)
  * - Identify extra content (in audio but not in PDF)
  * - Allow marking sections as ignored (narrator info, chapter titles, etc.)
- * - Show side-by-side comparison
+ * - Show side-by-side comparison with timestamps
  */
 const Tab5ComparePDF = () => {
   const { selectedAudioFile, audioFiles, selectAudioFile, projectId } = useProjectTab();
   const { token } = useAuth();
+  
+  // Comparison mode
+  const [comparisonMode, setComparisonMode] = useState('ai'); // 'ai' or 'precise'
   
   // State
   const [comparisonResults, setComparisonResults] = useState(null);
   const [isComparing, setIsComparing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
+  
+  // PDF Region Selection (for precise mode) - separate start and end
+  const [showRegionSelector, setShowRegionSelector] = useState(false);
+  const [regionSelectorMode, setRegionSelectorMode] = useState('start'); // 'start' or 'end'
+  const [pdfStartChar, setPdfStartChar] = useState(null);
+  const [pdfEndChar, setPdfEndChar] = useState(null);
+  const [pdfStartText, setPdfStartText] = useState('');
+  const [pdfEndText, setPdfEndText] = useState('');
+  
+  // Transcript text for comparison preview
+  const [transcriptText, setTranscriptText] = useState('');
+  const [transcriptStartText, setTranscriptStartText] = useState('');
+  const [transcriptEndText, setTranscriptEndText] = useState('');
   
   // Side-by-side view
   const [showSideBySide, setShowSideBySide] = useState(false);
@@ -172,6 +193,146 @@ const Tab5ComparePDF = () => {
       setIsComparing(false);
     }
   };
+  
+  /**
+   * Start precise word-by-word comparison
+   * Requiresboth start and end positions to be selected
+   */
+  const startPreciseComparison = () => {
+    if (!selectedAudioFile) {
+      alert('Please select an audio file first');
+      return;
+    }
+    
+    // Check if both positions are selected
+    if (pdfStartChar === null || pdfEndChar === null) {
+      alert('Please select both start and end positions for the PDF region first');
+      return;
+    }
+    
+    // Execute comparison with selected region
+    executePreciseComparison();
+  };
+  
+  /**
+   * Handle PDF position selection (start or end)
+   */
+  const handlePositionSelected = (position, text) => {
+    console.log(`PDF ${regionSelectorMode} position selected:`, position);
+    
+    if (regionSelectorMode === 'start') {
+      setPdfStartChar(position);
+      setPdfStartText(text);
+    } else {
+      setPdfEndChar(position);
+      setPdfEndText(text);
+    }
+    
+    setShowRegionSelector(false);
+  };
+  
+  /**
+   * Execute precise comparison with selected PDF region
+   */
+  const executePreciseComparison = async () => {
+    if (pdfStartChar === null || pdfEndChar === null) {
+      alert('Please select both start and end positions');
+      return;
+    }
+    
+    if (pdfStartChar >= pdfEndChar) {
+      alert('Start position must be before end position');
+      return;
+    }
+    
+    setIsComparing(true);
+    setProgress(0);
+    setError(null);
+    
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/precise-compare/`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${token}`,
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            algorithm: 'precise',
+            pdf_start_char: pdfStartChar,
+            pdf_end_char: pdfEndChar
+          })
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Precise comparison started:', data);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to start precise comparison');
+        setIsComparing(false);
+      }
+    } catch (err) {
+      setError('Network error: ' + err.message);
+      setIsComparing(false);
+    }
+  };
+  
+  /**
+   * Change comparison mode and reset PDF region selection
+   */
+  const handleModeChange = (newMode) => {
+    setComparisonMode(newMode);
+    setPdfStartChar(null);
+    setPdfEndChar(null);
+    setPdfStartText('');
+    setPdfEndText('');
+    setComparisonResults(null);
+  };
+  
+  /**
+   * Load transcript text and generate preview snippets
+   * Prioritize: retranscribed (most accurate) > adjusted (quick preview) > original
+   */
+  useEffect(() => {
+    if (selectedAudioFile) {
+      // Select the best available transcript based on source
+      let fullText = '';
+      
+      if (selectedAudioFile.transcript_source === 'retranscribed' && selectedAudioFile.transcript_text) {
+        fullText = selectedAudioFile.transcript_text;  // Most accurate - re-transcribed processed audio
+      } else if (selectedAudioFile.transcript_source === 'adjusted' && selectedAudioFile.transcript_adjusted) {
+        fullText = selectedAudioFile.transcript_adjusted;  // Quick preview - segments concatenated
+      } else if (selectedAudioFile.transcript_text) {
+        fullText = selectedAudioFile.transcript_text;  // Original transcript (fallback)
+      }
+      
+      if (fullText) {
+        setTranscriptText(fullText);
+        
+        // Generate start preview (first 400 chars)
+        const PREVIEW_LENGTH = 400;
+        const startPreview = fullText.substring(0, Math.min(PREVIEW_LENGTH, fullText.length));
+        setTranscriptStartText(startPreview + (fullText.length > PREVIEW_LENGTH ? '...' : ''));
+        
+        // Generate end preview (last 400 chars)
+        const endStart = Math.max(0, fullText.length - PREVIEW_LENGTH);
+        const endPreview = fullText.substring(endStart);
+        setTranscriptEndText((endStart > 0 ? '...' : '') + endPreview);
+      } else {
+        setTranscriptText('');
+        setTranscriptStartText('');
+        setTranscriptEndText('');
+      }
+    } else {
+      setTranscriptText('');
+      setTranscriptStartText('');
+      setTranscriptEndText('');
+    }
+  }, [selectedAudioFile]);
   
   const loadSideBySide = async () => {
     if (!selectedAudioFile) return;
@@ -411,24 +572,324 @@ const Tab5ComparePDF = () => {
       
       {selectedAudioFile && (
         <>
+          {/* Comparison Mode Selection */}
+          <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', marginBottom: '2rem' }}>
+            <h3 style={{ marginBottom: '1rem', color: '#1e293b' }}>Comparison Algorithm</h3>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button
+                onClick={() => handleModeChange('ai')}
+                style={{
+                  flex: 1,
+                  padding: '1rem',
+                  background: comparisonMode === 'ai' 
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                    : '#f1f5f9',
+                  color: comparisonMode === 'ai' ? 'white' : '#475569',
+                  border: comparisonMode === 'ai' ? 'none' : '2px solid #cbd5e1',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s'
+                }}
+              >
+                <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🤖</div>
+                <div style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>AI Mode</div>
+                <div style={{ fontSize: '0.85rem', opacity: 0.9 }}>
+                  Semantic understanding with GPT-4
+                </div>
+              </button>
+              
+              <button
+                onClick={() => handleModeChange('precise')}
+                style={{
+                  flex: 1,
+                  padding: '1rem',
+                  background: comparisonMode === 'precise' 
+                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+                    : '#f1f5f9',
+                  color: comparisonMode === 'precise' ? 'white' : '#475569',
+                  border: comparisonMode === 'precise' ? 'none' : '2px solid #cbd5e1',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s'
+                }}
+              >
+                <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🎯</div>
+                <div style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>Precise Mode</div>
+                <div style={{ fontSize: '0.85rem', opacity: 0.9 }}>
+                  Word-by-word with 3-word lookahead
+                </div>
+              </button>
+            </div>
+            
+            {/* PDF and Transcript Comparison Preview (Precise Mode) */}
+            {comparisonMode === 'precise' && (
+              <div style={{ marginTop: '2rem' }}>
+                <h4 style={{ marginBottom: '1rem', color: '#1e293b' }}>
+                  Region Selection & Preview
+                </h4>
+                
+                {/* Start Position Comparison */}
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '1fr 1fr', 
+                  gap: '1rem', 
+                  marginBottom: '1rem' 
+                }}>
+                  {/* PDF Start */}
+                  <div style={{ 
+                    padding: '1rem', 
+                    background: pdfStartChar !== null ? '#f0fdf4' : '#f9fafb',
+                    border: pdfStartChar !== null ? '2px solid #10b981' : '2px dashed #d1d5db',
+                    borderRadius: '6px'
+                  }}>
+                    <div style={{ 
+                      fontWeight: '600', 
+                      color: pdfStartChar !== null ? '#065f46' : '#6b7280', 
+                      marginBottom: '0.5rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span>📄 PDF Start</span>
+                      {pdfStartChar !== null && (
+                        <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>
+                          Char {pdfStartChar}
+                        </span>
+                      )}
+                    </div>
+                    {pdfStartChar !== null ? (
+                      <div style={{ 
+                        fontSize: '0.875rem', 
+                        color: '#047857', 
+                        lineHeight: '1.5',
+                        fontFamily: 'monospace',
+                        whiteSpace: 'pre-wrap'
+                      }}>
+                        {pdfStartText}
+                      </div>
+                    ) : (
+                      <div style={{ 
+                        fontSize: '0.875rem', 
+                        color: '#9ca3af', 
+                        fontStyle: 'italic' 
+                      }}>
+                        Not selected
+                      </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        setRegionSelectorMode('start');
+                        setShowRegionSelector(true);
+                      }}
+                      style={{
+                        marginTop: '0.75rem',
+                        width: '100%',
+                        padding: '0.5rem 1rem',
+                        background: pdfStartChar !== null ? 'white' : '#10b981',
+                        color: pdfStartChar !== null ? '#059669' : 'white',
+                        border: pdfStartChar !== null ? '2px solid #10b981' : 'none',
+                        borderRadius: '6px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      {pdfStartChar !== null ? '📝 Change Start' : '📄 Select Start'}
+                    </button>
+                  </div>
+                  
+                  {/* Transcript Start */}
+                  <div style={{ 
+                    padding: '1rem', 
+                    background: transcriptStartText ? '#eff6ff' : '#f9fafb',
+                    border: '2px solid #3b82f6',
+                    borderRadius: '6px'
+                  }}>
+                    <div style={{ 
+                      fontWeight: '600', 
+                      color: '#1e40af', 
+                      marginBottom: '0.5rem' 
+                    }}>
+                      🎤 Transcript Start
+                    </div>
+                    {transcriptStartText ? (
+                      <div style={{ 
+                        fontSize: '0.875rem', 
+                        color: '#1d4ed8', 
+                        lineHeight: '1.5',
+                        fontFamily: 'monospace',
+                        whiteSpace: 'pre-wrap'
+                      }}>
+                        {transcriptStartText}
+                      </div>
+                    ) : (
+                      <div style={{ 
+                        fontSize: '0.875rem', 
+                        color: '#9ca3af', 
+                        fontStyle: 'italic' 
+                      }}>
+                        No transcript available
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* End Position Comparison */}
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '1fr 1fr', 
+                  gap: '1rem' 
+                }}>
+                  {/* PDF End */}
+                  <div style={{ 
+                    padding: '1rem', 
+                    background: pdfEndChar !== null ? '#f0fdf4' : '#f9fafb',
+                    border: pdfEndChar !== null ? '2px solid #10b981' : '2px dashed #d1d5db',
+                    borderRadius: '6px'
+                  }}>
+                    <div style={{ 
+                      fontWeight: '600', 
+                      color: pdfEndChar !== null ? '#065f46' : '#6b7280', 
+                      marginBottom: '0.5rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span>📄 PDF End</span>
+                      {pdfEndChar !== null && (
+                        <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>
+                          Char {pdfEndChar}
+                        </span>
+                      )}
+                    </div>
+                    {pdfEndChar !== null ? (
+                      <div style={{ 
+                        fontSize: '0.875rem', 
+                        color: '#047857', 
+                        lineHeight: '1.5',
+                        fontFamily: 'monospace',
+                        whiteSpace: 'pre-wrap'
+                      }}>
+                        {pdfEndText}
+                      </div>
+                    ) : (
+                      <div style={{ 
+                        fontSize: '0.875rem', 
+                        color: '#9ca3af', 
+                        fontStyle: 'italic' 
+                      }}>
+                        Not selected
+                      </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        setRegionSelectorMode('end');
+                        setShowRegionSelector(true);
+                      }}
+                      style={{
+                        marginTop: '0.75rem',
+                        width: '100%',
+                        padding: '0.5rem 1rem',
+                        background: pdfEndChar !== null ? 'white' : '#10b981',
+                        color: pdfEndChar !== null ? '#059669' : 'white',
+                        border: pdfEndChar !== null ? '2px solid #10b981' : 'none',
+                        borderRadius: '6px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      {pdfEndChar !== null ? '📝 Change End' : '📄 Select End'}
+                    </button>
+                  </div>
+                  
+                  {/* Transcript End */}
+                  <div style={{ 
+                    padding: '1rem', 
+                    background: transcriptEndText ? '#eff6ff' : '#f9fafb',
+                    border: '2px solid #3b82f6',
+                    borderRadius: '6px'
+                  }}>
+                    <div style={{ 
+                      fontWeight: '600', 
+                      color: '#1e40af', 
+                      marginBottom: '0.5rem' 
+                    }}>
+                      🎤 Transcript End
+                    </div>
+                    {transcriptEndText ? (
+                      <div style={{ 
+                        fontSize: '0.875rem', 
+                        color: '#1d4ed8', 
+                        lineHeight: '1.5',
+                        fontFamily: 'monospace',
+                        whiteSpace: 'pre-wrap'
+                      }}>
+                        {transcriptEndText}
+                      </div>
+                    ) : (
+                      <div style={{ 
+                        fontSize: '0.875rem', 
+                        color: '#9ca3af', 
+                        fontStyle: 'italic' 
+                      }}>
+                        No transcript available
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Selection Summary */}
+                {pdfStartChar !== null && pdfEndChar !== null && (
+                  <div style={{ 
+                    marginTop: '1rem', 
+                    padding: '0.75rem', 
+                    background: '#fef3c7', 
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    color: '#92400e',
+                    textAlign: 'center'
+                  }}>
+                    ✓ PDF region selected: {pdfEndChar - pdfStartChar} characters ({pdfStartChar} to {pdfEndChar})
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
           {/* Action Buttons */}
           <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', marginBottom: '2rem' }}>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <button
-                onClick={startComparison}
-                disabled={isComparing}
+                onClick={comparisonMode === 'ai' ? startComparison : startPreciseComparison}
+                disabled={isComparing || (comparisonMode === 'precise' && (pdfStartChar === null || pdfEndChar === null))}
                 style={{
                   padding: '0.75rem 1.5rem',
-                  background: isComparing ? '#9ca3af' : '#0891b2',
+                  background: isComparing ? '#9ca3af' : (
+                    comparisonMode === 'precise' && (pdfStartChar === null || pdfEndChar === null)
+                      ? '#d1d5db'
+                      : (comparisonMode === 'ai' ? '#0891b2' : '#10b981')
+                  ),
                   color: 'white',
                   border: 'none',
                   borderRadius: '6px',
                   fontWeight: '600',
-                  cursor: isComparing ? 'not-allowed' : 'pointer',
+                  cursor: isComparing || (comparisonMode === 'precise' && (pdfStartChar === null || pdfEndChar === null))
+                    ? 'not-allowed' 
+                    : 'pointer',
                   fontSize: '1rem'
                 }}
               >
-                {isComparing ? '🔄 Comparing...' : '▶️ Start Comparison'}
+                {isComparing 
+                  ? '🔄 Comparing...' 
+                  : comparisonMode === 'ai' 
+                    ? '▶️ Start AI Comparison' 
+                    : (pdfStartChar !== null && pdfEndChar !== null)
+                      ? '▶️ Start Precise Comparison'
+                      : '⚠️ Select Start & End Positions First'
+                }
               </button>
               
               {comparisonResults && (
@@ -524,9 +985,22 @@ const Tab5ComparePDF = () => {
           </div>
           
           {/* Comparison Results */}
-          {comparisonResults && comparisonResults.statistics && (
+          {comparisonResults && comparisonResults.matched_regions && (
+            // Precise comparison results - use specialized display
+            <PreciseComparisonDisplay 
+              results={comparisonResults}
+              onPlayAudio={(time) => {
+                // TODO: Implement audio playback at specific timestamp
+                console.log('Play audio at:', time);
+                alert(`Audio playback at ${time}s not yet implemented. This will seek to the timestamp in the audio player.`);
+              }}
+            />
+          )}
+          
+          {comparisonResults && comparisonResults.statistics && !comparisonResults.matched_regions && (
+            // AI comparison results - use original display
             <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', marginBottom: '2rem' }}>
-              <h3 style={{ marginTop: 0 }}>📊 Comparison Statistics</h3>
+              <h3 style={{ marginTop: 0 }}>📊 AI Comparison Statistics</h3>
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
                 <div style={{ padding: '1rem', background: '#f3f4f6', borderRadius: '6px' }}>
@@ -946,6 +1420,41 @@ const Tab5ComparePDF = () => {
             </div>
           )}
         </>
+      )}
+      
+      {/* PDF Region Selector Modal */}
+      {showRegionSelector && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '2rem',
+          overflowY: 'auto'
+        }}>
+          <div style={{
+            maxWidth: '1200px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            <PDFRegionSelector
+              projectId={projectId}
+              mode={regionSelectorMode}
+              currentStart={pdfStartChar}
+              currentEnd={pdfEndChar}
+              transcriptText={transcriptText}
+              onPositionSelected={handlePositionSelected}
+              onCancel={() => setShowRegionSelector(false)}
+            />
+          </div>
+        </div>
       )}
       
       {/* Empty State */}

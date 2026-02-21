@@ -3,6 +3,7 @@ Tab 5: PDF Comparison APIs
 Compare transcription against PDF - find matching section, missing content, extra content
 Allow marking sections as ignored (narrator info, chapter titles, etc.)
 """
+import re
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -13,6 +14,7 @@ from celery.result import AsyncResult
 
 from ..models import AudioProject, AudioFile
 from ..tasks.ai_pdf_comparison_task import ai_compare_transcription_to_pdf_task  # AI-powered comparison
+from ..tasks.precise_pdf_comparison_task import precise_compare_transcription_to_pdf_task  # Precise word-by-word
 from ..utils import get_redis_connection
 
 
@@ -60,6 +62,245 @@ class StartPDFComparisonView(APIView):
             return Response({
                 'success': False,
                 'error': f'Failed to start PDF comparison: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class StartPrecisePDFComparisonView(APIView):
+    """
+    POST: Start precise word-by-word PDF comparison for a single audio file
+    Supports manual PDF region selection
+    
+    Request body:
+    {
+        "algorithm": "precise",  # Use precise word-by-word algorithm
+        "pdf_start_char": 1000,  # Optional: starting character position in PDF
+        "pdf_end_char": 5000     # Optional: ending character position in PDF
+    }
+    """
+    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, project_id, audio_file_id):
+        """Start precise PDF comparison with optional region selection"""
+        project = get_object_or_404(AudioProject, id=project_id, user=request.user)
+        audio_file = get_object_or_404(AudioFile, id=audio_file_id, project=project)
+        
+        # Check if project has PDF
+        if not project.pdf_file:
+            return Response({
+                'success': False,
+                'error': 'Project does not have a PDF file'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if audio file has transcription
+        if not audio_file.transcript_text:
+            return Response({
+                'success': False,
+                'error': 'Audio file must be transcribed first'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get algorithm preference
+        algorithm = request.data.get('algorithm', 'ai')  # Default to AI
+        pdf_start_char = request.data.get('pdf_start_char')
+        pdf_end_char = request.data.get('pdf_end_char')
+        
+        # Start appropriate comparison task
+        try:
+            if algorithm == 'precise':
+                task = precise_compare_transcription_to_pdf_task.delay(
+                    audio_file.id,
+                    pdf_start_char=pdf_start_char,
+                    pdf_end_char=pdf_end_char
+                )
+                message = 'Precise word-by-word PDF comparison started'
+            else:
+                task = ai_compare_transcription_to_pdf_task.delay(audio_file.id)
+                message = 'AI-powered PDF comparison started'
+            
+            # Save task ID to audio file
+            audio_file.task_id = task.id
+            audio_file.save(update_fields=['task_id'])
+            
+            return Response({
+                'success': True,
+                'message': message,
+                'task_id': task.id,
+                'audio_file_id': audio_file.id,
+                'algorithm': algorithm,
+                'pdf_region': {
+                    'start_char': pdf_start_char,
+                    'end_char': pdf_end_char,
+                    'manually_selected': pdf_start_char is not None or pdf_end_char is not None
+                }
+            })
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': f'Failed to start PDF comparison: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GetPDFTextView(APIView):
+    """
+    GET: Get PDF text content for manual region selection
+    Returns the full PDF text so frontend can display and allow user to select region
+    """
+    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def clean_pdf_text(self, text, page_num):
+        """
+        Remove headers, footers, and narrator instructions from PDF page text
+        
+        Common patterns to remove:
+        - "An Improbable Scheme" + number (odd pages)
+        - Number + "LAURA BEERS" (even pages)
+        - Standalone page numbers
+        - Narrator instructions in parentheses
+        - "Dreamscape presents:" etc.
+        """
+        lines = text.split('\n')
+        cleaned_lines = []
+        
+        for line in lines:
+            line_stripped = line.strip()
+            
+            # Skip empty lines at start/end
+            if not line_stripped:
+                cleaned_lines.append(line)
+                continue
+            
+            # Pattern 1: "An Improbable Scheme" followed by optional number
+            if re.match(r'^An Improbable Scheme\s*\d*$', line_stripped, re.IGNORECASE):
+                continue
+            
+            # Pattern 2: Number followed by "LAURA BEERS"
+            if re.match(r'^\d+\s*LAURA BEERS$', line_stripped, re.IGNORECASE):
+                continue
+            
+            # Pattern 3: Just "LAURA BEERS"
+            if re.match(r'^LAURA BEERS$', line_stripped, re.IGNORECASE):
+                continue
+            
+            # Pattern 4: Just "An Improbable Scheme"
+            if re.match(r'^An Improbable Scheme$', line_stripped, re.IGNORECASE):
+                continue
+            
+            # Pattern 5: Standalone page numbers (single line with just digits)
+            if re.match(r'^\d+$', line_stripped) and len(line_stripped) <= 4:
+                continue
+            
+            # Pattern 6: Narrator instructions (text in parentheses with colons)
+            if re.match(r'^\([^)]*:.*\)$', line_stripped):
+                continue
+            
+            # Pattern 7: "Dreamscape presents:" or similar publisher text
+            if re.match(r'^Dreamscape presents:', line_stripped, re.IGNORECASE):
+                continue
+            
+            # Pattern 8: "Narrated by" lines
+            if re.match(r'^Narrated by', line_stripped, re.IGNORECASE):
+                continue
+            
+            # Remove inline narrator instructions from the line
+            # e.g., "(Marian : Please add 3 seconds of room tone before beginning) Rest of text"
+            line_cleaned = re.sub(r'\([^)]*:\s*[^)]+\)\s*', '', line)
+            
+            if line_cleaned.strip():
+                cleaned_lines.append(line_cleaned)
+        
+        return '\n'.join(cleaned_lines)
+    
+    def get(self, request, project_id):
+        """Get PDF text content with headers/footers removed"""
+        from PyPDF2 import PdfReader
+        
+        project = get_object_or_404(AudioProject, id=project_id, user=request.user)
+        
+        # Check if project has PDF
+        if not project.pdf_file:
+            return Response({
+                'success': False,
+                'error': 'Project does not have a PDF file'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Extract and clean PDF text
+            reader = PdfReader(project.pdf_file.path)
+            
+            # Extract text page by page and clean headers/footers
+            cleaned_pages = []
+            page_breaks = []
+            char_count = 0
+            
+            for i, page in enumerate(reader.pages):
+                raw_text = page.extract_text() or ""
+                
+                # Clean headers and footers
+                cleaned_text = self.clean_pdf_text(raw_text, i + 1)
+                
+                # Remove excessive blank lines
+                cleaned_text = re.sub(r'\n{3,}', '\n\n', cleaned_text)
+                cleaned_text = cleaned_text.strip()
+                
+                if cleaned_text:
+                    cleaned_pages.append(cleaned_text)
+                    
+                    # Track page breaks
+                    page_breaks.append({
+                        'page_num': i + 1,
+                        'start_char': char_count,
+                        'end_char': char_count + len(cleaned_text),
+                        'preview': cleaned_text[:200] if cleaned_text else '(blank page)'
+                    })
+                    
+                    char_count += len(cleaned_text) + 1  # +1 for newline between pages
+            
+            # Join all cleaned pages
+            pdf_text = '\n'.join(cleaned_pages)
+            
+            # Save cleaned text if not already saved
+            if not project.pdf_text or len(project.pdf_text) != len(pdf_text):
+                project.pdf_text = pdf_text
+                project.save(update_fields=['pdf_text'])
+            
+            # Split into sentences for better selection UI
+            sentence_pattern = r'([^.!?]+[.!?]+)'
+            sentences = re.findall(sentence_pattern, pdf_text)
+            
+            # Build sentence map with character positions
+            sentence_map = []
+            current_pos = 0
+            
+            for sentence in sentences:
+                sentence_text = sentence.strip()
+                if sentence_text:
+                    # Find position in original text
+                    pos = pdf_text.find(sentence_text, current_pos)
+                    if pos != -1:
+                        sentence_map.append({
+                            'text': sentence_text,
+                            'start_char': pos,
+                            'end_char': pos + len(sentence_text),
+                            'words': len(sentence_text.split())
+                        })
+                        current_pos = pos + len(sentence_text)
+            
+            return Response({
+                'success': True,
+                'pdf_text': pdf_text,
+                'total_chars': len(pdf_text),
+                'total_pages': len(page_breaks),
+                'page_breaks': page_breaks,
+                'sentences': sentence_map[:500],  # Limit to first 500 sentences for performance
+                'total_sentences': len(sentence_map),
+                'pdf_filename': project.pdf_file.name
+            })
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': f'Failed to read PDF: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

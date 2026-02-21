@@ -56,8 +56,26 @@ def transcribe_all_project_audio_task(self, project_id):
             result = model.transcribe(audio_path, word_timestamps=True)
             
             # Store transcript text
-            audio_file.transcript_text = result['text']
+            transcript_text = result['text']
+            audio_file.transcript_text = transcript_text
+            audio_file.transcript_source = 'original'
             audio_file.original_duration = result.get('duration', 0)
+            audio_file.error_message = ''  # Clear any previous errors
+            
+            # Create or update Transcription object (required for frontend)
+            from audioDiagnostic.models import Transcription
+            transcription, created = Transcription.objects.get_or_create(
+                audio_file=audio_file,
+                defaults={
+                    'full_text': transcript_text,
+                    'word_count': len(transcript_text.split())
+                }
+            )
+            
+            if not created:
+                transcription.full_text = transcript_text
+                transcription.word_count = len(transcript_text.split())
+                transcription.save()
             
             # Clear existing segments for this audio file
             TranscriptionSegment.objects.filter(audio_file=audio_file).delete()
@@ -67,6 +85,7 @@ def transcribe_all_project_audio_task(self, project_id):
             for seg_idx, segment in enumerate(result['segments']):
                 seg_obj = TranscriptionSegment.objects.create(
                     audio_file=audio_file,
+                    transcription=transcription,
                     text=segment['text'].strip(),
                     start_time=segment['start'],
                     end_time=segment['end'],
@@ -86,6 +105,13 @@ def transcribe_all_project_audio_task(self, project_id):
                             confidence=word_data.get('probability', 0.0),
                             word_index=word_idx
                         )
+            
+            # Calculate average confidence
+            segments = TranscriptionSegment.objects.filter(audio_file=audio_file)
+            if segments.exists():
+                avg_confidence = segments.aggregate(models.Avg('confidence_score'))['confidence_score__avg']
+                transcription.confidence_score = avg_confidence
+                transcription.save()
             
             audio_file.status = 'transcribed'
             audio_file.save()
@@ -169,6 +195,22 @@ def transcribe_audio_file_task(self, audio_file_id):
         # Save transcription results
         transcript_text = result['text']
         audio_file.transcript_text = transcript_text
+        audio_file.transcript_source = 'original'
+        
+        # Create or update Transcription object (required for frontend)
+        from audioDiagnostic.models import Transcription
+        transcription, created = Transcription.objects.get_or_create(
+            audio_file=audio_file,
+            defaults={
+                'full_text': transcript_text,
+                'word_count': len(transcript_text.split())
+            }
+        )
+        
+        if not created:
+            transcription.full_text = transcript_text
+            transcription.word_count = len(transcript_text.split())
+            transcription.save()
         
         # Clear existing segments for this audio file
         TranscriptionSegment.objects.filter(audio_file=audio_file).delete()
@@ -180,6 +222,7 @@ def transcribe_audio_file_task(self, audio_file_id):
         for segment_index, segment in enumerate(result['segments']):
             seg_obj = TranscriptionSegment.objects.create(
                 audio_file=audio_file,
+                transcription=transcription,
                 text=segment['text'].strip(),
                 start_time=segment['start'],
                 end_time=segment['end'],
@@ -201,10 +244,18 @@ def transcribe_audio_file_task(self, audio_file_id):
                         word_index=word_index
                     )
         
+        # Calculate average confidence
+        segments = TranscriptionSegment.objects.filter(audio_file=audio_file)
+        if segments.exists():
+            avg_confidence = segments.aggregate(models.Avg('confidence_score'))['confidence_score__avg']
+            transcription.confidence_score = avg_confidence
+            transcription.save()
+        
         r.set(f"progress:{task_id}", 100)
         
         # Update audio file status
         audio_file.status = 'transcribed'
+        audio_file.error_message = ''  # Clear any previous errors
         audio_file.save()
         
         # Unregister task (will trigger shutdown timer if no other tasks)
@@ -637,6 +688,7 @@ def transcribe_single_audio_file_task(self, audio_file_id):
         audio_file.status = 'transcribed'
         audio_file.transcript_text = result['text']  # Legacy field
         audio_file.original_duration = result.get('duration', 0)
+        audio_file.error_message = ''  # Clear any previous errors
         audio_file.save()
         
         # Update progress
@@ -670,4 +722,119 @@ def transcribe_single_audio_file_task(self, audio_file_id):
     
     finally:
         # Unregister task
+        docker_celery_manager.unregister_task(task_id)
+
+
+@shared_task(bind=True)
+def retranscribe_processed_audio_task(self, audio_file_id):
+    """
+    Re-transcribe a processed audio file (after deletions) for maximum accuracy.
+    This creates a fresh transcription of the clean audio.
+    Option C (Hybrid): Provides most accurate transcript after deletions.
+    """
+    task_id = self.request.id
+    r = get_redis_connection()
+    
+    # Set up infrastructure
+    if not docker_celery_manager.setup_infrastructure():
+        raise Exception("Failed to set up Docker and Celery infrastructure")
+    
+    docker_celery_manager.register_task(task_id)
+    
+    try:
+        from audioDiagnostic.models import AudioFile
+        
+        # Get audio file
+        audio_file = AudioFile.objects.get(id=audio_file_id)
+        
+        # Must have processed audio
+        if not audio_file.processed_audio:
+            raise ValueError("No processed audio file found. Run deletion processing first.")
+        
+        # Update status
+        audio_file.retranscription_status = 'processing'
+        audio_file.retranscription_task_id = task_id
+        audio_file.save()
+        
+        r.set(f"progress:{task_id}", 10)
+        self.update_state(state='PROGRESS', meta={'progress': 10, 'message': 'Starting re-transcription...'})
+        logger.info(f"Starting re-transcription for processed audio file {audio_file_id}")
+        
+        # Ensure FFmpeg is available
+        ensure_ffmpeg_in_path()
+        
+        # Load Whisper model
+        r.set(f"progress:{task_id}", 20)
+        self.update_state(state='PROGRESS', meta={'progress': 20, 'message': 'Loading Whisper model...'})
+        model = whisper.load_model("base")
+        
+        # Transcribe the processed audio
+        r.set(f"progress:{task_id}", 30)
+        self.update_state(state='PROGRESS', meta={'progress': 30, 'message': 'Transcribing processed audio...'})
+        audio_path = audio_file.processed_audio.path
+        result = model.transcribe(audio_path, word_timestamps=True)
+        
+        r.set(f"progress:{task_id}", 70)
+        self.update_state(state='PROGRESS', meta={'progress': 70, 'message': 'Saving new transcription...'})
+        
+        # Update the transcript_text with the new transcription
+        transcript_text = result['text']
+        
+        # Create or update Transcription object (required for frontend to recognize transcription)
+        from audioDiagnostic.models import Transcription
+        transcription, created = Transcription.objects.get_or_create(
+            audio_file=audio_file,
+            defaults={
+                'full_text': transcript_text,
+                'word_count': len(transcript_text.split())
+            }
+        )
+        
+        if not created:
+            # Update existing transcription
+            transcription.full_text = transcript_text
+            transcription.word_count = len(transcript_text.split())
+            transcription.save()
+        
+        # Update audio file fields
+        audio_file.transcript_text = transcript_text  # Overwrite with fresh transcription
+        audio_file.transcript_source = 'retranscribed'  # Mark as most accurate
+        audio_file.retranscription_status = 'completed'
+        audio_file.status = 'transcribed'  # Ensure status is correct
+        audio_file.error_message = ''  # Clear any previous errors
+        
+        r.set(f"progress:{task_id}", 90)
+        logger.info(f"Re-transcription complete for audio file {audio_file_id}: {len(transcript_text)} chars")
+        
+        # Save
+        audio_file.save()
+        
+        r.set(f"progress:{task_id}", 100)
+        self.update_state(state='PROGRESS', meta={'progress': 100, 'message': 'Re-transcription complete!'})
+        
+        return {
+            'success': True,
+            'audio_file_id': audio_file_id,
+            'transcript_text': transcript_text,
+            'transcript_length': len(transcript_text),
+            'segments_count': len(result['segments']),
+            'transcript_source': 'retranscribed'
+        }
+        
+    except Exception as e:
+        logger.error(f"Re-transcription failed for audio file {audio_file_id}: {str(e)}")
+        
+        # Update status
+        try:
+            audio_file = AudioFile.objects.get(id=audio_file_id)
+            audio_file.retranscription_status = 'failed'
+            audio_file.error_message = str(e)
+            audio_file.save()
+        except:
+            pass
+        
+        r.set(f"progress:{task_id}", -1)
+        raise e
+    
+    finally:
         docker_celery_manager.unregister_task(task_id)

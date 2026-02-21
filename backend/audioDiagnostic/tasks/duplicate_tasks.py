@@ -1277,8 +1277,17 @@ def process_deletions_single_file_task(self, audio_file_id, segment_ids_to_delet
         # Calculate processed duration
         processed_duration = len(clean_audio) / 1000.0
         
+        # Generate adjusted transcript (quick preview - concatenate kept segments)
+        adjusted_transcript_parts = []
+        for segment in kept_segments:
+            adjusted_transcript_parts.append(segment.text.strip())
+        
+        adjusted_transcript = ' '.join(adjusted_transcript_parts)
+        
         audio_file.status = 'processed'
         audio_file.processed_duration_seconds = processed_duration
+        audio_file.transcript_adjusted = adjusted_transcript  # Quick preview transcript
+        audio_file.transcript_source = 'adjusted'  # Mark that adjusted version is available
         audio_file.last_processed_at = timezone.now()
         audio_file.save()
         

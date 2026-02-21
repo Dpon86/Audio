@@ -272,15 +272,20 @@ const WaveformDuplicateEditor = ({
           
           // Set flag to prevent region-update-end event from firing
           isProgrammaticUpdateRef.current = true;
-          existingRegion.setOptions({
-            start: regionData.start,
-            end: regionData.end
-          });
-          // Reset flag after a short delay to ensure event is ignored
-          setTimeout(() => {
-            isProgrammaticUpdateRef.current = false;
-          }, 10);
-          updated++;
+          
+          try {
+            existingRegion.setOptions({
+              start: regionData.start,
+              end: regionData.end
+            });
+            updated++;
+          } finally {
+            // Reset flag immediately after update
+            // Use a microtask to ensure this runs after any synchronous event handlers
+            Promise.resolve().then(() => {
+              isProgrammaticUpdateRef.current = false;
+            });
+          }
         }
       } else {
         // Create new region
@@ -360,6 +365,13 @@ const WaveformDuplicateEditor = ({
 
     const handleRegionUpdate = (region) => {
       console.log(`🖱️ region-update-end event fired (programmatic=${isProgrammaticUpdateRef.current})`);
+      console.log(`   Region details:`, {
+        id: region.id,
+        start: region.start?.toFixed(2),
+        end: region.end?.toFixed(2),
+        hasData: !!region.data,
+        data: region.data
+      });
       
       // Ignore programmatic updates (from sync useEffect)
       if (isProgrammaticUpdateRef.current) {
@@ -403,11 +415,36 @@ const WaveformDuplicateEditor = ({
         console.warn('   ⚠️ onRegionUpdate callback is missing!');
       }
     };
+    
+    // Log ALL events to see what's actually firing
+    const logAllEvents = (eventName) => (region) => {
+      console.log(`🎯 RegionsPlugin event: ${eventName}`, region?.id || region);
+    };
+    
+    // Listen to various possible event names
+    const possibleEvents = [
+      'region-clicked',
+      'region-updated',
+      'region-update-end',
+      'region-in',
+      'region-out',
+      'region-created',
+      'region-removed'
+    ];
+    
+    possibleEvents.forEach(eventName => {
+      regionsPlugin.on(eventName, logAllEvents(eventName));
+    });
 
     regionsPlugin.on('region-update-end', handleRegionUpdate);
+    regionsPlugin.on('region-updated', handleRegionUpdate);
 
     return () => {
       regionsPlugin.un('region-update-end', handleRegionUpdate);
+      regionsPlugin.un('region-updated', handleRegionUpdate);
+      possibleEvents.forEach(eventName => {
+        regionsPlugin.un(eventName, logAllEvents(eventName));
+      });
     };
   }, [regionsPlugin, duration, onRegionUpdate]);
 
@@ -799,48 +836,33 @@ const WaveformDuplicateEditor = ({
         >
           🔄 Refresh List
         </button>
+        
+        <button 
+          onClick={handleAlignToSilence}
+          className="waveform-control-btn align-btn"
+          disabled={!wavesurfer || isLoading || isAligningToSilence}
+          title={`Align all DELETE regions to silence (threshold: ${silenceThreshold}dB)`}
+        >
+          {isAligningToSilence ? '⏳ Aligning...' : '🎯 Align to Silence'}
+        </button>
+        
+        <div className="silence-threshold-compact">
+          <label title="Silence detection threshold">
+            {silenceThreshold}dB
+          </label>
+          <input
+            type="range"
+            min="-60"
+            max="-20"
+            value={silenceThreshold}
+            onChange={(e) => setSilenceThreshold(Number(e.target.value))}
+            className="threshold-slider-compact"
+            title="Adjust silence detection sensitivity"
+          />
+        </div>
 
         <div className="waveform-time-display">
           {formatTime(currentTime)} / {formatTime(duration)}
-        </div>
-      </div>
-
-      {/* Silence Alignment Controls */}
-      <div className="waveform-silence-controls">
-        <div className="silence-controls-header">
-          <h5>🔇 Smart Boundary Alignment</h5>
-          <p className="silence-help-text">
-            Automatically adjust ALL DELETE regions to align with silent sections (skips boundaries already in silence)
-          </p>
-        </div>
-        
-        <div className="silence-controls-row">
-          <div className="silence-threshold-control">
-            <label>
-              Silence Threshold: {silenceThreshold}dB
-            </label>
-            <input
-              type="range"
-              min="-60"
-              max="-20"
-              value={silenceThreshold}
-              onChange={(e) => setSilenceThreshold(Number(e.target.value))}
-              className="threshold-slider"
-              title="Adjust silence detection sensitivity"
-            />
-            <div className="threshold-labels">
-              <span>-60dB (more sensitive)</span>
-              <span>-20dB (less sensitive)</span>
-            </div>
-          </div>
-          
-          <button 
-            onClick={handleAlignToSilence}
-            className="waveform-control-btn align-btn"
-            disabled={!wavesurfer || isLoading || isAligningToSilence}
-          >
-            {isAligningToSilence ? '⏳ Aligning...' : '🎯 Align DELETE Regions to Silence'}
-          </button>
         </div>
       </div>
 

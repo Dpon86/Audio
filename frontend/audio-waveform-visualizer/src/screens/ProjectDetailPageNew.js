@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { ProjectTabProvider } from "../contexts/ProjectTabContext";
+import { ProjectTabProvider, useProjectTab } from "../contexts/ProjectTabContext";
 import ProjectTabs from "../components/ProjectTabs/ProjectTabs";
 import Tab1Files from "../components/ProjectTabs/Tab1Files";
 import Tab3Duplicates from "../components/ProjectTabs/Tab3Duplicates";
@@ -9,6 +9,74 @@ import Tab4Results from "../components/ProjectTabs/Tab4Results";
 import Tab4Review from "../components/Tab4Review";
 import Tab5ComparePDF from "../components/ProjectTabs/Tab5ComparePDF";
 import "./ProjectDetailPageNew.css";
+
+/**
+ * Inner component that uses the context
+ */
+const ProjectDetailContent = ({ projectData, loading }) => {
+  const navigate = useNavigate();
+  const { activeTab, setActiveTab } = useProjectTab();
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading project...</p>
+      </div>
+    );
+  }
+
+  if (!projectData) {
+    return (
+      <div className="error-container">
+        <p>Failed to load project</p>
+        <button onClick={() => navigate('/projects')}>Back to Projects</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="project-detail-page-new">
+      {/* Header */}
+      <div className="project-header">
+        <button className="back-button" onClick={() => navigate('/projects')}>
+          ← Back to Projects
+        </button>
+        <div className="project-title-section">
+          <h1>{projectData.title}</h1>
+          {projectData.description && (
+            <p className="project-description">{projectData.description}</p>
+          )}
+        </div>
+        <div className="project-info">
+          <span className="info-badge">
+            📁 Project ID: {projectData.id || projectData.pk || 'N/A'}
+          </span>
+          {projectData.pdf_file && (
+            <span className="info-badge success">
+              ✅ PDF Uploaded
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <ProjectTabs 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab}
+      />
+
+      {/* Tab Content */}
+      <div className="tab-content">
+        {activeTab === 'files' && <Tab1Files />}
+        {activeTab === 'duplicates' && <Tab3Duplicates />}
+        {activeTab === 'results' && <Tab4Results />}
+        {activeTab === 'review' && <Tab4Review />}
+        {activeTab === 'compare' && <Tab5ComparePDF />}
+      </div>
+    </div>
+  );
+};
 
 /**
  * New Tab-Based Project Detail Page
@@ -20,7 +88,6 @@ const ProjectDetailPageNew = () => {
   const { token } = useAuth();
   
   const [projectData, setProjectData] = useState(null);
-  const [activeTab, setActiveTab] = useState('files');
   const [loading, setLoading] = useState(true);
 
   // Load project details
@@ -53,65 +120,9 @@ const ProjectDetailPageNew = () => {
     }
   }, [projectId, token, navigate]);
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading project...</p>
-      </div>
-    );
-  }
-
-  if (!projectData) {
-    return (
-      <div className="error-container">
-        <p>Failed to load project</p>
-        <button onClick={() => navigate('/projects')}>Back to Projects</button>
-      </div>
-    );
-  }
-
   return (
     <ProjectTabProvider projectId={projectId}>
-      <div className="project-detail-page-new">
-        {/* Header */}
-        <div className="project-header">
-          <button className="back-button" onClick={() => navigate('/projects')}>
-            ← Back to Projects
-          </button>
-          <div className="project-title-section">
-            <h1>{projectData.name}</h1>
-            {projectData.description && (
-              <p className="project-description">{projectData.description}</p>
-            )}
-          </div>
-          <div className="project-info">
-            <span className="info-badge">
-              📁 Project ID: {projectId}
-            </span>
-            {projectData.pdf_file && (
-              <span className="info-badge success">
-                ✅ PDF Uploaded
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Tab Navigation */}
-        <ProjectTabs 
-          activeTab={activeTab} 
-          onTabChange={setActiveTab}
-        />
-
-        {/* Tab Content */}
-        <div className="tab-content">
-          {activeTab === 'files' && <Tab1Files />}
-          {activeTab === 'duplicates' && <Tab3Duplicates />}
-          {activeTab === 'results' && <Tab4Results />}
-          {activeTab === 'review' && <Tab4Review />}
-          {activeTab === 'compare' && <Tab5ComparePDF />}
-        </div>
-      </div>
+      <ProjectDetailContent projectData={projectData} loading={loading} />
     </ProjectTabProvider>
   );
 };

@@ -43,7 +43,9 @@ from .views.tab3_duplicate_detection import (
     SingleFileProcessedAudioView,
     SingleFileStatisticsView,
     UpdateSegmentTimesView,
+    RetranscribeProcessedAudioView,
 )
+from .views.fix_transcriptions import FixMissingTranscriptionsView
 from .views.tab4_review_comparison import (
     ProjectComparisonView,
     FileComparisonDetailView,
@@ -52,6 +54,8 @@ from .views.tab4_review_comparison import (
 )
 from .views.tab5_pdf_comparison import (
     StartPDFComparisonView,
+    StartPrecisePDFComparisonView,
+    GetPDFTextView,
     PDFComparisonResultView,
     PDFComparisonStatusView,
     SideBySideComparisonView,
@@ -123,6 +127,7 @@ urlpatterns = [
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/processing-status/', SingleFileProcessingStatusView.as_view(), name='tab3-processing-status'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/processed-audio/', SingleFileProcessedAudioView.as_view(), name='tab3-processed-audio'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/statistics/', SingleFileStatisticsView.as_view(), name='tab3-statistics'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/retranscribe/', RetranscribeProcessedAudioView.as_view(), name='tab3-retranscribe'),
     
     # Tab 4: Review/Comparison (NEW - Project-wide comparison)
     path('api/projects/<int:project_id>/comparison/', ProjectComparisonView.as_view(), name='tab4-project-comparison'),
@@ -132,6 +137,8 @@ urlpatterns = [
     
     # Tab 5: PDF Comparison
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/compare-pdf/', StartPDFComparisonView.as_view(), name='tab5-compare-pdf'),
+    path('api/projects/<int:project_id>/files/<int:audio_file_id>/precise-compare/', StartPrecisePDFComparisonView.as_view(), name='tab5-precise-compare'),
+    path('api/projects/<int:project_id>/pdf-text/', GetPDFTextView.as_view(), name='tab5-get-pdf-text'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/pdf-result/', PDFComparisonResultView.as_view(), name='tab5-pdf-result'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/pdf-status/', PDFComparisonStatusView.as_view(), name='tab5-pdf-status'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/side-by-side/', SideBySideComparisonView.as_view(), name='tab5-side-by-side'),
@@ -142,8 +149,11 @@ urlpatterns = [
     # Infrastructure Management
     path('infrastructure/status/', InfrastructureStatusView.as_view(), name='infrastructure-status'),
     
+    # Quick Fix
+    path('api/projects/<int:project_id>/fix-transcriptions/', FixMissingTranscriptionsView.as_view(), name='fix-transcriptions'),
+    
     # Task Status Checking (prevents timeouts)
-    path('tasks/<str:task_id>/status/', TaskStatusView.as_view(), name='task-status'),
+    path('api/tasks/<str:task_id>/status/', TaskStatusView.as_view(), name='task-status'),
     
     # Legacy endpoints (kept for backward compatibility)
     path('upload-chunk/', upload_chunk, name='audio-upload-chunk'),

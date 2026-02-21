@@ -26,11 +26,12 @@ class ProjectComparisonView(APIView):
         """Get comparison data for all files in project"""
         project = get_object_or_404(AudioProject, id=project_id, user=request.user)
         
-        # Get all processed files
+        # Get all files that have been processed (have processed_audio)
+        # Status might be 'processed' or 'transcribed' (if re-transcribed after processing)
         processed_files = AudioFile.objects.filter(
             project=project,
-            status='processed'
-        ).order_by('order_index')
+            processed_audio__isnull=False
+        ).exclude(processed_audio='').order_by('order_index')
         
         files_data = []
         total_time_saved = 0

@@ -27,6 +27,8 @@ const Tab4Results = () => {
   const [duration, setDuration] = useState(0);
   const [wavesurfer, setWavesurfer] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const [retranscribing, setRetranscribing] = useState(false);
+  const [retranscriptionTaskId, setRetranscriptionTaskId] = useState(null);
   const waveformRef = useRef(null);
   const pollingIntervalRef = useRef(null);
   const autoProcessedRef = useRef(false);
@@ -174,7 +176,7 @@ const Tab4Results = () => {
       
       try {
         const response = await fetch(
-          `http://localhost:8000/tasks/${processingDeletion.taskId}/status/`,
+          `http://localhost:8000/api/tasks/${processingDeletion.taskId}/status/`,
           {
             headers: {
               'Authorization': `Token ${token}`,
@@ -243,12 +245,14 @@ const Tab4Results = () => {
       try {
         wavesurfer.destroy();
       } catch (error) {
-        console.error('Error destroying previous wavesurfer:', error);
+        console.debug('Error destroying previous wavesurfer:', error);
       }
+      setWavesurfer(null);
     }
 
     let ws = null;
     let mounted = true;
+    let loadingAborted = false;
 
     try {
       ws = WaveSurfer.create({
@@ -266,7 +270,13 @@ const Tab4Results = () => {
       });
 
       const audioUrl = `http://localhost:8000${selectedAudioFile.processed_audio}`;
-      ws.load(audioUrl);
+      
+      // Load audio with error handling
+      ws.load(audioUrl).catch((error) => {
+        if (!loadingAborted) {
+          console.error('WaveSurfer load error:', error);
+        }
+      });
       
       ws.on('ready', () => {
         if (mounted) {
@@ -294,25 +304,34 @@ const Tab4Results = () => {
         if (mounted) setCurrentTime(ws.getCurrentTime());
       });
 
+      ws.on('error', (error) => {
+        if (!loadingAborted) {
+          console.error('WaveSurfer error:', error);
+        }
+      });
+
       if (mounted) {
         setWavesurfer(ws);
       }
 
       return () => {
         mounted = false;
+        loadingAborted = true;
         if (ws) {
           try {
             ws.destroy();
           } catch (error) {
             // Silently ignore cleanup errors
-            console.debug('WaveSurfer cleanup error (expected):', error);
+            console.debug('WaveSurfer cleanup (expected):', error);
           }
         }
       };
     } catch (error) {
-      console.error('Error initializing waveform:', error);
+      if (!loadingAborted) {
+        console.error('Error initializing waveform:', error);
+      }
     }
-  }, [selectedAudioFile]);
+  }, [selectedAudioFile?.id, selectedAudioFile?.processed_audio]); // Only re-run if ID or audio file changes
 
   const handlePlayPause = () => {
     if (wavesurfer) {
@@ -345,6 +364,104 @@ const Tab4Results = () => {
       document.body.removeChild(a);
     } catch (error) {
       alert('Failed to download audio file');
+    }
+  };
+
+  const handleRetranscribe = async () => {
+    if (!selectedAudioFile) return;
+
+    if (!window.confirm('Re-transcribe processed audio? This may take a few minutes and will  provide the most accurate transcript.')) {
+      return;
+    }
+
+    setRetranscribing(true);
+
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/retranscribe/`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setRetranscriptionTaskId(data.task_id);
+        
+        console.log('[Re-transcribe] Starting polling for task:', data.task_id);
+        
+        // Poll for completion
+        const pollInterval = setInterval(async () => {
+          try {
+            console.log('[Re-transcribe] Polling task status...');
+            const statusResponse = await fetch(
+              `http://localhost:8000/api/tasks/${data.task_id}/status/`,
+              {
+                headers: {
+                  'Authorization': `Token ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              }
+            );
+
+            if (statusResponse.ok) {
+              const statusData = await statusResponse.json();
+              console.log('[Re-transcribe] Task status:', statusData);
+              
+              if (statusData.status === 'completed') {
+                console.log('[Re-transcribe] Task completed! Refreshing file data...');
+                clearInterval(pollInterval);
+                setRetranscribing(false);
+                setRetranscriptionTaskId(null);
+                
+                // Refresh audio file data
+                const fileResponse = await fetch(
+                  `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/`,
+                  {
+                    headers: {
+                      'Authorization': `Token ${token}`,
+                      'Content-Type': 'application/json'
+                    }
+                  }
+                );
+                
+                if (fileResponse.ok) {
+                  const fileData = await fileResponse.json();
+                  console.log('[Re-transcribe] File data refreshed:', fileData);
+                  const updatedFile = fileData.audio_file || fileData;
+                  updateAudioFile(updatedFile);
+                  selectAudioFile(updatedFile);
+                  alert('Re-transcription complete! Transcript updated with most accurate version.');
+                } else {
+                  console.error('[Re-transcribe] Failed to refresh file data');
+                  alert('Re-transcription completed but failed to refresh file data. Please reload the page.');
+                }
+              } else if (statusData.status === 'failed') {
+                console.error('[Re-transcribe] Task failed:', statusData);
+                clearInterval(pollInterval);
+                setRetranscribing(false);
+                setRetranscriptionTaskId(null);
+                alert('Re-transcription failed. Please try again.');
+              }
+            } else {
+              console.error('[Re-transcribe] Status check failed:', statusResponse.status);
+            }
+          } catch (error) {
+            console.error('[Re-transcribe] Error polling retranscription status:', error);
+          }
+        }, 2000);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to start re-transcription');
+        setRetranscribing(false);
+      }
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+      setRetranscribing(false);
     }
   };
 
@@ -523,6 +640,64 @@ const Tab4Results = () => {
               </div>
             </div>
           )}
+
+          {/* Transcript Section */}
+          <div className="transcript-card">
+            <h3>📝 Transcript Status</h3>
+            
+            <div className="transcript-info">
+              <div className="transcript-status-row">
+                <span className="label">Current Transcript:</span>
+                <span className={`transcript-badge ${selectedAudioFile.transcript_source || 'original'}`}>
+                  {selectedAudioFile.transcript_source === 'adjusted' && '🔄 Quick Preview (Adjusted)'}
+                  {selectedAudioFile.transcript_source === 'retranscribed' && '✅ Re-transcribed (Most Accurate)'}
+                  {(!selectedAudioFile.transcript_source || selectedAudioFile.transcript_source === 'original' || selectedAudioFile.transcript_source === 'none') && '⚠️ Original (Before Deletions)'}
+                </span>
+              </div>
+
+              {selectedAudioFile.transcript_source === 'adjusted' && (
+                <div className="transcript-warning">
+                  <p>⚡ Using quick preview transcript (segments concatenated).</p>
+                  <p>For maximum accuracy, re-transcribe the processed audio below.</p>
+                </div>
+              )}
+
+              {(!selectedAudioFile.transcript_source || selectedAudioFile.transcript_source === 'original' || selectedAudioFile.transcript_source === 'none') && (
+                <div className="transcript-warning error">
+                  <p>⚠️ Transcript does not match processed audio!</p>
+                  <p>This transcript includes deleted segments. Re-transcribe for accurate comparison.</p>
+                </div>
+              )}
+
+              {selectedAudioFile.transcript_source === 'retranscribed' && (
+                <div className="transcript-success">
+                  <p>✅ Transcript matches processed audio perfectly.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="transcript-actions">
+              <button
+                onClick={handleRetranscribe}
+                className="retranscribe-button"
+                disabled={retranscribing || selectedAudioFile.retranscription_status === 'processing'}
+              >
+                {retranscribing || selectedAudioFile.retranscription_status === 'processing' ? (
+                  <>
+                    <span className="spinner-small"></span>
+                    Re-transcribing...
+                  </>
+                ) : (
+                  <>
+                    ⚡ Re-transcribe for Accuracy
+                  </>
+                )}
+              </button>
+              <p className="transcript-hint">
+                Re-transcription runs Whisper on the clean audio for the most accurate transcript.
+              </p>
+            </div>
+          </div>
 
           {/* Audio Player */}
           <div className="audio-player-card">

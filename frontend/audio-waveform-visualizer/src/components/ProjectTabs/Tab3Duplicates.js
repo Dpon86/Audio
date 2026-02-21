@@ -27,6 +27,8 @@ const Tab3Duplicates = () => {
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const [processing, setProcessing] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState(null);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [isProcessingDeletions, setIsProcessingDeletions] = useState(false);
 
   // Audio player state
   const [wavesurfer, setWavesurfer] = useState(null);
@@ -378,47 +380,71 @@ const Tab3Duplicates = () => {
       return;
     }
     
-    // Format confirmed deletions with full segment data
-    const confirmedDeletions = [];
-    duplicateGroups.forEach(group => {
-      if (group.segments && Array.isArray(group.segments)) {
-        group.segments.forEach(seg => {
-          if (selectedDeletions.includes(seg.id)) {
-            confirmedDeletions.push({
-              segment_id: seg.id,
-              audio_file_id: selectedAudioFile.id,
-              start_time: seg.start_time,
-              end_time: seg.end_time,
-              text: seg.text
-            });
-          }
-        });
-      }
-    });
+    // Show loading state immediately
+    setIsProcessingDeletions(true);
     
-    // Store pending deletions in context
-    console.log('Setting pending deletions:', confirmedDeletions.length, 'segments');
-    console.log('Current activeTab before setting:', activeTab);
-    console.log('setActiveTab function:', setActiveTab);
-    
-    // First set pending deletions
-    setPendingDeletions({
-      audioFile: selectedAudioFile,
-      confirmedDeletions: confirmedDeletions,
-      segmentIds: selectedDeletions,
-      deletionCount: selectedDeletions.length,
-      duplicateGroups: duplicateGroups
-    });
-    
-    // Force navigation to results tab
-    console.log('Calling setActiveTab with "results"...');
-    
-    // Use setTimeout to ensure state updates in sequence
-    setTimeout(() => {
-      console.log('Setting active tab to results NOW');
-      setActiveTab('results');
-      console.log('setActiveTab called');
-    }, 0);
+    try {
+      // Simulate processing delay for UI feedback (remove if unnecessary)
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Format confirmed deletions with full segment data
+      const confirmedDeletions = [];
+      duplicateGroups.forEach(group => {
+        if (group.segments && Array.isArray(group.segments)) {
+          group.segments.forEach(seg => {
+            if (selectedDeletions.includes(seg.id)) {
+              confirmedDeletions.push({
+                segment_id: seg.id,
+                audio_file_id: selectedAudioFile.id,
+                start_time: seg.start_time,
+                end_time: seg.end_time,
+                text: seg.text
+              });
+            }
+          });
+        }
+      });
+      
+      // Store pending deletions in context
+      console.log('Setting pending deletions:', confirmedDeletions.length, 'segments');
+      console.log('Current activeTab before setting:', activeTab);
+      console.log('setActiveTab function:', setActiveTab);
+      
+      // First set pending deletions
+      setPendingDeletions({
+        audioFile: selectedAudioFile,
+        confirmedDeletions: confirmedDeletions,
+        segmentIds: selectedDeletions,
+        deletionCount: selectedDeletions.length,
+        duplicateGroups: duplicateGroups
+      });
+      
+      // Processing complete - show completion modal
+      setIsProcessingDeletions(false);
+      setShowCompletionModal(true);
+    } catch (error) {
+      console.error('Error processing deletions:', error);
+      setIsProcessingDeletions(false);
+      alert('Error processing deletions. Please try again.');
+    }
+  };
+
+  const handleNavigateToResults = () => {
+    console.log('handleNavigateToResults called');
+    console.log('Current tab:', activeTab);
+    setShowCompletionModal(false);
+    console.log('Setting activeTab to: results');
+    setActiveTab('results');
+    console.log('setActiveTab called with results');
+  };
+
+  const handleReturnToUpload = () => {
+    console.log('handleReturnToUpload called');
+    console.log('Current tab:', activeTab);
+    setShowCompletionModal(false);
+    console.log('Setting activeTab to: files');
+    setActiveTab('files');
+    console.log('setActiveTab called with files');
   };
 
   const toggleGroup = (groupId) => {
@@ -533,7 +559,8 @@ const Tab3Duplicates = () => {
           </div>
 
           <div className="duplicate-groups-list">
-            {duplicateGroups.map((group, groupIndex) => {
+            {[...duplicateGroups].reverse().map((group, reversedIndex) => {
+              const groupIndex = duplicateGroups.length - 1 - reversedIndex; // Original index
               const isExpanded = expandedGroups.has(group.group_id);
               const segments = group.segments || group.occurrences || [];
               const isSelected = selectedGroupId === group.group_id;
@@ -634,10 +661,19 @@ const Tab3Duplicates = () => {
                 console.log('Button clicked!');
                 handleConfirmDeletions();
               }}
-              disabled={selectedDeletions.length === 0 || processing}
-              className="confirm-button"
+              disabled={selectedDeletions.length === 0 || processing || isProcessingDeletions}
+              className={`confirm-button ${isProcessingDeletions ? 'processing' : ''}`}
             >
-              {processing ? '⏳ Processing...' : `✅ Review Deletions (${selectedDeletions.length} segments)`}
+              {isProcessingDeletions ? (
+                <>
+                  <span className="spinner"></span>
+                  Processing {selectedDeletions.length} segments...
+                </>
+              ) : processing ? (
+                '⏳ Processing...'
+              ) : (
+                `✅ Review Deletions (${selectedDeletions.length} segments)`
+              )}
             </button>
           </div>
         </div>
@@ -652,6 +688,39 @@ const Tab3Duplicates = () => {
       {!selectedAudioFile && (
         <div className="empty-state">
           <p>Select a transcribed audio file to begin duplicate detection.</p>
+        </div>
+      )}
+
+      {/* Completion Modal */}
+      {showCompletionModal && (
+        <div className="modal-overlay" onClick={(e) => {
+          if (e.target.className === 'modal-overlay') {
+            setShowCompletionModal(false);
+          }
+        }}>
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>✅ Complete</h3>
+            </div>
+            <div className="modal-body">
+              <p>Your deletions have been prepared successfully.</p>
+              <p>What would you like to do next?</p>
+            </div>
+            <div className="modal-actions">
+              <button
+                onClick={handleNavigateToResults}
+                className="modal-button primary-button"
+              >
+                📊 Navigate to Results
+              </button>
+              <button
+                onClick={handleReturnToUpload}
+                className="modal-button secondary-button"
+              >
+                📁 Return to Upload
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -54,9 +54,12 @@ class AudioFileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'project', 'audio_file', 'title', 'order_index', 'duration',
             'status', 'transcription', 'created_at', 'updated_at', 'filename',
-            'file_size_bytes', 'duration_seconds', 'error_message'
+            'file_size_bytes', 'duration_seconds', 'error_message',
+            'transcript_text', 'transcript_adjusted', 'transcript_source',
+            'retranscription_status', 'processed_audio', 'processed_duration_seconds'
         ]
-        read_only_fields = ['id', 'duration', 'status', 'transcription', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'duration', 'status', 'transcription', 'created_at', 'updated_at', 
+                            'transcript_adjusted', 'transcript_source', 'retranscription_status']
     
     def get_transcription(self, obj):
         """Get nested transcription data if exists"""
@@ -273,10 +276,13 @@ class AudioFileDetailSerializer(serializers.ModelSerializer):
             'duration_seconds', 'processed_duration_seconds', 'file_size_bytes', 'format', 'processed_audio',
             'order_index', 'chapter_number', 'section_number',
             'has_transcription', 'has_processed_audio', 'transcription_id', 'transcription',
+            'transcript_text', 'transcript_adjusted', 'transcript_source', 
+            'retranscription_status', 'retranscription_task_id',
             'error_message', 'created_at', 'updated_at', 'last_processed_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'has_transcription', 
-                            'has_processed_audio', 'transcription_id', 'transcription']
+                            'has_processed_audio', 'transcription_id', 'transcription',
+                            'transcript_adjusted', 'transcript_source', 'retranscription_status']
     
     def get_has_transcription(self, obj):
         return obj.has_transcription

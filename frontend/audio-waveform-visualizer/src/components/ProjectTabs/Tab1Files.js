@@ -51,8 +51,11 @@ const Tab1Files = () => {
   useEffect(() => {
     audioFiles.forEach(file => {
       if (transcribingFiles[file.id]) {
+        const hasTranscription = !!(file.transcription && file.transcription.text);
+        const hasFailureWithoutTranscription = (file.status === 'failed' || file.error_message) && !hasTranscription;
+
         // Check if transcription completed successfully
-        if (file.transcription) {
+        if (hasTranscription) {
           // Transcription completed!
           setTranscribingFiles(prev => {
             const updated = { ...prev };
@@ -66,7 +69,7 @@ const Tab1Files = () => {
           });
         }
         // Check if transcription failed (status is 'failed' or error_message exists)
-        else if (file.status === 'failed' || file.error_message) {
+        else if (hasFailureWithoutTranscription) {
           // Transcription failed - reset so user can try again
           setTranscribingFiles(prev => {
             const updated = { ...prev };
@@ -420,6 +423,7 @@ const Tab1Files = () => {
               {audioFiles.map((file) => {
                 const isTranscribing = transcribingFiles[file.id];
                 const hasTranscription = file.transcription && file.transcription.text;
+                const hasFailureWithoutTranscription = (file.status === 'failed' || file.error_message) && !hasTranscription;
                 
                 const statusInfo = getStatusBadgeInfo(file.status);
                 
@@ -492,7 +496,7 @@ const Tab1Files = () => {
                           <div className="spinner"></div>
                           <span>Transcribing... Please wait</span>
                         </div>
-                      ) : file.status === 'failed' || file.error_message ? (
+                      ) : hasFailureWithoutTranscription ? (
                         <div className="transcription-error">
                           <span className="error-icon">⚠️</span>
                           <div className="error-details">

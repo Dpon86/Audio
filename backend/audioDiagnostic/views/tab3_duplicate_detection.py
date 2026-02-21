@@ -401,3 +401,59 @@ class UpdateSegmentTimesView(APIView):
             }
         })
 
+
+class RetranscribeProcessedAudioView(APIView):
+    """
+    POST: Re-transcribe processed audio for maximum accuracy
+    """
+    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, project_id, audio_file_id):
+        """Trigger re-transcription of processed audio"""
+        from audioDiagnostic.tasks import retranscribe_processed_audio_task
+        
+        project = get_object_or_404(AudioProject, id=project_id, user=request.user)
+        audio_file = get_object_or_404(AudioFile, id=audio_file_id, project=project)
+        
+        # Verify processed audio exists
+        if not audio_file.processed_audio:
+            return Response({
+                'success': False,
+                'error': 'No processed audio available. Process deletions first.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if already re-transcribing  
+        if audio_file.retranscription_status == 'processing':
+            return Response({
+                'success': False,
+                'error': 'Re-transcription already in progress',
+                'task_id': audio_file.retranscription_task_id
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Start re-transcription task
+        try:
+            task = retranscribe_processed_audio_task.delay(audio_file.id)
+            
+            return Response({
+                'success': True,
+                'message': 'Started re-transcription of processed audio',
+                'task_id': task.id
+            })
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': f'Failed to start re-transcription: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def get(self, request, project_id, audio_file_id):
+        """Get re-transcription status"""
+        project = get_object_or_404(AudioProject, id=project_id, user=request.user)
+        audio_file = get_object_or_404(AudioFile, id=audio_file_id, project=project)
+        
+        return Response({
+            'success': True,
+            'retranscription_status': audio_file.retranscription_status,
+            'task_id': audio_file.retranscription_task_id,
+            'transcript_source': audio_file.transcript_source
+        })

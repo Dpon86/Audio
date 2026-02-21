@@ -13,6 +13,7 @@ from .transcription_tasks import (
     split_segment_to_sentences,
     find_noise_regions,
     transcribe_single_audio_file_task,  # NEW: Tab 2 individual file transcription
+    retranscribe_processed_audio_task,  # NEW: Tab 4 re-transcribe processed audio
 )
 
 # Duplicate detection and processing tasks

@@ -151,8 +151,32 @@ class AudioFile(models.Model):
     pdf_comparison_completed = models.BooleanField(default=False)  # Whether comparison has been done
     pdf_ignored_sections = models.JSONField(null=True, blank=True)  # List of text sections to ignore (narrator, chapter titles, etc.)
     
-    # Legacy transcription field (kept for backwards compatibility)
-    transcript_text = models.TextField(null=True, blank=True)
+    # Transcription fields
+    transcript_text = models.TextField(null=True, blank=True)  # Original transcription from Whisper
+    transcript_adjusted = models.TextField(null=True, blank=True)  # Quick preview: programmatically adjusted after deletions
+    transcript_source = models.CharField(
+        max_length=20,
+        choices=[
+            ('none', 'None'),
+            ('original', 'Original Whisper'),
+            ('adjusted', 'Adjusted Preview'),
+            ('retranscribed', 'Re-transcribed'),
+        ],
+        default='none'
+    )  # Track which transcript is current/best
+    retranscription_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('none', 'Not Re-transcribed'),
+            ('pending', 'Re-transcription Pending'),
+            ('processing', 'Re-transcribing'),
+            ('completed', 'Re-transcribed'),
+            ('failed', 'Failed'),
+        ],
+        default='none'
+    )
+    retranscription_task_id = models.CharField(max_length=100, null=True, blank=True)
+    
     original_duration = models.FloatField(null=True, blank=True)  # seconds (legacy)
     error_message = models.TextField(null=True, blank=True)
     
