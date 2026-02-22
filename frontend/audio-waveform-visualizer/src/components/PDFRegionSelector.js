@@ -5,24 +5,28 @@ import './PDFRegionSelector.css';
 /**
  * PDFRegionSelector
  * 
- * Displays PDF text and allows user to select start or end position for precise comparison
+ * Displays PDF or Transcript text and allows user to select start or end position for precise comparison
  * Features:
  * - Separate selection for start and end positions
  * - Sentence-based selection
  * - Character position fine-tuning
  * - Preview of selected text
+ * - Supports both PDF and Transcript text selection
  * 
  * Props:
  * - projectId: ID of the project containing the PDF
  * - mode: 'start' or 'end' (which position we're selecting)
+ * - type: 'pdf' or 'transcript' (which text source to use)
  * - currentStart: Current start position (for context when selecting end)
  * - currentEnd: Current end position (for context when selecting start)
+ * - transcriptText: Full transcript text (used when type='transcript')
  * - onPositionSelected: Callback when position is confirmed (position, text)
  * - onCancel: Callback when user cancels
  */
 const PDFRegionSelector = ({ 
   projectId, 
   mode = 'start', // 'start' or 'end'
+  type = 'pdf', // 'pdf' or 'transcript'
   currentStart = null,
   currentEnd = null,
   transcriptText = '', // Full transcript text
@@ -62,9 +66,17 @@ const PDFRegionSelector = ({
   const textContainerRef = useRef(null);
   
   /**
-   * Load PDF text from backend
+   * Load PDF text from backend (only if type='pdf')
    */
   const loadPDFText = useCallback(async () => {
+    // If type is 'transcript', use the provided transcript text instead
+    if (type === 'transcript') {
+      setPdfText(transcriptText);
+      setTotalChars(transcriptText.length);
+      setIsLoading(false);
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     
@@ -94,7 +106,7 @@ const PDFRegionSelector = ({
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, token]);
+  }, [projectId, token, type, transcriptText]);
   
   useEffect(() => {
     loadPDFText();
@@ -427,8 +439,8 @@ const PDFRegionSelector = ({
   return (
     <div className="pdf-region-selector">
       <div className="selector-header">
-        <h3>📄 Select PDF {mode === 'start' ? 'Start' : 'End'} Position</h3>
-        <p>Choose where your PDF region {mode === 'start' ? 'begins' : 'ends'} to match your transcription</p>
+        <h3>{type === 'pdf' ? '📄' : '🎤'} Select {type === 'pdf' ? 'PDF' : 'Transcript'} {mode === 'start' ? 'Start' : 'End'} Position</h3>
+        <p>Choose where your {type === 'pdf' ? 'PDF region' : 'transcript'} {mode === 'start' ? 'begins' : 'ends'} to match your {type=== 'pdf' ? 'transcription' : 'PDF'}</p>
       </div>
       
       {/* Selection Method Toggle */}
@@ -451,8 +463,8 @@ const PDFRegionSelector = ({
           </div>
         </div>
         
-        {/* Smart Search Configuration (only show for END position) */}
-        {mode === 'end' && transcriptText && (
+        {/* Smart Search Configuration (only show for END position and for PDF) */}
+        {mode === 'end' && transcriptText && type === 'pdf' && (
           <div className="smart-search-group">
             <div className="smart-search-config">
               <div className="config-row">

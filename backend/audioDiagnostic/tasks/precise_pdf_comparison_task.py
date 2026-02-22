@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True)
-def precise_compare_transcription_to_pdf_task(self, audio_file_id, pdf_start_char=None, pdf_end_char=None):
+def precise_compare_transcription_to_pdf_task(self, audio_file_id, pdf_start_char=None, pdf_end_char=None, transcript_start_char=None, transcript_end_char=None):
     """
     Precise word-by-word comparison with timestamp tracking.
     
@@ -33,6 +33,8 @@ def precise_compare_transcription_to_pdf_task(self, audio_file_id, pdf_start_cha
         audio_file_id: AudioFile ID to compare
         pdf_start_char: Optional starting character position in PDF (for manual selection)
         pdf_end_char: Optional ending character position in PDF (for manual selection)
+        transcript_start_char: Optional starting character position in transcript (to skip intro)
+        transcript_end_char: Optional ending character position in transcript (to skip outro)
         
     Returns:
         Detailed comparison results with timestamps for all regions
@@ -81,6 +83,17 @@ def precise_compare_transcription_to_pdf_task(self, audio_file_id, pdf_start_cha
         
         transcript = audio_file.transcript_text
         
+        # Apply transcript region selection if provided
+        if transcript_start_char is not None and transcript_end_char is not None:
+            transcript = transcript[transcript_start_char:transcript_end_char]
+            logger.info(f"Using manual transcript region: chars {transcript_start_char}-{transcript_end_char}")
+        elif transcript_start_char is not None:
+            transcript = transcript[transcript_start_char:]
+            logger.info(f"Using transcript from char {transcript_start_char} to end")
+        elif transcript_end_char is not None:
+            transcript = transcript[:transcript_end_char]
+            logger.info(f"Using transcript from start to char {transcript_end_char}")
+        
         r.set(f"progress:{task_id}", 20)
         
         # Load all transcription segments with timestamps
@@ -112,8 +125,13 @@ def precise_compare_transcription_to_pdf_task(self, audio_file_id, pdf_start_cha
             'algorithm': 'precise_word_by_word_v1',
             'pdf_region': {
                 'start_char': pdf_start_char or 0,
-                'end_char': pdf_end_char or len(pdf_text),
+                'end_char': pdf_end_char or len(project.pdf_text if project.pdf_text else pdf_text),
                 'manually_selected': pdf_start_char is not None or pdf_end_char is not None
+            },
+            'transcript_region': {
+                'start_char': transcript_start_char or 0,
+                'end_char': transcript_end_char or len(audio_file.transcript_text),
+                'manually_selected': transcript_start_char is not None or transcript_end_char is not None
             },
             'matched_regions': comparison_result['matched_regions'],
             'abnormal_regions': comparison_result['abnormal_regions'],
@@ -184,6 +202,8 @@ def word_by_word_comparison(pdf_text, transcript, segments):
     
     current_match_start_pdf = 0
     current_match_start_trans = 0
+    current_match_end_pdf = 0
+    current_match_end_trans = 0
     
     stats = {
         'matched_words': 0,
@@ -275,13 +295,14 @@ def word_by_word_comparison(pdf_text, transcript, segments):
                             logger.debug(f"Match found after advancing PDF by {advance_attempts} words")
                             
                             # Mark missing content in PDF that was skipped
-                            missing_region = {
-                                'text': ' '.join(pdf_words[current_match_end_pdf:pdf_idx]),
-                                'word_count': pdf_idx - current_match_end_pdf,
-                                'pdf_position': f'word {current_match_end_pdf}-{pdf_idx}'
-                            }
-                            missing_content.append(missing_region)
-                            stats['missing_words'] += pdf_idx - current_match_end_pdf
+                            if pdf_idx > current_match_end_pdf:
+                                missing_region = {
+                                    'text': ' '.join(pdf_words[current_match_end_pdf:pdf_idx]),
+                                    'word_count': pdf_idx - current_match_end_pdf,
+                                    'pdf_position': f'word {current_match_end_pdf}-{pdf_idx}'
+                                }
+                                missing_content.append(missing_region)
+                                stats['missing_words'] += pdf_idx - current_match_end_pdf
                             
                             # Mark abnormal in transcript
                             abnormal_region = save_abnormal_region(

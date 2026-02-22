@@ -32,10 +32,15 @@ const Tab5ComparePDF = () => {
   // PDF Region Selection (for precise mode) - separate start and end
   const [showRegionSelector, setShowRegionSelector] = useState(false);
   const [regionSelectorMode, setRegionSelectorMode] = useState('start'); // 'start' or 'end'
+  const [regionSelectorType, setRegionSelectorType] = useState('pdf'); // 'pdf' or 'transcript'
   const [pdfStartChar, setPdfStartChar] = useState(null);
   const [pdfEndChar, setPdfEndChar] = useState(null);
   const [pdfStartText, setPdfStartText] = useState('');
   const [pdfEndText, setPdfEndText] = useState('');
+  
+  // Transcript Region Selection (for precise mode)
+  const [transcriptStartChar, setTranscriptStartChar] = useState(null);
+  const [transcriptEndChar, setTranscriptEndChar] = useState(null);
   
   // Transcript text for comparison preview
   const [transcriptText, setTranscriptText] = useState('');
@@ -215,17 +220,34 @@ const Tab5ComparePDF = () => {
   };
   
   /**
-   * Handle PDF position selection (start or end)
+   * Handle position selection (PDF or Transcript, start or end)
    */
   const handlePositionSelected = (position, text) => {
-    console.log(`PDF ${regionSelectorMode} position selected:`, position);
+    console.log(`${regionSelectorType} ${regionSelectorMode} position selected:`, position);
     
-    if (regionSelectorMode === 'start') {
-      setPdfStartChar(position);
-      setPdfStartText(text);
-    } else {
-      setPdfEndChar(position);
-      setPdfEndText(text);
+    if (regionSelectorType === 'pdf') {
+      if (regionSelectorMode === 'start') {
+        setPdfStartChar(position);
+        setPdfStartText(text);
+      } else {
+        setPdfEndChar(position);
+        setPdfEndText(text);
+      }
+    } else if (regionSelectorType === 'transcript') {
+      if (regionSelectorMode === 'start') {
+        setTranscriptStartChar(position);
+        // Update preview to show text from selected position
+        const PREVIEW_LENGTH = 400;
+        const preview = transcriptText.substring(position, Math.min(position + PREVIEW_LENGTH, transcriptText.length));
+        setTranscriptStartText(preview + (position + PREVIEW_LENGTH < transcriptText.length ? '...' : ''));
+      } else {
+        setTranscriptEndChar(position);
+        // Update preview to show text ending at selected position
+        const PREVIEW_LENGTH = 400;
+        const start = Math.max(0, position - PREVIEW_LENGTH);
+        const preview = transcriptText.substring(start, position);
+        setTranscriptEndText((start > 0 ? '...' : '') + preview);
+      }
     }
     
     setShowRegionSelector(false);
@@ -262,7 +284,9 @@ const Tab5ComparePDF = () => {
           body: JSON.stringify({
             algorithm: 'precise',
             pdf_start_char: pdfStartChar,
-            pdf_end_char: pdfEndChar
+            pdf_end_char: pdfEndChar,
+            transcript_start_char: transcriptStartChar,
+            transcript_end_char: transcriptEndChar
           })
         }
       );
@@ -311,6 +335,9 @@ const Tab5ComparePDF = () => {
       }
       
       if (fullText) {
+        // Reset transcript positions when file changes
+        setTranscriptStartChar(null);
+        setTranscriptEndChar(null);
         setTranscriptText(fullText);
         
         // Generate start preview (first 400 chars)
@@ -703,18 +730,26 @@ const Tab5ComparePDF = () => {
                   {/* Transcript Start */}
                   <div style={{ 
                     padding: '1rem', 
-                    background: transcriptStartText ? '#eff6ff' : '#f9fafb',
-                    border: '2px solid #3b82f6',
+                    background: transcriptStartChar !== null ? '#eff6ff' : '#f9fafb',
+                    border: transcriptStartChar !== null ? '2px solid #3b82f6' : '2px dashed #d1d5db',
                     borderRadius: '6px'
                   }}>
                     <div style={{ 
                       fontWeight: '600', 
-                      color: '#1e40af', 
-                      marginBottom: '0.5rem' 
+                      color: transcriptStartChar !== null ? '#1e40af' : '#6b7280', 
+                      marginBottom: '0.5rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
                     }}>
-                      🎤 Transcript Start
+                      <span>🎤 Transcript Start</span>
+                      {transcriptStartChar !== null && (
+                        <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>
+                          Char {transcriptStartChar}
+                        </span>
+                      )}
                     </div>
-                    {transcriptStartText ? (
+                    {transcriptStartChar !== null ? (
                       <div style={{ 
                         fontSize: '0.875rem', 
                         color: '#1d4ed8', 
@@ -730,8 +765,31 @@ const Tab5ComparePDF = () => {
                         color: '#9ca3af', 
                         fontStyle: 'italic' 
                       }}>
-                        No transcript available
+                        {transcriptText ? 'Not selected (using beginning)' : 'No transcript available'}
                       </div>
+                    )}
+                    {transcriptText && (
+                      <button
+                        onClick={() => {
+                          setRegionSelectorType('transcript');
+                          setRegionSelectorMode('start');
+                          setShowRegionSelector(true);
+                        }}
+                        style={{
+                          marginTop: '0.75rem',
+                          width: '100%',
+                          padding: '0.5rem 1rem',
+                          background: transcriptStartChar !== null ? 'white' : '#3b82f6',
+                          color: transcriptStartChar !== null ? '#2563eb' : 'white',
+                          border: transcriptStartChar !== null ? '2px solid #3b82f6' : 'none',
+                          borderRadius: '6px',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        {transcriptStartChar !== null ? '📝 Change Start' : '🎤 Select Start'}
+                      </button>
                     )}
                   </div>
                 </div>
@@ -808,18 +866,26 @@ const Tab5ComparePDF = () => {
                   {/* Transcript End */}
                   <div style={{ 
                     padding: '1rem', 
-                    background: transcriptEndText ? '#eff6ff' : '#f9fafb',
-                    border: '2px solid #3b82f6',
+                    background: transcriptEndChar !== null ? '#eff6ff' : '#f9fafb',
+                    border: transcriptEndChar !== null ? '2px solid #3b82f6' : '2px dashed #d1d5db',
                     borderRadius: '6px'
                   }}>
                     <div style={{ 
                       fontWeight: '600', 
-                      color: '#1e40af', 
-                      marginBottom: '0.5rem' 
+                      color: transcriptEndChar !== null ? '#1e40af' : '#6b7280', 
+                      marginBottom: '0.5rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
                     }}>
-                      🎤 Transcript End
+                      <span>🎤 Transcript End</span>
+                      {transcriptEndChar !== null && (
+                        <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>
+                          Char {transcriptEndChar}
+                        </span>
+                      )}
                     </div>
-                    {transcriptEndText ? (
+                    {transcriptEndChar !== null ? (
                       <div style={{ 
                         fontSize: '0.875rem', 
                         color: '#1d4ed8', 
@@ -835,8 +901,31 @@ const Tab5ComparePDF = () => {
                         color: '#9ca3af', 
                         fontStyle: 'italic' 
                       }}>
-                        No transcript available
+                        {transcriptText ? 'Not selected (using end)' : 'No transcript available'}
                       </div>
+                    )}
+                    {transcriptText && (
+                      <button
+                        onClick={() => {
+                          setRegionSelectorType('transcript');
+                          setRegionSelectorMode('end');
+                          setShowRegionSelector(true);
+                        }}
+                        style={{
+                          marginTop: '0.75rem',
+                          width: '100%',
+                          padding: '0.5rem 1rem',
+                          background: transcriptEndChar !== null ? 'white' : '#3b82f6',
+                          color: transcriptEndChar !== null ? '##2563eb' : 'white',
+                          border: transcriptEndChar !== null ? '2px solid #3b82f6' : 'none',
+                          borderRadius: '6px',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        {transcriptEndChar !== null ? '📝 Change End' : '🎤 Select End'}
+                      </button>
                     )}
                   </div>
                 </div>
@@ -1447,8 +1536,9 @@ const Tab5ComparePDF = () => {
             <PDFRegionSelector
               projectId={projectId}
               mode={regionSelectorMode}
-              currentStart={pdfStartChar}
-              currentEnd={pdfEndChar}
+              type={regionSelectorType}
+              currentStart={regionSelectorType === 'pdf' ? pdfStartChar : transcriptStartChar}
+              currentEnd={regionSelectorType === 'pdf' ? pdfEndChar : transcriptEndChar}
               transcriptText={transcriptText}
               onPositionSelected={handlePositionSelected}
               onCancel={() => setShowRegionSelector(false)}

@@ -103,6 +103,8 @@ class StartPrecisePDFComparisonView(APIView):
         algorithm = request.data.get('algorithm', 'ai')  # Default to AI
         pdf_start_char = request.data.get('pdf_start_char')
         pdf_end_char = request.data.get('pdf_end_char')
+        transcript_start_char = request.data.get('transcript_start_char')
+        transcript_end_char = request.data.get('transcript_end_char')
         
         # Start appropriate comparison task
         try:
@@ -110,7 +112,9 @@ class StartPrecisePDFComparisonView(APIView):
                 task = precise_compare_transcription_to_pdf_task.delay(
                     audio_file.id,
                     pdf_start_char=pdf_start_char,
-                    pdf_end_char=pdf_end_char
+                    pdf_end_char=pdf_end_char,
+                    transcript_start_char=transcript_start_char,
+                    transcript_end_char=transcript_end_char
                 )
                 message = 'Precise word-by-word PDF comparison started'
             else:
@@ -131,6 +135,11 @@ class StartPrecisePDFComparisonView(APIView):
                     'start_char': pdf_start_char,
                     'end_char': pdf_end_char,
                     'manually_selected': pdf_start_char is not None or pdf_end_char is not None
+                },
+                'transcript_region': {
+                    'start_char': transcript_start_char,
+                    'end_char': transcript_end_char,
+                    'manually_selected': transcript_start_char is not None or transcript_end_char is not None
                 }
             })
         except Exception as e:
