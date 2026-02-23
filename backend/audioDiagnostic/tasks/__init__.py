@@ -59,6 +59,13 @@ from .ai_pdf_comparison_task import (
     ai_compare_transcription_to_pdf_task,  # NEW: Tab 5 AI-powered PDF comparison
 )
 
+# Audiobook production analysis (Tab 5 - Production Analysis)
+from .audiobook_production_task import (
+    audiobook_production_analysis_task,  # NEW: Comprehensive audiobook quality analysis
+    get_audiobook_analysis_progress,
+    get_audiobook_report_summary,
+)
+
 # Audio processing tasks
 from .audio_processing_tasks import (
     process_audio_file_task,
@@ -114,6 +121,11 @@ __all__ = [
     'compare_transcription_to_pdf_task',
     'ai_compare_transcription_to_pdf_task',  # NEW: AI-powered comparison
     'batch_compare_transcriptions_to_pdf_task',
+    
+    # Audiobook production analysis (NEW)
+    'audiobook_production_analysis_task',
+    'get_audiobook_analysis_progress',
+    'get_audiobook_report_summary',
     
     # Audio processing tasks
     'process_audio_file_task',

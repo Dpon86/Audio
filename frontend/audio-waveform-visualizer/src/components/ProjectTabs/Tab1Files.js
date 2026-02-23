@@ -16,7 +16,9 @@ const Tab1Files = () => {
     removeAudioFile,
     projectData,
     setProjectData,
-    refreshProjectData
+    refreshProjectData,
+    selectedAudioFile,
+    selectAudioFile
   } = useProjectTab();
 
   const [uploading, setUploading] = useState(false);
@@ -428,7 +430,12 @@ const Tab1Files = () => {
                 const statusInfo = getStatusBadgeInfo(file.status);
                 
                 return (
-                  <tr key={file.id}>
+                  <tr 
+                    key={file.id}
+                    className={selectedAudioFile?.id === file.id ? 'selected' : ''}
+                    onClick={() => selectAudioFile(file)}
+                    title="Click to select this file for use in other tabs"
+                  >
                     <td className="file-cell">
                       <div className="file-info-inline">
                         <span className="file-icon">🎵</span>

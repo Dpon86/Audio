@@ -83,34 +83,70 @@ def precise_compare_transcription_to_pdf_task(self, audio_file_id, pdf_start_cha
         
         transcript = audio_file.transcript_text
         
-        # Apply transcript region selection if provided
-        if transcript_start_char is not None and transcript_end_char is not None:
-            transcript = transcript[transcript_start_char:transcript_end_char]
-            logger.info(f"Using manual transcript region: chars {transcript_start_char}-{transcript_end_char}")
-        elif transcript_start_char is not None:
-            transcript = transcript[transcript_start_char:]
-            logger.info(f"Using transcript from char {transcript_start_char} to end")
-        elif transcript_end_char is not None:
-            transcript = transcript[:transcript_end_char]
-            logger.info(f"Using transcript from start to char {transcript_end_char}")
-        
-        r.set(f"progress:{task_id}", 20)
-        
-        # Load all transcription segments with timestamps
-        segments = list(
+        # Load all transcription segments with timestamps BEFORE slicing
+        all_segments = list(
             TranscriptionSegment.objects
             .filter(audio_file=audio_file)
             .order_by('start_time')
             .values('id', 'text', 'start_time', 'end_time')
         )
         
-        logger.info(f"Loaded {len(segments)} transcription segments")
+        logger.info(f"Loaded {len(all_segments)} transcription segments")
+        
+        # Build word-to-segment map from FULL transcript before slicing
+        # This ensures word indices align with segment text
+        full_word_to_segment = build_word_segment_map(all_segments)
+        logger.info(f"Built word-to-segment map with {len(full_word_to_segment)} words from {len(all_segments)} segments")
+        
+        # Calculate word offset if transcript is being sliced
+        word_offset = 0
+        if transcript_start_char is not None or transcript_end_char is not None:
+            # Tokenize the full transcript to find word boundaries
+            full_words = tokenize_text(transcript)  # transcript is still full at this point
+            logger.info(f"Full transcript has {len(full_words)} words")
+            
+            # Find which word index corresponds to transcript_start_char
+            if transcript_start_char is not None and transcript_start_char > 0:
+                char_count = 0
+                for word_idx, word in enumerate(full_words):
+                    if char_count >= transcript_start_char:
+                        word_offset = word_idx
+                        logger.info(f"Transcript slice starting at char {transcript_start_char} maps to word index {word_offset} (word: '{word}')")
+                        break
+                    char_count += len(word) + 1  # +1 for space
+        
+        # Track character offset for logging
+        transcript_char_offset = 0
+        
+        # Apply transcript region selection if provided
+        if transcript_start_char is not None and transcript_end_char is not None:
+            transcript = transcript[transcript_start_char:transcript_end_char]
+            transcript_char_offset = transcript_start_char
+            logger.info(f"Using manual transcript region: chars {transcript_start_char}-{transcript_end_char}")
+        elif transcript_start_char is not None:
+            transcript = transcript[transcript_start_char:]
+            transcript_char_offset = transcript_start_char
+            logger.info(f"Using transcript from char {transcript_start_char} to end")
+        elif transcript_end_char is not None:
+            transcript = transcript[:transcript_end_char]
+            logger.info(f"Using transcript from start to char {transcript_end_char}")
+        
+        # Create adjusted word-to-segment map that accounts for the offset
+        # When we look up word index X in sliced transcript, we need segment for word (X + word_offset) in full transcript
+        word_to_segment = {}
+        for idx in full_word_to_segment:
+            adjusted_idx = idx - word_offset
+            if adjusted_idx >= 0:  # Only include words from our sliced region onward
+                word_to_segment[adjusted_idx] = full_word_to_segment[idx]
+        
+        logger.info(f"Adjusted word-to-segment map: {len(word_to_segment)} words (offset by {word_offset})")
+        segments = all_segments  # Keep all segments for reference
         
         r.set(f"progress:{task_id}", 30)
         
         # Phase 1: Word-by-word comparison
         logger.info("Phase 1: Word-by-word comparison with 3-word lookahead")
-        comparison_result = word_by_word_comparison(pdf_text, transcript, segments)
+        comparison_result = word_by_word_comparison(pdf_text, transcript, word_to_segment)
         
         r.set(f"progress:{task_id}", 80)
         
@@ -170,7 +206,7 @@ def precise_compare_transcription_to_pdf_task(self, audio_file_id, pdf_start_cha
         raise
 
 
-def word_by_word_comparison(pdf_text, transcript, segments):
+def word_by_word_comparison(pdf_text, transcript, word_to_segment):
     """
     Perform precise word-by-word comparison with 3-word lookahead strategy.
     
@@ -183,13 +219,21 @@ def word_by_word_comparison(pdf_text, transcript, segments):
        - If found: mark abnormal region, continue from there
        - If not found: try next 3 PDF words, repeat from last match
     4. Track all regions with timestamps
+    
+    Args:
+        pdf_text: Full PDF text to compare
+        transcript: Transcript text (may be sliced)
+        word_to_segment: Pre-built word-to-segment mapping (already adjusted for slicing)
     """
     # Normalize and tokenize
     pdf_words = tokenize_text(pdf_text)
     transcript_words = tokenize_text(transcript)
     
-    # Build word-to-segment mapping for timestamp lookup
-    word_to_segment = build_word_segment_map(segments)
+    # word_to_segment is already built and adjusted for any slicing
+    logger.info(f"Comparing {len(pdf_words)} PDF words with {len(transcript_words)} transcript words")
+    logger.info(f"Word-to-segment map has {len(word_to_segment)} entries")
+    logger.info(f"First 10 PDF words: {' '.join(pdf_words[:10])}")
+    logger.info(f"First 10 transcript words: {' '.join(transcript_words[:10])}")
     
     # Initialize tracking
     matched_regions = []

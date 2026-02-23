@@ -17,7 +17,7 @@ import PreciseComparisonDisplay from '../PreciseComparisonDisplay';
  * - Show side-by-side comparison with timestamps
  */
 const Tab5ComparePDF = () => {
-  const { selectedAudioFile, audioFiles, selectAudioFile, projectId } = useProjectTab();
+  const { selectedAudioFile, audioFiles, selectAudioFile, projectId, refreshProjectData } = useProjectTab();
   const { token } = useAuth();
   
   // Comparison mode
@@ -49,12 +49,22 @@ const Tab5ComparePDF = () => {
   
   // Side-by-side view
   const [showSideBySide, setShowSideBySide] = useState(false);
+  
+  // PDF text cleanup
+  const [isCleaningPDF, setIsCleaningPDF] = useState(false);
+  const [cleanupMessage, setCleanupMessage] = useState(null);
   const [sideBySideData, setSideBySideData] = useState(null);
   
   // Ignored sections
   const [ignoredSections, setIgnoredSections] = useState([]);
   const [selectedText, setSelectedText] = useState('');
   const [showIgnoreDialog, setShowIgnoreDialog] = useState(false);
+  
+  // Audiobook Production Analysis (NEW)
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(null);
+  const [analysisReport, setAnalysisReport] = useState(null);
+  const [showProductionReport, setShowProductionReport] = useState(false);
   
   // Load comparison results when file is selected
   const loadComparisonResults = useCallback(async () => {
@@ -365,8 +375,15 @@ const Tab5ComparePDF = () => {
     if (!selectedAudioFile) return;
     
     try {
+      const params = new URLSearchParams();
+      if (pdfStartChar !== null) params.append('pdf_start_char', pdfStartChar);
+      if (pdfEndChar !== null) params.append('pdf_end_char', pdfEndChar);
+      if (transcriptStartChar !== null) params.append('transcript_start_char', transcriptStartChar);
+      if (transcriptEndChar !== null) params.append('transcript_end_char', transcriptEndChar);
+
+      const queryString = params.toString();
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/side-by-side/`,
+        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/side-by-side/${queryString ? `?${queryString}` : ''}`,
         {
           headers: {
             'Authorization': `Token ${token}`
@@ -561,47 +578,681 @@ const Tab5ComparePDF = () => {
     }
   };
   
+  /**
+   * Clean PDF text to fix extraction issues (spaces in words, etc.)
+   */
+  const handleCleanPDFText = async () => {
+    if (!projectId) {
+      alert('No project selected');
+      return;
+    }
+    
+    const confirmed = window.confirm(
+      'This will re-extract and clean the PDF text, fixing issues like:\n\n' +
+      '• Words split with spaces (e.g., "h e l l o" → "hello")\n' +
+      '• Hyphenated words across line breaks\n' +
+      '• Irregular spacing\n\n' +
+      'Continue?'
+    );
+    
+    if (!confirmed) return;
+    
+    setIsCleaningPDF(true);
+    setCleanupMessage(null);
+    
+    try {
+      const requestBody = {};
+      if (pdfStartChar !== null) requestBody.pdf_start_char = pdfStartChar;
+      if (pdfEndChar !== null) requestBody.pdf_end_char = pdfEndChar;
+
+      const makeCleanRequest = () => fetch(
+        `http://localhost:8000/api/projects/${projectId}/clean-pdf-text/`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${token}`,
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify(requestBody)
+        }
+      );
+
+      let response;
+      try {
+        response = await makeCleanRequest();
+      } catch (networkErr) {
+        // Retry once for transient backend restarts/network changes
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        response = await makeCleanRequest();
+      }
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCleanupMessage({
+          type: 'success',
+          text: `PDF text cleaned successfully! Quality improved from ${data.statistics.old_quality?.quality_score || 0}% to ${data.statistics.new_quality.quality_score}%`
+        });
+        
+        // Refresh project data to get the cleaned PDF text
+        await refreshProjectData(token);
+      } else {
+        const errorData = await response.json();
+        setCleanupMessage({
+          type: 'error',
+          text: 'Failed to clean PDF: ' + (errorData.error || 'Unknown error')
+        });
+      }
+    } catch (err) {
+      setCleanupMessage({
+        type: 'error',
+        text: `Network error: ${err.message}. If this persists, confirm backend is running on http://localhost:8000 and try again.`
+      });
+    } finally {
+      setIsCleaningPDF(false);
+    }
+  };
+  
+  // Audiobook Production Analysis handlers
+  const startProductionAnalysis = async () => {
+    if (!projectId) {
+      alert('No project selected');
+      return;
+    }
+    
+    const confirmed = window.confirm(
+      'This will analyze the entire audiobook for production readiness:\n\n' +
+      '• Detect repeated sections\n' +
+      '• Identify quality issues\n' +
+      '• Find missing content\n' +
+      '• Generate editing checklist\n\n' +
+      'This may take several minutes. Continue?'
+    );
+    
+    if (!confirmed) return;
+    
+    setIsAnalyzing(true);
+    setAnalysisProgress({ stage: 'Starting...', percent: 0 });
+    setAnalysisReport(null);
+    
+    try {
+      // Build request body with optional region parameters
+      const requestBody = {
+        audio_file_id: selectedAudioFile?.id || null,
+        min_repeat_length: 5,
+        max_repeat_length: 50,
+        segment_size: 50,
+        min_gap_words: 10
+      };
+      
+      // Include PDF and transcript region positions if set (from Precise Mode)
+      if (pdfStartChar !== null) {
+        requestBody.pdf_start_char = pdfStartChar;
+      }
+      if (pdfEndChar !== null) {
+        requestBody.pdf_end_char = pdfEndChar;
+      }
+      if (pdfStartChar !== null || pdfEndChar !== null) {
+        console.log(`Using PDF region: ${pdfStartChar ?? 'start'} to ${pdfEndChar ?? 'end'}`);
+      }
+      
+      if (transcriptStartChar !== null) {
+        requestBody.transcript_start_char = transcriptStartChar;
+      }
+      if (transcriptEndChar !== null) {
+        requestBody.transcript_end_char = transcriptEndChar;
+      }
+      if (transcriptStartChar !== null || transcriptEndChar !== null) {
+        console.log(`Using transcript region: ${transcriptStartChar ?? 'start'} to ${transcriptEndChar ?? 'end'}`);
+      }
+      
+      const response = await fetch(
+        `http://localhost:8000/api/projects/${projectId}/audiobook-analysis/`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${token}`,
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify(requestBody)
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        const taskId = data.task_id;
+        
+        // Poll for progress
+        pollAnalysisProgress(taskId);
+      } else {
+        const errorData = await response.json();
+        alert('Failed to start analysis: ' + (errorData.error || 'Unknown error'));
+        setIsAnalyzing(false);
+      }
+    } catch (err) {
+      alert('Network error: ' + err.message);
+      setIsAnalyzing(false);
+    }
+  };
+  
+  const pollAnalysisProgress = async (taskId) => {
+    const poll = async () => {
+      try {
+        const response = await fetch(
+          `http://localhost:8000/api/audiobook-analysis/${taskId}/progress/`,
+          {
+            headers: {
+              'Authorization': `Token ${token}`
+            },
+            credentials: 'include'
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          const progress = data.progress;
+          
+          setAnalysisProgress({
+            stage: progress.stage || 'Processing...',
+            percent: progress.percent || 0,
+            message: progress.message || ''
+          });
+          
+          if (progress.status === 'completed') {
+            // Get the final result
+            fetchAnalysisResult(taskId);
+          } else if (progress.status === 'failed') {
+            alert('Analysis failed: ' + (progress.error || 'Unknown error'));
+            setIsAnalyzing(false);
+          } else {
+            // Continue polling
+            setTimeout(() => poll(), 2000);
+          }
+        } else {
+          setTimeout(() => poll(), 2000);
+        }
+      } catch (err) {
+        console.error('Error polling progress:', err);
+        setTimeout(() => poll(), 2000);
+      }
+    };
+    
+    poll();
+  };
+  
+  const fetchAnalysisResult = async (taskId) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/audiobook-analysis/${taskId}/result/`,
+        {
+          headers: {
+            'Authorization': `Token ${token}`
+          },
+          credentials: 'include'
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAnalysisReport(data.result);
+        setShowProductionReport(true);
+      } else {
+        alert('Failed to get analysis result');
+      }
+    } catch (err) {
+      alert('Network error: ' + err.message);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const hasPdfScope = pdfStartChar !== null || pdfEndChar !== null;
+  const hasTranscriptScope = transcriptStartChar !== null || transcriptEndChar !== null;
+  const hasAnyScopeSelection = hasPdfScope || hasTranscriptScope;
+  
   return (
     <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
-      <h2>📄 Compare Transcription to PDF</h2>
-      <p style={{ color: '#666', marginBottom: '2rem' }}>
-        Find where the audio starts in the PDF, identify missing or extra content, and mark sections to ignore.
-      </p>
-      
-      {/* File Selection */}
-      <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', marginBottom: '2rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
-          Select Audio File:
-        </label>
-        <select 
-          value={selectedAudioFile?.id || ''}
-          onChange={(e) => {
-            const file = audioFiles.find(f => f.id === parseInt(e.target.value));
-            selectAudioFile(file);
-            setShowSideBySide(false);
-          }}
-          style={{ 
-            width: '100%', 
-            padding: '0.75rem', 
-            borderRadius: '6px', 
-            border: '2px solid #e0e0e0',
-            fontSize: '1rem'
-          }}
-        >
-          <option value="">-- Select a file --</option>
-          {audioFiles.filter(f => f.status === 'transcribed' || f.status === 'processed').map(file => (
-            <option key={file.id} value={file.id}>
-              {file.filename} ({file.status})
-            </option>
-          ))}
-        </select>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h2>📄 Compare Transcription to PDF</h2>
+        <p style={{ color: '#666', marginTop: '0.5rem' }}>
+          Find where the audio starts in the PDF, identify missing or extra content, and mark sections to ignore.
+        </p>
       </div>
       
-      {selectedAudioFile && (
-        <>
+      {/* Production Report Modal */}
+      {showProductionReport && analysisReport && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '2rem'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '8px',
+            maxWidth: '900px',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{
+              padding: '2rem',
+              borderBottom: '1px solid #e5e7eb',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 'bold' }}>
+                Audiobook Production Report
+              </h2>
+              <button
+                onClick={() => setShowProductionReport(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  padding: '0.5rem'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div style={{ padding: '2rem' }}>
+              {/* Overall Status */}
+              <div style={{
+                padding: '1.5rem',
+                background: analysisReport.overall_status.includes('READY') ? '#d1fae5' : 
+                           analysisReport.overall_status.includes('MINOR') ? '#fef3c7' : '#fee2e2',
+                borderRadius: '6px',
+                marginBottom: '2rem',
+                textAlign: 'center'
+              }}>
+                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem' }}>
+                  {analysisReport.overall_status}
+                </h3>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', margin: '0.5rem 0' }}>
+                  {Math.round(analysisReport.overall_score * 100)}%
+                </div>
+                <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                  Overall Quality Score
+                </div>
+              </div>
+              
+              {/* Summary Statistics */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '1rem',
+                marginBottom: '2rem'
+              }}>
+                <div style={{ padding: '1rem', background: '#f3f4f6', borderRadius: '6px' }}>
+                  <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                    Total Words
+                  </div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+                    {analysisReport.summary.total_final_words.toLocaleString()}
+                  </div>
+                </div>
+                <div style={{ padding: '1rem', background: '#fef3c7', borderRadius: '6px' }}>
+                  <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                    Repetitions Found
+                  </div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+                    {analysisReport.summary.repetitions_found}
+                  </div>
+                </div>
+                <div style={{ padding: '1rem', background: '#fee2e2', borderRadius: '6px' }}>
+                  <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                    Missing Sections
+                  </div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+                    {analysisReport.summary.missing_sections}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Editing Checklist */}
+              <div style={{ marginBottom: '2rem' }}>
+                <h4 style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: '600' }}>
+                  Editing Checklist ({analysisReport.editing_checklist.length} items)
+                </h4>
+                <div style={{ maxHeight: '400px', overflow: 'auto' }}>
+                  {analysisReport.editing_checklist.slice(0, 20).map((item, idx) => (
+                    <div key={idx} style={{
+                      padding: '1rem',
+                      background: 'white',
+                      border: '1px solid #e5e7eb',
+                      borderLeft: `4px solid ${
+                        item.priority === 'CRITICAL' ? '#ef4444' :
+                        item.priority === 'HIGH' ? '#f59e0b' :
+                        item.priority === 'MEDIUM' ? '#3b82f6' : '#6b7280'
+                      }`,
+                      borderRadius: '4px',
+                      marginBottom: '0.5rem'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          color: item.priority === 'CRITICAL' ? '#ef4444' :
+                                 item.priority === 'HIGH' ? '#f59e0b' :
+                                 item.priority === 'MEDIUM' ? '#3b82f6' : '#6b7280'
+                        }}>
+                          {item.priority} - {item.action}
+                        </span>
+                        {item.timestamp && (
+                          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                            {item.timestamp}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.875rem' }}>
+                        {item.description}
+                      </div>
+                      {item.text && (
+                        <div style={{
+                          marginTop: '0.5rem',
+                          padding: '0.5rem',
+                          background: '#f9fafb',
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
+                          fontFamily: 'monospace',
+                          color: '#4b5563'
+                        }}>
+                          {item.text.substring(0, 100)}{item.text.length > 100 ? '...' : ''}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {analysisReport.editing_checklist.length > 20 && (
+                    <div style={{ padding: '1rem', textAlign: 'center', color: '#6b7280', fontSize: '0.875rem' }}>
+                      ... and {analysisReport.editing_checklist.length - 20} more items
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <button
+                onClick={() => setShowProductionReport(false)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: '#6366f1',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Close Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Selected File Display */}
+      {selectedAudioFile ? (
+      <>
+      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem' }}>
+        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#64748b', fontSize: '0.9rem' }}>
+          Working with:
+        </label>
+        <div style={{ 
+          padding: '0.75rem', 
+          background: '#e0e7ff', 
+          borderRadius: '6px',
+          border: '2px solid #667eea',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem'
+        }}>
+          <span style={{ fontSize: '1.5rem' }}>🎵</span>
+          <span style={{ fontWeight: '600', color: '#1e293b' }}>{selectedAudioFile.filename}</span>
+          <span style={{ marginLeft: 'auto', fontSize: '0.9rem', color: '#64748b' }}>({selectedAudioFile.status})</span>
+        </div>
+        <div style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: '#64748b' }}>
+          💡 Tip: Select a different file in the "Upload & Transcribe" tab to work with it here.
+        </div>
+      </div>
+      
+      {/* Essential Preparation Steps */}
+      <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', marginBottom: '2rem' }}>
+        <h3 style={{ marginBottom: '1.5rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span>⚙️</span> Essential Preparation Steps
+        </h3>
+
+        <div style={{
+          marginBottom: '1.5rem',
+          padding: '1rem',
+          borderRadius: '8px',
+          border: '1px solid #c7d2fe',
+          background: '#eef2ff'
+        }}>
+          <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem', color: '#3730a3' }}>
+            0. Set Scope First (Optional, Recommended for long books)
+          </h4>
+          <p style={{ fontSize: '0.875rem', color: '#4338ca', marginBottom: '0.75rem' }}>
+            If your audio is only one section of the book, select PDF/transcript start and end here before clicking Clean or Analyze.
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+            <button
+              onClick={() => {
+                setComparisonMode('precise');
+                setRegionSelectorType('pdf');
+                setRegionSelectorMode('start');
+                setShowRegionSelector(true);
+              }}
+              style={{
+                padding: '0.45rem 0.75rem',
+                background: pdfStartChar !== null ? '#ffffff' : '#10b981',
+                color: pdfStartChar !== null ? '#059669' : 'white',
+                border: pdfStartChar !== null ? '2px solid #10b981' : 'none',
+                borderRadius: '6px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontSize: '0.8rem'
+              }}
+            >
+              {pdfStartChar !== null ? '📄 PDF Start ✓' : '📄 Set PDF Start'}
+            </button>
+            <button
+              onClick={() => {
+                setComparisonMode('precise');
+                setRegionSelectorType('pdf');
+                setRegionSelectorMode('end');
+                setShowRegionSelector(true);
+              }}
+              style={{
+                padding: '0.45rem 0.75rem',
+                background: pdfEndChar !== null ? '#ffffff' : '#10b981',
+                color: pdfEndChar !== null ? '#059669' : 'white',
+                border: pdfEndChar !== null ? '2px solid #10b981' : 'none',
+                borderRadius: '6px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontSize: '0.8rem'
+              }}
+            >
+              {pdfEndChar !== null ? '📄 PDF End ✓' : '📄 Set PDF End'}
+            </button>
+            {transcriptText && (
+              <>
+                <button
+                  onClick={() => {
+                    setComparisonMode('precise');
+                    setRegionSelectorType('transcript');
+                    setRegionSelectorMode('start');
+                    setShowRegionSelector(true);
+                  }}
+                  style={{
+                    padding: '0.45rem 0.75rem',
+                    background: transcriptStartChar !== null ? '#ffffff' : '#3b82f6',
+                    color: transcriptStartChar !== null ? '#2563eb' : 'white',
+                    border: transcriptStartChar !== null ? '2px solid #3b82f6' : 'none',
+                    borderRadius: '6px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  {transcriptStartChar !== null ? '🎤 Transcript Start ✓' : '🎤 Set Transcript Start'}
+                </button>
+                <button
+                  onClick={() => {
+                    setComparisonMode('precise');
+                    setRegionSelectorType('transcript');
+                    setRegionSelectorMode('end');
+                    setShowRegionSelector(true);
+                  }}
+                  style={{
+                    padding: '0.45rem 0.75rem',
+                    background: transcriptEndChar !== null ? '#ffffff' : '#3b82f6',
+                    color: transcriptEndChar !== null ? '#2563eb' : 'white',
+                    border: transcriptEndChar !== null ? '2px solid #3b82f6' : 'none',
+                    borderRadius: '6px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  {transcriptEndChar !== null ? '🎤 Transcript End ✓' : '🎤 Set Transcript End'}
+                </button>
+              </>
+            )}
+          </div>
+          <div style={{
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              color: hasAnyScopeSelection ? '#065f46' : '#92400e'
+            }}>
+              {hasAnyScopeSelection
+                ? `Using selected scope${hasPdfScope ? ' (PDF)' : ''}${hasTranscriptScope ? ' (Transcript)' : ''}`
+                : 'No scope selected (full text will be used)'}
+            </div>
+        </div>
+        
+        {/* PDF Text Cleanup */}
+        <div style={{ marginBottom: '2rem' }}>
+          <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem', color: '#374151' }}>
+            1. Clean PDF Text
+          </h4>
+          <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+            Fix PDF extraction issues like spacing errors, headers, footers, and page numbers using intelligent pattern detection.
+          </p>
+          <button
+            onClick={handleCleanPDFText}
+            disabled={isCleaningPDF}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: isCleaningPDF ? '#cbd5e1' : '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontWeight: '600',
+              cursor: isCleaningPDF ? 'not-allowed' : 'pointer',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => !isCleaningPDF && (e.currentTarget.style.background = '#059669')}
+            onMouseOut={(e) => !isCleaningPDF && (e.currentTarget.style.background = '#10b981')}
+          >
+            {isCleaningPDF ? '🔄 Cleaning PDF...' : '🧹 Clean PDF Text'}
+          </button>
+          
+          {/* Cleanup Message */}
+          {cleanupMessage && (
+            <div style={{
+              padding: '1rem',
+              marginTop: '1rem',
+              background: cleanupMessage.type === 'success' ? '#d1fae5' : '#fee2e2',
+              border: `2px solid ${cleanupMessage.type === 'success' ? '#10b981' : '#ef4444'}`,
+              borderRadius: '6px',
+              color: cleanupMessage.type === 'success' ? '#065f46' : '#991b1b',
+              fontWeight: '500'
+            }}>
+              {cleanupMessage.text}
+            </div>
+          )}
+        </div>
+        
+        {/* Production Quality Analysis */}
+        <div>
+          <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem', color: '#374151' }}>
+            2. Analyze Production Quality (Audiobook Projects)
+          </h4>
+          <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+            Comprehensive analysis: detects repeated readings, aligns transcript to PDF, identifies quality issues, and finds missing sections.
+            {hasAnyScopeSelection ? ' Uses your selected scope.' : ' Uses full PDF and transcript unless scope is selected first.'}
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+            <button
+              onClick={startProductionAnalysis}
+              disabled={isAnalyzing || !projectId}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: isAnalyzing ? '#9ca3af' : '#6366f1',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontWeight: '600',
+                cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => !isAnalyzing && (e.currentTarget.style.background = '#4f46e5')}
+              onMouseOut={(e) => !isAnalyzing && (e.currentTarget.style.background = '#6366f1')}
+            >
+              {isAnalyzing ? '⏳ Analyzing...' : '📊 Analyze Production Quality'}
+            </button>
+            
+            {analysisProgress && isAnalyzing && (
+              <div style={{ flex: 1 }}>
+                <div style={{ marginBottom: '0.5rem', fontSize: '0.875rem', color: '#6b7280' }}>
+                  {analysisProgress.stage} - {analysisProgress.message}
+                </div>
+                <div style={{
+                  height: '8px',
+                  background: '#e5e7eb',
+                  borderRadius: '4px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    width: `${analysisProgress.percent}%`,
+                    height: '100%',
+                    background: '#6366f1',
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+                <div style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: '#9ca3af' }}>
+                  {analysisProgress.percent}%
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
           {/* Comparison Mode Selection */}
           <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', marginBottom: '2rem' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#1e293b' }}>Comparison Algorithm</h3>
+            <h3 style={{ marginBottom: '1rem', color: '#1e293b' }}>3. Comparison Algorithm</h3>
+            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+              Scope preview and fine-tuning for precise mode.
+            </p>
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button
                 onClick={() => handleModeChange('ai')}
@@ -707,6 +1358,7 @@ const Tab5ComparePDF = () => {
                     )}
                     <button
                       onClick={() => {
+                        setRegionSelectorType('pdf');
                         setRegionSelectorMode('start');
                         setShowRegionSelector(true);
                       }}
@@ -843,6 +1495,7 @@ const Tab5ComparePDF = () => {
                     )}
                     <button
                       onClick={() => {
+                        setRegionSelectorType('pdf');
                         setRegionSelectorMode('end');
                         setShowRegionSelector(true);
                       }}
@@ -950,6 +1603,7 @@ const Tab5ComparePDF = () => {
           
           {/* Action Buttons */}
           <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', marginBottom: '2rem' }}>
+            <h3 style={{ marginBottom: '1rem', color: '#1e293b' }}>4. Run Comparison</h3>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <button
                 onClick={comparisonMode === 'ai' ? startComparison : startPreciseComparison}
@@ -1509,6 +2163,18 @@ const Tab5ComparePDF = () => {
             </div>
           )}
         </>
+      ) : (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '4rem', 
+          background: 'white', 
+          borderRadius: '8px',
+          color: '#64748b'
+        }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📄</div>
+          <h3 style={{ marginBottom: '0.5rem', color: '#1e293b' }}>No File Selected</h3>
+          <p style={{ fontSize: '1rem' }}>Please select a transcribed or processed audio file in the <strong>"Upload & Transcribe"</strong> tab to compare against the PDF.</p>
+        </div>
       )}
       
       {/* PDF Region Selector Modal */}
@@ -1544,20 +2210,6 @@ const Tab5ComparePDF = () => {
               onCancel={() => setShowRegionSelector(false)}
             />
           </div>
-        </div>
-      )}
-      
-      {/* Empty State */}
-      {!selectedAudioFile && (
-        <div style={{ 
-          textAlign: 'center', 
-          padding: '4rem', 
-          background: '#f9fafb', 
-          borderRadius: '8px',
-          color: '#6b7280'
-        }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📄</div>
-          <p style={{ fontSize: '1.1rem' }}>Select an audio file to begin PDF comparison</p>
         </div>
       )}
     </div>

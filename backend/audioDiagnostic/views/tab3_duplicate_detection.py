@@ -25,6 +25,46 @@ class SingleFileDetectDuplicatesView(APIView):
         """Detect duplicates in a single audio file"""
         project = get_object_or_404(AudioProject, id=project_id, user=request.user)
         audio_file = get_object_or_404(AudioFile, id=audio_file_id, project=project)
+
+        algorithm = request.data.get('algorithm', 'tfidf_cosine')
+        raw_pdf_hint = request.data.get('use_pdf_hint', False)
+        if isinstance(raw_pdf_hint, bool):
+            use_pdf_hint = raw_pdf_hint
+        else:
+            use_pdf_hint = str(raw_pdf_hint).strip().lower() in {'1', 'true', 'yes', 'on'}
+        supported_algorithms = {
+            'tfidf_cosine',
+            'windowed_retry',
+            'windowed_retry_pdf',
+        }
+
+        if algorithm not in supported_algorithms:
+            return Response({
+                'success': False,
+                'error': f'Unsupported algorithm: {algorithm}',
+                'supported_algorithms': sorted(list(supported_algorithms))
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if algorithm == 'windowed_retry_pdf':
+            use_pdf_hint = True
+
+        def parse_optional_int(value):
+            if value is None or value == '':
+                return None
+            return int(value)
+
+        def parse_optional_float(value):
+            if value is None or value == '':
+                return None
+            return float(value)
+
+        tfidf_similarity_threshold = parse_optional_float(request.data.get('tfidf_similarity_threshold'))
+        window_max_lookahead = parse_optional_int(request.data.get('window_max_lookahead'))
+        window_ratio_threshold = parse_optional_float(request.data.get('window_ratio_threshold'))
+        window_strong_match_ratio = parse_optional_float(request.data.get('window_strong_match_ratio'))
+        window_min_word_length = parse_optional_int(request.data.get('window_min_word_length'))
+        pdf_start_char = parse_optional_int(request.data.get('pdf_start_char'))
+        pdf_end_char = parse_optional_int(request.data.get('pdf_end_char'))
         
         # Check if file has transcription
         if not hasattr(audio_file, 'transcription'):
@@ -42,13 +82,35 @@ class SingleFileDetectDuplicatesView(APIView):
         
         # Start duplicate detection task
         try:
-            task = detect_duplicates_single_file_task.delay(audio_file.id)
+            task = detect_duplicates_single_file_task.delay(
+                audio_file.id,
+                algorithm=algorithm,
+                use_pdf_hint=use_pdf_hint,
+                tfidf_similarity_threshold=tfidf_similarity_threshold,
+                window_max_lookahead=window_max_lookahead,
+                window_ratio_threshold=window_ratio_threshold,
+                window_strong_match_ratio=window_strong_match_ratio,
+                window_min_word_length=window_min_word_length,
+                pdf_start_char=pdf_start_char,
+                pdf_end_char=pdf_end_char,
+            )
             
             return Response({
                 'success': True,
                 'message': 'Duplicate detection started',
                 'task_id': task.id,
-                'audio_file_id': audio_file.id
+                'audio_file_id': audio_file.id,
+                'algorithm': algorithm,
+                'use_pdf_hint': use_pdf_hint,
+                'settings': {
+                    'tfidf_similarity_threshold': tfidf_similarity_threshold,
+                    'window_max_lookahead': window_max_lookahead,
+                    'window_ratio_threshold': window_ratio_threshold,
+                    'window_strong_match_ratio': window_strong_match_ratio,
+                    'window_min_word_length': window_min_word_length,
+                    'pdf_start_char': pdf_start_char,
+                    'pdf_end_char': pdf_end_char,
+                }
             })
         except Exception as e:
             return Response({

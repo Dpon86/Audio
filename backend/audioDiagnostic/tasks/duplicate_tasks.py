@@ -1,6 +1,9 @@
 """
 Duplicate Tasks for audioDiagnostic app.
 """
+from difflib import SequenceMatcher
+from collections import defaultdict
+
 from ._base import *
 from audioDiagnostic.tasks.utils import get_final_transcript_without_duplicates, get_audio_duration, save_transcription_to_db, normalize
 from .audio_processing_tasks import assemble_final_audio, generate_clean_audio
@@ -987,7 +990,19 @@ def refine_duplicate_timestamps_task(self, audio_file_id):
 
 
 @shared_task(bind=True)
-def detect_duplicates_single_file_task(self, audio_file_id):
+def detect_duplicates_single_file_task(
+    self,
+    audio_file_id,
+    algorithm='tfidf_cosine',
+    use_pdf_hint=False,
+    tfidf_similarity_threshold=None,
+    window_max_lookahead=None,
+    window_ratio_threshold=None,
+    window_strong_match_ratio=None,
+    window_min_word_length=None,
+    pdf_start_char=None,
+    pdf_end_char=None,
+):
     """
     Detect duplicate segments within a SINGLE audio file (not across files).
     Creates DuplicateGroup records for review.
@@ -1003,10 +1018,149 @@ def detect_duplicates_single_file_task(self, audio_file_id):
     
     try:
         from audioDiagnostic.models import AudioFile, Transcription, TranscriptionSegment, DuplicateGroup
-        from collections import defaultdict
         from sklearn.feature_extraction.text import TfidfVectorizer
         from sklearn.metrics.pairwise import cosine_similarity
-        import numpy as np
+
+        # Default/tuned parameters (overridable via API)
+        tfidf_similarity_threshold = 0.85 if tfidf_similarity_threshold is None else float(tfidf_similarity_threshold)
+        window_max_lookahead = 90 if window_max_lookahead is None else int(window_max_lookahead)
+        window_ratio_threshold = 0.76 if window_ratio_threshold is None else float(window_ratio_threshold)
+        window_strong_match_ratio = 0.84 if window_strong_match_ratio is None else float(window_strong_match_ratio)
+        window_min_word_length = 3 if window_min_word_length is None else int(window_min_word_length)
+
+        def tokenize_words(text, min_len=1):
+            return [word for word in normalize(text).split() if word and len(word) >= min_len]
+
+        def common_word_ratio(words_a, words_b):
+            if not words_a or not words_b:
+                return 0.0
+            set_a = set(words_a)
+            set_b = set(words_b)
+            overlap = len(set_a.intersection(set_b))
+            denominator = max(1, min(len(set_a), len(set_b)))
+            return overlap / denominator
+
+        def estimate_pdf_anchor(segment_words, normalized_pdf_text):
+            if not normalized_pdf_text or not segment_words:
+                return None
+
+            # Try a few phrase sizes from longer to shorter
+            for phrase_len in [10, 8, 6, 4]:
+                if len(segment_words) < phrase_len:
+                    continue
+                phrase = ' '.join(segment_words[:phrase_len])
+                idx = normalized_pdf_text.find(phrase)
+                if idx != -1:
+                    return idx
+            return None
+
+        def build_groups_with_tfidf(segments, normalized_texts, similarity_threshold=0.85):
+            vectorizer = TfidfVectorizer(ngram_range=(1, 3), min_df=1, max_df=0.9)
+            tfidf_matrix = vectorizer.fit_transform(normalized_texts)
+            similarity_matrix = cosine_similarity(tfidf_matrix)
+
+            duplicate_groups = []
+            processed_indices = set()
+
+            for i in range(len(segments)):
+                if i in processed_indices:
+                    continue
+
+                similar_indices = []
+                for j in range(i, len(segments)):
+                    if j in processed_indices:
+                        continue
+                    if similarity_matrix[i][j] >= similarity_threshold:
+                        similar_indices.append(j)
+
+                if len(similar_indices) > 1:
+                    similar_indices.sort()
+                    duplicate_groups.append(similar_indices)
+                    processed_indices.update(similar_indices)
+
+            return duplicate_groups
+
+        def build_groups_windowed_retry(segments, normalized_texts, include_pdf_hint=False, normalized_pdf_text=None):
+            # Completely new algorithm: local retry-aware matching in rolling windows
+            # Works better for narrator restarts where retries are close in time.
+            max_lookahead = window_max_lookahead
+            ratio_threshold = window_ratio_threshold
+            strong_match_ratio = window_strong_match_ratio
+            min_word_len = window_min_word_length
+
+            word_lists = [tokenize_words(text, min_len=min_word_len) for text in normalized_texts]
+            pdf_anchors = {}
+
+            if include_pdf_hint and normalized_pdf_text:
+                for idx, words in enumerate(word_lists):
+                    pdf_anchors[idx] = estimate_pdf_anchor(words, normalized_pdf_text)
+
+            # Build similarity graph
+            adjacency = defaultdict(set)
+
+            total_segments = len(segments)
+            for i in range(total_segments):
+                words_i = word_lists[i]
+                if len(words_i) < 2:
+                    continue
+
+                max_j = min(total_segments, i + 1 + max_lookahead)
+                for j in range(i + 1, max_j):
+                    words_j = word_lists[j]
+                    if len(words_j) < 2:
+                        continue
+
+                    # Quick length sanity check
+                    long_len = max(len(words_i), len(words_j))
+                    short_len = min(len(words_i), len(words_j))
+                    if short_len < 2 or (long_len - short_len) > max(8, int(long_len * 0.55)):
+                        continue
+
+                    overlap_ratio = common_word_ratio(words_i, words_j)
+                    if overlap_ratio < 0.45:
+                        continue
+
+                    ratio = SequenceMatcher(None, normalized_texts[i], normalized_texts[j]).ratio()
+
+                    # Optional PDF anchoring: if snippets map far apart in PDF,
+                    # treat as likely different content unless text match is very strong.
+                    if include_pdf_hint and normalized_pdf_text:
+                        pos_i = pdf_anchors.get(i)
+                        pos_j = pdf_anchors.get(j)
+                        if pos_i is not None and pos_j is not None:
+                            if abs(pos_i - pos_j) > 1200 and ratio < 0.90:
+                                continue
+
+                    is_match = ratio >= strong_match_ratio or (ratio >= ratio_threshold and overlap_ratio >= 0.58)
+                    if is_match:
+                        adjacency[i].add(j)
+                        adjacency[j].add(i)
+
+            # Connected components become duplicate groups
+            duplicate_groups = []
+            visited = set()
+
+            for start_idx in range(total_segments):
+                if start_idx in visited or start_idx not in adjacency:
+                    continue
+
+                stack = [start_idx]
+                component = []
+                while stack:
+                    current = stack.pop()
+                    if current in visited:
+                        continue
+                    visited.add(current)
+                    component.append(current)
+                    for nxt in adjacency[current]:
+                        if nxt not in visited:
+                            stack.append(nxt)
+
+                if len(component) > 1:
+                    component.sort()
+                    duplicate_groups.append(component)
+
+            return duplicate_groups
         
         # Get audio file and transcription
         audio_file = AudioFile.objects.get(id=audio_file_id)
@@ -1026,7 +1180,16 @@ def detect_duplicates_single_file_task(self, audio_file_id):
         
         r.set(f"progress:{task_id}", 10)
         self.update_state(state='PROGRESS', meta={'progress': 10, 'message': 'Loading segments...'})
-        logger.info(f"Detecting duplicates in audio file {audio_file_id} with {len(segments)} segments")
+        logger.info(
+            f"Detecting duplicates in audio file {audio_file_id} with {len(segments)} segments "
+            f"(algorithm={algorithm}, use_pdf_hint={use_pdf_hint})"
+        )
+        logger.info(
+            f"Algorithm settings: tfidf_threshold={tfidf_similarity_threshold}, "
+            f"window_max_lookahead={window_max_lookahead}, window_ratio_threshold={window_ratio_threshold}, "
+            f"window_strong_match_ratio={window_strong_match_ratio}, window_min_word_length={window_min_word_length}, "
+            f"pdf_start_char={pdf_start_char}, pdf_end_char={pdf_end_char}"
+        )
         
         # Clear existing duplicate groups
         DuplicateGroup.objects.filter(audio_file=audio_file).delete()
@@ -1041,40 +1204,47 @@ def detect_duplicates_single_file_task(self, audio_file_id):
         
         # Normalize texts
         segment_texts = [normalize(seg.text) for seg in segments]
-        
-        # Use TF-IDF and cosine similarity
-        vectorizer = TfidfVectorizer(ngram_range=(1, 3), min_df=1, max_df=0.9)
-        tfidf_matrix = vectorizer.fit_transform(segment_texts)
+
+        normalized_pdf_text = None
+        if use_pdf_hint and audio_file.project and audio_file.project.pdf_text:
+            scoped_pdf_text = audio_file.project.pdf_text
+            if pdf_start_char is not None or pdf_end_char is not None:
+                start_idx = 0 if pdf_start_char is None else max(0, int(pdf_start_char))
+                end_idx = len(scoped_pdf_text) if pdf_end_char is None else min(len(scoped_pdf_text), int(pdf_end_char))
+                end_idx = max(start_idx, end_idx)
+                scoped_pdf_text = scoped_pdf_text[start_idx:end_idx]
+            normalized_pdf_text = normalize(scoped_pdf_text)
+        if use_pdf_hint and not normalized_pdf_text:
+            logger.warning("PDF hint enabled, but project has no PDF text; continuing without PDF anchor hints")
         
         r.set(f"progress:{task_id}", 40)
-        self.update_state(state='PROGRESS', meta={'progress': 40, 'message': 'Finding duplicate groups...'})
-        
-        # Calculate similarity matrix
-        similarity_matrix = cosine_similarity(tfidf_matrix)
-        
-        # Find duplicates (similarity >= 0.85)
-        SIMILARITY_THRESHOLD = 0.85
-        duplicate_groups = []
-        processed_indices = set()
-        
-        for i in range(len(segments)):
-            if i in processed_indices:
-                continue
-            
-            # Find all segments similar to this one
-            similar_indices = []
-            for j in range(i, len(segments)):
-                if j in processed_indices:
-                    continue
-                if similarity_matrix[i][j] >= SIMILARITY_THRESHOLD:
-                    similar_indices.append(j)
-            
-            # Only create group if duplicates found (more than 1 occurrence)
-            if len(similar_indices) > 1:
-                # Sort indices to ensure chronological order (important for keeping LAST)
-                similar_indices.sort()
-                duplicate_groups.append(similar_indices)
-                processed_indices.update(similar_indices)
+        self.update_state(state='PROGRESS', meta={'progress': 40, 'message': f'Finding duplicate groups ({algorithm})...'})
+
+        if algorithm == 'tfidf_cosine':
+            duplicate_groups = build_groups_with_tfidf(
+                segments,
+                segment_texts,
+                similarity_threshold=tfidf_similarity_threshold,
+            )
+            analysis_method = 'tfidf_cosine'
+        elif algorithm == 'windowed_retry':
+            duplicate_groups = build_groups_windowed_retry(
+                segments,
+                segment_texts,
+                include_pdf_hint=False,
+                normalized_pdf_text=None,
+            )
+            analysis_method = 'windowed_retry'
+        elif algorithm == 'windowed_retry_pdf':
+            duplicate_groups = build_groups_windowed_retry(
+                segments,
+                segment_texts,
+                include_pdf_hint=True,
+                normalized_pdf_text=normalized_pdf_text,
+            )
+            analysis_method = 'windowed_retry_pdf'
+        else:
+            raise ValueError(f"Unsupported duplicate detection algorithm: {algorithm}")
         
         r.set(f"progress:{task_id}", 60)
         self.update_state(state='PROGRESS', meta={'progress': 60, 'message': f'Creating {len(duplicate_groups)} duplicate groups...'})
@@ -1161,6 +1331,17 @@ def detect_duplicates_single_file_task(self, audio_file_id):
             'audio_file_id': audio_file_id,
             'duplicate_groups_found': groups_created,
             'total_duplicates': sum(len(g) for g in duplicate_groups),
+            'algorithm': analysis_method,
+            'use_pdf_hint': bool(use_pdf_hint),
+            'settings': {
+                'tfidf_similarity_threshold': tfidf_similarity_threshold,
+                'window_max_lookahead': window_max_lookahead,
+                'window_ratio_threshold': window_ratio_threshold,
+                'window_strong_match_ratio': window_strong_match_ratio,
+                'window_min_word_length': window_min_word_length,
+                'pdf_start_char': pdf_start_char,
+                'pdf_end_char': pdf_end_char,
+            },
             'message': f'Found {groups_created} duplicate groups, refining timestamps...'
         }
         

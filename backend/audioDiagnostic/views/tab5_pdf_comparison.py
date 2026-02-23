@@ -15,6 +15,11 @@ from celery.result import AsyncResult
 from ..models import AudioProject, AudioFile
 from ..tasks.ai_pdf_comparison_task import ai_compare_transcription_to_pdf_task  # AI-powered comparison
 from ..tasks.precise_pdf_comparison_task import precise_compare_transcription_to_pdf_task  # Precise word-by-word
+from ..tasks.audiobook_production_task import (
+    audiobook_production_analysis_task,
+    get_audiobook_analysis_progress,
+    get_audiobook_report_summary
+)
 from ..utils import get_redis_connection
 
 
@@ -157,72 +162,10 @@ class GetPDFTextView(APIView):
     authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
     
-    def clean_pdf_text(self, text, page_num):
-        """
-        Remove headers, footers, and narrator instructions from PDF page text
-        
-        Common patterns to remove:
-        - "An Improbable Scheme" + number (odd pages)
-        - Number + "LAURA BEERS" (even pages)
-        - Standalone page numbers
-        - Narrator instructions in parentheses
-        - "Dreamscape presents:" etc.
-        """
-        lines = text.split('\n')
-        cleaned_lines = []
-        
-        for line in lines:
-            line_stripped = line.strip()
-            
-            # Skip empty lines at start/end
-            if not line_stripped:
-                cleaned_lines.append(line)
-                continue
-            
-            # Pattern 1: "An Improbable Scheme" followed by optional number
-            if re.match(r'^An Improbable Scheme\s*\d*$', line_stripped, re.IGNORECASE):
-                continue
-            
-            # Pattern 2: Number followed by "LAURA BEERS"
-            if re.match(r'^\d+\s*LAURA BEERS$', line_stripped, re.IGNORECASE):
-                continue
-            
-            # Pattern 3: Just "LAURA BEERS"
-            if re.match(r'^LAURA BEERS$', line_stripped, re.IGNORECASE):
-                continue
-            
-            # Pattern 4: Just "An Improbable Scheme"
-            if re.match(r'^An Improbable Scheme$', line_stripped, re.IGNORECASE):
-                continue
-            
-            # Pattern 5: Standalone page numbers (single line with just digits)
-            if re.match(r'^\d+$', line_stripped) and len(line_stripped) <= 4:
-                continue
-            
-            # Pattern 6: Narrator instructions (text in parentheses with colons)
-            if re.match(r'^\([^)]*:.*\)$', line_stripped):
-                continue
-            
-            # Pattern 7: "Dreamscape presents:" or similar publisher text
-            if re.match(r'^Dreamscape presents:', line_stripped, re.IGNORECASE):
-                continue
-            
-            # Pattern 8: "Narrated by" lines
-            if re.match(r'^Narrated by', line_stripped, re.IGNORECASE):
-                continue
-            
-            # Remove inline narrator instructions from the line
-            # e.g., "(Marian : Please add 3 seconds of room tone before beginning) Rest of text"
-            line_cleaned = re.sub(r'\([^)]*:\s*[^)]+\)\s*', '', line)
-            
-            if line_cleaned.strip():
-                cleaned_lines.append(line_cleaned)
-        
-        return '\n'.join(cleaned_lines)
-    
     def get(self, request, project_id):
-        """Get PDF text content with headers/footers removed"""
+        """Get PDF text content with headers/footers removed and text cleaned"""
         from PyPDF2 import PdfReader
+        from ..utils.pdf_text_cleaner import clean_pdf_text_with_pattern_detection
         
         project = get_object_or_404(AudioProject, id=project_id, user=request.user)
         
@@ -234,44 +177,40 @@ class GetPDFTextView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            # Extract and clean PDF text
-            reader = PdfReader(project.pdf_file.path)
+            # Use intelligent pattern detection to remove headers/footers
+            # This analyzes the PDF structure to find repeating patterns at top/bottom of pages
+            # Works for ANY book format, not just specific regex patterns
+            pdf_text = clean_pdf_text_with_pattern_detection(
+                project.pdf_file.path,
+                header_lines=3,  # Check top 3 lines of each page
+                footer_lines=3,  # Check bottom 3 lines of each page
+                min_occurrence_ratio=0.4  # Pattern must appear on 40%+ of pages
+            )
             
-            # Extract text page by page and clean headers/footers
-            cleaned_pages = []
-            page_breaks = []
-            char_count = 0
-            
-            for i, page in enumerate(reader.pages):
-                raw_text = page.extract_text() or ""
-                
-                # Clean headers and footers
-                cleaned_text = self.clean_pdf_text(raw_text, i + 1)
-                
-                # Remove excessive blank lines
-                cleaned_text = re.sub(r'\n{3,}', '\n\n', cleaned_text)
-                cleaned_text = cleaned_text.strip()
-                
-                if cleaned_text:
-                    cleaned_pages.append(cleaned_text)
-                    
-                    # Track page breaks
-                    page_breaks.append({
-                        'page_num': i + 1,
-                        'start_char': char_count,
-                        'end_char': char_count + len(cleaned_text),
-                        'preview': cleaned_text[:200] if cleaned_text else '(blank page)'
-                    })
-                    
-                    char_count += len(cleaned_text) + 1  # +1 for newline between pages
-            
-            # Join all cleaned pages
-            pdf_text = '\n'.join(cleaned_pages)
-            
-            # Save cleaned text if not already saved
+            # Save cleaned text to project for reuse in comparisons
             if not project.pdf_text or len(project.pdf_text) != len(pdf_text):
                 project.pdf_text = pdf_text
                 project.save(update_fields=['pdf_text'])
+            
+            # Get page count for building approximate page breaks
+            reader = PdfReader(project.pdf_file.path)
+            num_pages = len(reader.pages)
+            
+            # Build page breaks (approximate, since we cleaned the text)
+            # This is mainly for display purposes
+            page_breaks = []
+            approx_chars_per_page = len(pdf_text) // num_pages if num_pages > 0 else len(pdf_text)
+            
+            for i in range(num_pages):
+                start_char = i * approx_chars_per_page
+                end_char = (i + 1) * approx_chars_per_page if i < num_pages - 1 else len(pdf_text)
+                
+                page_breaks.append({
+                    'page_num': i + 1,
+                    'start_char': start_char,
+                    'end_char': min(end_char, len(pdf_text)),
+                    'preview': pdf_text[start_char:start_char + 200] if start_char < len(pdf_text) else ''
+                })
             
             # Split into sentences for better selection UI
             sentence_pattern = r'([^.!?]+[.!?]+)'
@@ -445,9 +384,33 @@ class SideBySideComparisonView(APIView):
         results = audio_file.pdf_comparison_results or {}
         match_result = results.get('match_result', {})
         
+        def parse_optional_int(value):
+            if value is None or value == '':
+                return None
+            return int(value)
+
+        pdf_start_char = parse_optional_int(request.query_params.get('pdf_start_char'))
+        pdf_end_char = parse_optional_int(request.query_params.get('pdf_end_char'))
+        transcript_start_char = parse_optional_int(request.query_params.get('transcript_start_char'))
+        transcript_end_char = parse_optional_int(request.query_params.get('transcript_end_char'))
+
         # Get texts
-        transcription_text = audio_file.transcript_text
-        pdf_section = match_result.get('matched_section', '')
+        transcription_text = audio_file.transcript_text or ''
+        pdf_section = match_result.get('matched_section', '') or (project.pdf_text or '')
+
+        if transcript_start_char is not None or transcript_end_char is not None:
+            start_idx = transcript_start_char if transcript_start_char is not None else 0
+            end_idx = transcript_end_char if transcript_end_char is not None else len(transcription_text)
+            end_idx = max(start_idx, end_idx)
+            transcription_text = transcription_text[start_idx:end_idx]
+
+        if pdf_start_char is not None or pdf_end_char is not None:
+            # Prefer slicing full project PDF text when available
+            pdf_source = project.pdf_text or pdf_section
+            start_idx = pdf_start_char if pdf_start_char is not None else 0
+            end_idx = pdf_end_char if pdf_end_char is not None else len(pdf_source)
+            end_idx = max(start_idx, end_idx)
+            pdf_section = pdf_source[start_idx:end_idx]
         
         # Generate diff segments for side-by-side display
         from difflib import SequenceMatcher
@@ -499,7 +462,13 @@ class SideBySideComparisonView(APIView):
             'segments': segments,
             'statistics': results.get('statistics', {}),
             'match_confidence': match_result.get('confidence', 0),
-            'ignored_sections': audio_file.pdf_ignored_sections or []
+            'ignored_sections': audio_file.pdf_ignored_sections or [],
+            'range_used': {
+                'pdf_start_char': pdf_start_char,
+                'pdf_end_char': pdf_end_char,
+                'transcript_start_char': transcript_start_char,
+                'transcript_end_char': transcript_end_char,
+            }
         })
 
 
@@ -666,3 +635,261 @@ class MarkContentForDeletionView(APIView):
                 'success': False,
                 'error': f'Failed to mark segments for deletion: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CleanPDFTextView(APIView):
+    """
+    Re-extract and clean PDF text, fixing common extraction issues like:
+    - Words split with spaces (e.g., "h e l l o" -> "hello")
+    - Hyphenated words across line breaks
+    - Irregular spacing
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, project_id):
+        """Clean and fix PDF text for a project"""
+        from PyPDF2 import PdfReader
+        from ..utils.pdf_text_cleaner import clean_pdf_text, analyze_pdf_text_quality
+        
+        project = get_object_or_404(AudioProject, id=project_id, user=request.user)
+        
+        # Check if project has PDF
+        if not project.pdf_file:
+            return Response({
+                'success': False,
+                'error': 'Project does not have a PDF file'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            def parse_optional_int(value):
+                if value is None or value == '':
+                    return None
+                return int(value)
+
+            pdf_start_char = parse_optional_int(request.data.get('pdf_start_char'))
+            pdf_end_char = parse_optional_int(request.data.get('pdf_end_char'))
+
+            # Analyze current PDF text quality (if exists)
+            old_quality = None
+            if project.pdf_text:
+                old_quality = analyze_pdf_text_quality(project.pdf_text)
+            
+            # Re-extract PDF text
+            reader = PdfReader(project.pdf_file.path)
+            raw_text = "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
+
+            chars_before = len(project.pdf_text) if project.pdf_text else len(raw_text)
+
+            # Optionally clean only selected PDF region, then merge back
+            if pdf_start_char is not None or pdf_end_char is not None:
+                start_idx = pdf_start_char if pdf_start_char is not None else 0
+                end_idx = pdf_end_char if pdf_end_char is not None else len(raw_text)
+
+                start_idx = max(0, min(start_idx, len(raw_text)))
+                end_idx = max(start_idx, min(end_idx, len(raw_text)))
+
+                target_text = raw_text[start_idx:end_idx]
+                cleaned_target = clean_pdf_text(target_text, remove_headers=True)
+                cleaned_text = raw_text[:start_idx] + cleaned_target + raw_text[end_idx:]
+            else:
+                # Apply comprehensive cleaning to full PDF
+                cleaned_text = clean_pdf_text(raw_text, remove_headers=True)
+            
+            # Analyze new quality
+            new_quality = analyze_pdf_text_quality(cleaned_text)
+            
+            # Save cleaned text
+            project.pdf_text = cleaned_text
+            project.save(update_fields=['pdf_text'])
+            
+            return Response({
+                'success': True,
+                'message': 'PDF text successfully cleaned and updated',
+                'statistics': {
+                    'old_quality': old_quality,
+                    'new_quality': new_quality,
+                    'chars_before': chars_before,
+                    'chars_after': len(cleaned_text),
+                    'improvement': new_quality['quality_score'] - (old_quality['quality_score'] if old_quality else 0)
+                }
+            })
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': f'Failed to clean PDF text: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AudiobookProductionAnalysisView(APIView):
+    """
+    POST: Start comprehensive audiobook production analysis
+    Analyzes repetitions, quality, missing sections, and generates production report
+    """
+    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, project_id):
+        """Start audiobook production analysis"""
+        project = get_object_or_404(AudioProject, id=project_id, user=request.user)
+        
+        # Check if project has PDF
+        if not project.pdf_text:
+            return Response({
+                'success': False,
+                'error': 'Project must have PDF text. Please upload and process a PDF first.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get parameters from request
+        audio_file_id = request.data.get('audio_file_id')  # Optional - analyze specific file
+        min_repeat_length = int(request.data.get('min_repeat_length', 5))
+        max_repeat_length = int(request.data.get('max_repeat_length', 50))
+        segment_size = int(request.data.get('segment_size', 50))
+        min_gap_words = int(request.data.get('min_gap_words', 10))
+
+        def parse_optional_int(value):
+            if value is None or value == '':
+                return None
+            return int(value)
+
+        pdf_start_char = parse_optional_int(request.data.get('pdf_start_char'))
+        pdf_end_char = parse_optional_int(request.data.get('pdf_end_char'))
+        transcript_start_char = parse_optional_int(request.data.get('transcript_start_char'))
+        transcript_end_char = parse_optional_int(request.data.get('transcript_end_char'))
+        
+        try:
+            # Start analysis task
+            task = audiobook_production_analysis_task.delay(
+                project_id=project.id,
+                audio_file_id=audio_file_id,
+                min_repeat_length=min_repeat_length,
+                max_repeat_length=max_repeat_length,
+                segment_size=segment_size,
+                min_gap_words=min_gap_words,
+                pdf_start_char=pdf_start_char,
+                pdf_end_char=pdf_end_char,
+                transcript_start_char=transcript_start_char,
+                transcript_end_char=transcript_end_char,
+            )
+            
+            return Response({
+                'success': True,
+                'task_id': task.id,
+                'message': 'Audiobook production analysis started'
+            })
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': f'Failed to start analysis: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AudiobookAnalysisProgressView(APIView):
+    """
+    GET: Get progress of audiobook production analysis task
+    """
+    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, task_id):
+        """Get task progress"""
+        try:
+            # Get progress from Celery task
+            task_result = AsyncResult(task_id)
+            
+            # Also get detailed progress from Redis
+            progress = get_audiobook_analysis_progress.apply_async(args=[task_id]).get(timeout=5)
+            
+            return Response({
+                'success': True,
+                'task_id': task_id,
+                'state': task_result.state,
+                'progress': progress
+            })
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': f'Failed to get progress: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AudiobookAnalysisResultView(APIView):
+    """
+    GET: Get result of completed audiobook production analysis
+    """
+    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, task_id):
+        """Get task result"""
+        try:
+            task_result = AsyncResult(task_id)
+            
+            if task_result.state == 'PENDING':
+                return Response({
+                    'success': False,
+                    'state': 'PENDING',
+                    'message': 'Task not found or not started'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            elif task_result.state == 'FAILURE':
+                return Response({
+                    'success': False,
+                    'state': 'FAILURE',
+                    'error': str(task_result.info)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            elif task_result.state == 'SUCCESS':
+                return Response({
+                    'success': True,
+                    'state': 'SUCCESS',
+                    'result': task_result.result
+                })
+            
+            else:
+                return Response({
+                    'success': False,
+                    'state': task_result.state,
+                    'message': f'Task is in state: {task_result.state}'
+                })
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': f'Failed to get result: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AudiobookReportSummaryView(APIView):
+    """
+    GET: Get quick summary of most recent audiobook analysis for a project
+    """
+    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, project_id):
+        """Get report summary"""
+        project = get_object_or_404(AudioProject, id=project_id, user=request.user)
+        
+        try:
+            summary = get_audiobook_report_summary.apply_async(args=[project.id]).get(timeout=5)
+            
+            if summary:
+                return Response({
+                    'success': True,
+                    'summary': summary
+                })
+            else:
+                return Response({
+                    'success': False,
+                    'message': 'No recent analysis found for this project'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': f'Failed to get summary: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

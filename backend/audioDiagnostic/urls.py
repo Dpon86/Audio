@@ -56,12 +56,17 @@ from .views.tab5_pdf_comparison import (
     StartPDFComparisonView,
     StartPrecisePDFComparisonView,
     GetPDFTextView,
+    CleanPDFTextView,
     PDFComparisonResultView,
     PDFComparisonStatusView,
     SideBySideComparisonView,
     MarkIgnoredSectionsView,
     ResetPDFComparisonView,
     MarkContentForDeletionView,
+    AudiobookProductionAnalysisView,
+    AudiobookAnalysisProgressView,
+    AudiobookAnalysisResultView,
+    AudiobookReportSummaryView,
 )
 from django.conf import settings
 from django.conf.urls.static import static
@@ -139,12 +144,19 @@ urlpatterns = [
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/compare-pdf/', StartPDFComparisonView.as_view(), name='tab5-compare-pdf'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/precise-compare/', StartPrecisePDFComparisonView.as_view(), name='tab5-precise-compare'),
     path('api/projects/<int:project_id>/pdf-text/', GetPDFTextView.as_view(), name='tab5-get-pdf-text'),
+    path('api/projects/<int:project_id>/clean-pdf-text/', CleanPDFTextView.as_view(), name='tab5-clean-pdf-text'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/pdf-result/', PDFComparisonResultView.as_view(), name='tab5-pdf-result'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/pdf-status/', PDFComparisonStatusView.as_view(), name='tab5-pdf-status'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/side-by-side/', SideBySideComparisonView.as_view(), name='tab5-side-by-side'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/ignored-sections/', MarkIgnoredSectionsView.as_view(), name='tab5-ignored-sections'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/reset-comparison/', ResetPDFComparisonView.as_view(), name='tab5-reset-comparison'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/mark-for-deletion/', MarkContentForDeletionView.as_view(), name='tab5-mark-for-deletion'),
+    
+    # Tab 5: Audiobook Production Analysis (NEW)
+    path('api/projects/<int:project_id>/audiobook-analysis/', AudiobookProductionAnalysisView.as_view(), name='audiobook-production-analysis'),
+    path('api/audiobook-analysis/<str:task_id>/progress/', AudiobookAnalysisProgressView.as_view(), name='audiobook-analysis-progress'),
+    path('api/audiobook-analysis/<str:task_id>/result/', AudiobookAnalysisResultView.as_view(), name='audiobook-analysis-result'),
+    path('api/projects/<int:project_id>/audiobook-report-summary/', AudiobookReportSummaryView.as_view(), name='audiobook-report-summary'),
     
     # Infrastructure Management
     path('infrastructure/status/', InfrastructureStatusView.as_view(), name='infrastructure-status'),

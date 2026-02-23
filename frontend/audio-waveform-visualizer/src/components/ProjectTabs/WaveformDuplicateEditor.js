@@ -46,6 +46,8 @@ const WaveformDuplicateEditor = ({
   
   // Silence detection state
   const [silenceThreshold, setSilenceThreshold] = useState(-40); // dB
+  const [silenceSearchRange, setSilenceSearchRange] = useState(0.6); // seconds
+  const [silenceMinDuration, setSilenceMinDuration] = useState(0.08); // seconds
   const [isAligningToSilence, setIsAligningToSilence] = useState(false);
   
   // Ref for waveform container
@@ -558,12 +560,11 @@ const WaveformDuplicateEditor = ({
    * Searches within ±searchRange seconds of targetTime
    * Returns the time at the center of the silent section, or targetTime if no silence found
    */
-  const findSilenceCenter = (audioBuffer, targetTime, searchRange = 0.5) => {
+  const findSilenceCenter = (audioBuffer, targetTime, searchRange, minSilenceDurationSec) => {
     const sampleRate = audioBuffer.sampleRate;
     const targetSample = Math.floor(targetTime * sampleRate);
     const searchSamples = Math.floor(searchRange * sampleRate);
-    const minSilenceDuration = 0.1; // 100ms minimum silence
-    const minSilenceSamples = Math.floor(minSilenceDuration * sampleRate);
+    const minSilenceSamples = Math.floor(minSilenceDurationSec * sampleRate);
     
     const startSearch = Math.max(0, targetSample - searchSamples);
     const endSearch = Math.min(audioBuffer.length, targetSample + searchSamples);
@@ -641,6 +642,7 @@ const WaveformDuplicateEditor = ({
       }
       
       console.log(`🔇 Starting silence alignment with threshold: ${silenceThreshold}dB`);
+      console.log(`🔎 Silence search range: ${silenceSearchRange}s, min silence: ${(silenceMinDuration * 1000).toFixed(0)}ms`);
       console.log(`📊 Processing DELETE regions (KEEP regions will be skipped)`);
       
       const updates = [];
@@ -678,10 +680,10 @@ const WaveformDuplicateEditor = ({
         // Find silent sections for boundaries that need adjustment
         const newStart = startAlreadySilent 
           ? originalStart 
-          : findSilenceCenter(audioBuffer, originalStart, 0.5);
+          : findSilenceCenter(audioBuffer, originalStart, silenceSearchRange, silenceMinDuration);
         const newEnd = endAlreadySilent 
           ? originalEnd 
-          : findSilenceCenter(audioBuffer, originalEnd, 0.5);
+          : findSilenceCenter(audioBuffer, originalEnd, silenceSearchRange, silenceMinDuration);
         
         // Check if anything actually changed
         const startChanged = Math.abs(newStart - originalStart) > 0.01; // 10ms threshold
@@ -858,6 +860,38 @@ const WaveformDuplicateEditor = ({
             onChange={(e) => setSilenceThreshold(Number(e.target.value))}
             className="threshold-slider-compact"
             title="Adjust silence detection sensitivity"
+          />
+        </div>
+
+        <div className="silence-threshold-compact">
+          <label title="Search range around boundaries">
+            {silenceSearchRange.toFixed(2)}s
+          </label>
+          <input
+            type="range"
+            min="0.2"
+            max="2.0"
+            step="0.05"
+            value={silenceSearchRange}
+            onChange={(e) => setSilenceSearchRange(Number(e.target.value))}
+            className="threshold-slider-compact"
+            title="Adjust silence search range"
+          />
+        </div>
+
+        <div className="silence-threshold-compact">
+          <label title="Minimum silence duration">
+            {(silenceMinDuration * 1000).toFixed(0)}ms
+          </label>
+          <input
+            type="range"
+            min="0.04"
+            max="0.3"
+            step="0.01"
+            value={silenceMinDuration}
+            onChange={(e) => setSilenceMinDuration(Number(e.target.value))}
+            className="threshold-slider-compact"
+            title="Adjust minimum silence duration"
           />
         </div>
 

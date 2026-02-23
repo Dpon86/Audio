@@ -42,6 +42,7 @@ const PDFRegionSelector = ({
   const [totalChars, setTotalChars] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [textOffset, setTextOffset] = useState(0); // Offset when showing partial text (e.g., last 200 words)
   
   // Selection state
   const [selectedPosition, setSelectedPosition] = useState(
@@ -51,7 +52,7 @@ const PDFRegionSelector = ({
   const [previewText, setPreviewText] = useState('');
   
   // Selection method
-  const [selectionMethod, setSelectionMethod] = useState('sentence'); // 'sentence' or 'character'
+  const [selectionMethod, setSelectionMethod] = useState('character'); // 'sentence' or 'character'
   
   // Current page for navigation
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,8 +72,38 @@ const PDFRegionSelector = ({
   const loadPDFText = useCallback(async () => {
     // If type is 'transcript', use the provided transcript text instead
     if (type === 'transcript') {
-      setPdfText(transcriptText);
-      setTotalChars(transcriptText.length);
+      // For end mode, show only the last 200 words to make selection easier
+      if (mode === 'end') {
+        const words = transcriptText.trim().split(/\s+/);
+        const wordCount = 200;
+        
+        if (words.length > wordCount) {
+          // Get last 200 words
+          const lastWords = words.slice(-wordCount);
+          const displayText = lastWords.join(' ');
+          
+          // Calculate the offset where this text starts in the original
+          const fullText = transcriptText.trim();
+          const offsetIndex = fullText.lastIndexOf(displayText);
+          
+          setPdfText(displayText);
+          setTextOffset(offsetIndex);
+          setTotalChars(transcriptText.length); // Keep total as full length
+          // Set initial position to end of displayed text (relative to display)
+          setSelectedPosition(displayText.length);
+        } else {
+          // If transcript is shorter than 200 words, show all
+          setPdfText(transcriptText);
+          setTextOffset(0);
+          setTotalChars(transcriptText.length);
+          setSelectedPosition(transcriptText.length);
+        }
+      } else {
+        // For start mode, show full text
+        setPdfText(transcriptText);
+        setTextOffset(0);
+        setTotalChars(transcriptText.length);
+      }
       setIsLoading(false);
       return;
     }
@@ -106,7 +137,7 @@ const PDFRegionSelector = ({
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, token, type, transcriptText]);
+  }, [projectId, token, type, transcriptText, mode]);
   
   useEffect(() => {
     loadPDFText();
@@ -275,23 +306,26 @@ const PDFRegionSelector = ({
    * Confirm selection and pass to parent
    */
   const handleConfirm = () => {
-    if (selectedPosition < 0 || selectedPosition > totalChars) {
-      alert(`Invalid position: Position must bebetween 0 and ${totalChars}`);
+    // Calculate absolute position (accounting for text offset)
+    const absolutePosition = selectedPosition + textOffset;
+    
+    if (absolutePosition < 0 || absolutePosition > totalChars) {
+      alert(`Invalid position: Position must be between 0 and ${totalChars}`);
       return;
     }
     
     // Validate against the other position if it exists
-    if (mode === 'start' && currentEnd !== null && selectedPosition >= currentEnd) {
+    if (mode === 'start' && currentEnd !== null && absolutePosition >= currentEnd) {
       alert('Start position must be before end position');
       return;
     }
     
-    if (mode === 'end' && currentStart !== null && selectedPosition <= currentStart) {
+    if (mode === 'end' && currentStart !== null && absolutePosition <= currentStart) {
       alert('End position must be after start position');
       return;
     }
     
-    onPositionSelected(selectedPosition, previewText);
+    onPositionSelected(absolutePosition, previewText);
   };
   
   /**
@@ -441,6 +475,18 @@ const PDFRegionSelector = ({
       <div className="selector-header">
         <h3>{type === 'pdf' ? '📄' : '🎤'} Select {type === 'pdf' ? 'PDF' : 'Transcript'} {mode === 'start' ? 'Start' : 'End'} Position</h3>
         <p>Choose where your {type === 'pdf' ? 'PDF region' : 'transcript'} {mode === 'start' ? 'begins' : 'ends'} to match your {type=== 'pdf' ? 'transcription' : 'PDF'}</p>
+        {type === 'transcript' && mode === 'end' && (
+          <p style={{ 
+            background: '#eff6ff', 
+            padding: '0.75rem', 
+            borderRadius: '6px', 
+            color: '#1e40af',
+            fontSize: '0.875rem',
+            marginTop: '0.5rem'
+          }}>
+            ℹ️ Showing last 200 words of transcript for easier end selection
+          </p>
+        )}
       </div>
       
       {/* Selection Method Toggle */}
@@ -525,7 +571,10 @@ const PDFRegionSelector = ({
       {/* Current Selection Info */}
       <div className="selector-controls">
         <div className="selection-info-box">
-          <strong>{mode === 'start' ? 'Start' : 'End'} Position:</strong> Character {selectedPosition}
+          <strong>{mode === 'start' ? 'Start' : 'End'} Position:</strong> Character {selectedPosition + textOffset}
+          {textOffset > 0 && (
+            <span style={{ fontSize: '0.85rem', opacity: 0.7 }}> (relative: {selectedPosition})</span>
+          )}
           {selectedSentenceIdx !== null && (
             <span> (Sentence {selectedSentenceIdx + 1})</span>
           )}
@@ -536,10 +585,14 @@ const PDFRegionSelector = ({
           <label>Fine-tune position:</label>
           <input 
             type="number" 
-            value={selectedPosition}
-            onChange={(e) => setSelectedPosition(Math.max(0, Math.min(totalChars, parseInt(e.target.value) || 0)))}
-            min="0"
-            max={totalChars}
+            value={selectedPosition + textOffset}
+            onChange={(e) => {
+              const absolutePos = parseInt(e.target.value) || 0;
+              const relativePos = absolutePos - textOffset;
+              setSelectedPosition(Math.max(0, Math.min(pdfText.length, relativePos)));
+            }}
+            min={textOffset}
+            max={textOffset + pdfText.length}
             className="fine-tune-input"
           />
         </div>

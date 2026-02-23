@@ -183,11 +183,22 @@
 
 .files-table tbody tr {
   border-bottom: 1px solid #e5e7eb;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .files-table tbody tr:hover {
   background: #f9fafb;
+}
+
+.files-table tbody tr.selected {
+  background: #e0e7ff;
+  border-left: 4px solid #667eea;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.1);
+}
+
+.files-table tbody tr.selected:hover {
+  background: #dbeafe;
 }
 
 .files-table tbody tr:last-child {
