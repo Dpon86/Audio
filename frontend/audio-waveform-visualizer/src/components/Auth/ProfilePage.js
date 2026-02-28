@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { getApiUrl } from '../../config/api';
 import './Profile.css';
 
 const ProfilePage = () => {
@@ -41,7 +42,7 @@ const ProfilePage = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/api/auth/profile/', {
+      const response = await fetch(getApiUrl('/api/auth/profile/'), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -80,7 +81,7 @@ const ProfilePage = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/api/auth/change-password/', {
+      const response = await fetch(getApiUrl('/api/auth/change-password/'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

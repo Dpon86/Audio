@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { getApiUrl } from "../config/api";
 import { ProjectTabProvider, useProjectTab } from "../contexts/ProjectTabContext";
 import ProjectTabs from "../components/ProjectTabs/ProjectTabs";
 import Tab1Files from "../components/ProjectTabs/Tab1Files";
@@ -94,7 +95,7 @@ const ProjectDetailPageNew = () => {
   useEffect(() => {
     const fetchProject = async () => {
       try {
-        const response = await fetch(`http://localhost:8000/api/projects/${projectId}/`, {
+        const response = await fetch(getApiUrl(`/api/projects/${projectId}/`), {
           headers: {
             'Authorization': `Token ${token}`,
             'Content-Type': 'application/json'

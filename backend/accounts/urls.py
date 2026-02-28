@@ -1,4 +1,5 @@
 from django.urls import path, include
+from django.views.decorators.csrf import csrf_exempt
 from .views import (
     UserRegistrationView, CustomAuthToken, UserProfileView,
     SubscriptionPlansView, UserSubscriptionView, UsageTrackingView,
@@ -9,8 +10,8 @@ from .webhooks import stripe_webhook
 
 urlpatterns = [
     # Authentication
-    path('register/', UserRegistrationView.as_view(), name='user_register'),
-    path('login/', CustomAuthToken.as_view(), name='user_login'),
+    path('register/', csrf_exempt(UserRegistrationView.as_view()), name='user_register'),
+    path('login/', csrf_exempt(CustomAuthToken.as_view()), name='user_login'),
     path('profile/', UserProfileView.as_view(), name='user_profile'),
     
     # Subscription management

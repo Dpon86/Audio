@@ -1,0 +1,49 @@
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    ffmpeg \
+    libsndfile1 \
+    libpq-dev \
+    gcc \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install gunicorn psycopg2-binary && \
+    # Install packages WITHOUT openai-whisper first
+    grep -v "openai-whisper" requirements.txt >requirements-temp.txt && \
+    pip install -r requirements-temp.txt && \
+    # Install openai-whisper from git (works better than PyPI version)
+    pip install git+https://github.com/openai/whisper.git && \
+    rm requirements-temp.txt
+
+# Copy application
+COPY . .
+
+# Create directories
+RUN mkdir -p /app/staticfiles /app/media
+
+# Copy entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+COPY docker-entrypoint-celery.sh /docker-entrypoint-celery.sh
+RUN chmod +x /docker-entrypoint.sh /docker-entrypoint-celery.sh
+
+EXPOSE 8000
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["gunicorn", "myproject.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]

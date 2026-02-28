@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import WAVupload from "../components/WAVupload/WAVupload";
 import WaveformDisplay from "../components/waveformDisplay/WaveformDisplay";
 import { useNavigate } from "react-router-dom";
+import clientSideTranscription from "../services/clientSideTranscription";
 import "../static/CSS/AudioPage.css";
 
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
@@ -46,12 +47,21 @@ const AudioPage = () => {
   const navigate = useNavigate();
   const [potentialRepetitiveGroups, setPotentialRepetitiveGroups] = useState([]);
   const messageIntervalRef = useRef();
+  
+  // Client-side processing state
+  const [useClientSide, setUseClientSide] = useState(false);
+  const [modelLoading, setModelLoading] = useState(false);
+  const [modelProgress, setModelProgress] = useState(null);
+  const [clientSideSupported, setClientSideSupported] = useState(false);
 
   useEffect(() => {
     const savedFinal = localStorage.getItem("finalRepetitive");
     const savedDelete = localStorage.getItem("potentialDelete");
     if (savedFinal) setFinalRepetitive(JSON.parse(savedFinal));
     if (savedDelete) setPotentialDelete(JSON.parse(savedDelete));
+    
+    // Check if client-side processing is supported
+    setClientSideSupported(clientSideTranscription.constructor.isSupported());
   }, []);
 
   useEffect(() => {
@@ -135,23 +145,129 @@ const AudioPage = () => {
     }, 2000);
   }
 
+  // Client-side processing function
+  async function processClientSide(file, duration) {
+    setProcessing(true);
+    setUploadProgress(0);
+
+    try {
+      // Initialize model if not loaded
+      if (!clientSideTranscription.modelLoaded) {
+        setModelLoading(true);
+        await clientSideTranscription.initialize('tiny', (progress) => {
+          setModelProgress(progress);
+          setUploadProgress(Math.min(progress.percent || 0, 30));
+        });
+        setModelLoading(false);
+      }
+
+      // Transcribe audio
+      const result = await clientSideTranscription.transcribe(
+        file,
+        {},
+        (progress) => {
+          setUploadProgress(30 + Math.round((progress.percent || 0) * 0.7));
+        }
+      );
+
+      // Process results
+      setSegments(result.all_segments || []);
+      setRepetitiveSegments(result.repetitive_groups || []);
+      setPotentialRepetitiveGroups(result.potential_repetitive_groups || []);
+      
+      const { finalRepetitive, potentialDelete } = extractRegionsFromRepetitiveGroups(
+        result.repetitive_groups || []
+      );
+      
+      setFinalRepetitive(finalRepetitive);
+      setPotentialDelete(potentialDelete);
+      
+      localStorage.setItem("finalRepetitive", JSON.stringify(finalRepetitive));
+      localStorage.setItem("potentialDelete", JSON.stringify(potentialDelete));
+      localStorage.setItem("audioSegments", JSON.stringify(result.all_segments || []));
+      localStorage.setItem("potentialRepetitiveGroups", JSON.stringify(result.potential_repetitive_groups || []));
+      localStorage.setItem("audioFileName", file.name);
+      
+      setProcessing(false);
+      setUploadProgress(0);
+    } catch (error) {
+      console.error('Client-side processing error:', error);
+      alert(`Client-side processing failed: ${error.message}\n\nPlease try server-side processing instead.`);
+      setProcessing(false);
+      setUploadProgress(0);
+      setUseClientSide(false); // Fallback to server-side
+    }
+  }
+
   // Accepts duration from WAVupload
   const handleFileSelected = async (file, durationSeconds) => {
     setAudioFile(file);
     setAudioDuration(durationSeconds);
-    await uploadFileInChunks(file, durationSeconds);
+    
+    if (useClientSide) {
+      await processClientSide(file, durationSeconds);
+    } else {
+      await uploadFileInChunks(file, durationSeconds);
+    }
   };
 
   return (
     <div className="audiopage-container">
+      {/* Processing Mode Toggle */}
+      {clientSideSupported && (
+        <div className="processing-mode-selector">
+          <div className="processing-mode-toggle">
+            <label className="toggle-label">
+              <input
+                type="checkbox"
+                checked={useClientSide}
+                onChange={(e) => setUseClientSide(e.target.checked)}
+                disabled={processing}
+              />
+              <span className="toggle-text">
+                {useClientSide ? '🖥️ Process on My Device' : '☁️ Process on Server'}
+              </span>
+            </label>
+          </div>
+          <div className="processing-mode-info">
+            {useClientSide ? (
+              <p>
+                ✓ <strong>Faster processing</strong> (uses your computer's CPU/GPU)<br />
+                ✓ <strong>No upload time</strong> - files stay on your device<br />
+                ⓘ First use downloads AI model (~39MB, cached for future use)
+              </p>
+            ) : (
+              <p>
+                ☁️ Processing happens on our server<br />
+                ⓘ Best for older devices or slow internet
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+      
       <WAVupload onFileSelected={handleFileSelected} />
+      
       {processing && (
         <div className="audiopage-processing-box">
+          {modelLoading && modelProgress && (
+            <div className="model-loading">
+              <p><strong>Downloading AI Model...</strong></p>
+              <p>{modelProgress.message}</p>
+              <p style={{ fontSize: '0.9em', color: '#666' }}>
+                This happens once. The model will be cached for future use.
+              </p>
+            </div>
+          )}
           <div className="audiopage-estimate">
-            {estimatedProcessingTime && (
+            {estimatedProcessingTime && !modelLoading && (
               <div>
                 <b>
-                  It will take approximately {`${Math.floor(estimatedProcessingTime / 60)}:${(estimatedProcessingTime % 60).toString().padStart(2, '0')}`} minutes to process your audio.                  {timeLeft !== null && timeLeft > 0 && (
+                  {useClientSide 
+                    ? `Processing on your device... ${uploadProgress}%`
+                    : `It will take approximately ${Math.floor(estimatedProcessingTime / 60)}:${(estimatedProcessingTime % 60).toString().padStart(2, '0')} minutes to process your audio.`
+                  }
+                  {!useClientSide && timeLeft !== null && timeLeft > 0 && (
                     <> 
                       <br />
                       Estimated time left: {`${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')} minutes`}

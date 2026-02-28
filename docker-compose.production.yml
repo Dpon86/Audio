@@ -1,0 +1,141 @@
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: audioapp_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: audioapp_db
+      POSTGRES_USER: audioapp_user
+      POSTGRES_PASSWORD: AudioDB_Prod_2026_SecurePass123!
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - audioapp_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U audioapp_user -d audioapp_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: audioapp_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - audioapp_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Django Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.production
+    container_name: audioapp_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env.production
+    volumes:
+      - ./backend/media:/app/media
+      - static_files:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - audioapp_network
+    ports:
+      - "8001:8000"  # External:Internal - Port 8001 for Audio app, 8000 is Packing app
+    # Override CMD to use only 1 worker to save memory (instead of 4 from Dockerfile)
+    command: ["gunicorn", "myproject.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "1", "--timeout", "300", "--access-logfile", "-", "--error-logfile", "-"]
+    # Memory limits removed due to limited server RAM (3.8GB total)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 1G
+    #     reservations:
+    #       memory: 512M
+
+  # Celery Worker (for background tasks)
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.production
+    container_name: audioapp_celery_worker
+    restart: unless-stopped
+    entrypoint: ["/docker-entrypoint-celery.sh"]
+    command: celery -A myproject worker -l info --concurrency=1
+    env_file:
+      - ./backend/.env.production
+    volumes:
+      - ./backend/media:/app/media
+      - static_files:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - audioapp_network
+    # Memory limits removed - AI models require significant RAM
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 768M
+    #     reservations:
+    #       memory: 384M
+
+  # Celery Beat (task scheduler) - DISABLED due to limited server RAM
+  # Uncomment if you need scheduled tasks and have more RAM available
+  # celery_beat:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile.production
+  #   container_name: audioapp_celery_beat
+  #   restart: unless-stopped
+  #   entrypoint: ["/docker-entrypoint-celery.sh"]
+  #   command: celery -A myproject beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+  #   env_file:
+  #     - ./backend/.env.production
+  #   volumes:
+  #     - ./backend/media:/app/media
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - audioapp_network
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend/audio-waveform-visualizer
+      dockerfile: Dockerfile.production
+    container_name: audioapp_frontend
+    restart: unless-stopped
+    networks:
+      - audioapp_network
+    ports:
+      - "3001:80"  # External:Internal - Port 3001 for Audio app frontend
+
+networks:
+  audioapp_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  static_files:
+    driver: local

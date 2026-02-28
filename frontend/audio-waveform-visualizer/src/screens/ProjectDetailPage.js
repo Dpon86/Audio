@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { getApiUrl } from "../config/api";
 import DebugPanel from "../components/DebugPanel";
 import WaveSurfer from "wavesurfer.js";
 import "../static/CSS/ProjectDetailPage.css";
@@ -19,7 +20,7 @@ const fetchWithAuth = (url, options = {}, token) => {
   }
   
   // Ensure full URL to backend server
-  const fullUrl = url.startsWith('http') ? url : `http://localhost:8000${url}`;
+  const fullUrl = url.startsWith('http') ? url : getApiUrl(url);
   
   return fetch(fullUrl, {
     ...options,

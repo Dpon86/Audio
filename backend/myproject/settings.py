@@ -48,11 +48,8 @@ if not OPENAI_API_KEY:
         "OPENAI_API_KEY not configured. Set OPENAI_API_KEY environment variable to enable AI-powered PDF comparison."
     )
 
-ALLOWED_HOSTS = [
-    '192.168.148.110',  # Your local network IP
-    'localhost',
-    '127.0.0.1',
-]
+# Read ALLOWED_HOSTS from environment variable
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -124,8 +121,6 @@ CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:6379/0'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.BasicAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -208,6 +203,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

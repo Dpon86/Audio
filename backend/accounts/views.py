@@ -8,6 +8,8 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 import stripe
 import os
 from datetime import timedelta
@@ -23,6 +25,7 @@ from .serializers import (
 stripe.api_key = getattr(settings, 'STRIPE_SECRET_KEY', os.getenv('STRIPE_SECRET_KEY'))
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class UserRegistrationView(generics.CreateAPIView):
     """
     Register new user with automatic free trial
@@ -72,16 +75,22 @@ class UserRegistrationView(generics.CreateAPIView):
         }, status=status.HTTP_201_CREATED)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CustomAuthToken(ObtainAuthToken):
     """
     Custom login view that returns user info and subscription
     """
+    permission_classes = [permissions.AllowAny]
+    
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data,
                                            context={'request': request})
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         token, created = Token.objects.get_or_create(user=user)
+        
+        # Get or create subscription for user
+        subscription, created = UserSubscription.objects.get_or_create(user=user)
         
         return Response({
             'token': token.key,
@@ -92,7 +101,7 @@ class CustomAuthToken(ObtainAuthToken):
                 'first_name': user.first_name,
                 'last_name': user.last_name,
             },
-            'subscription': UserSubscriptionSerializer(user.subscription).data
+            'subscription': UserSubscriptionSerializer(subscription).data
         })
 
 

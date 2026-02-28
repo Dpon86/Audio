@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { getApiUrl } from '../../config/api';
 import './Pricing.css';
 
 const PricingPage = ({ user, subscription }) => {
@@ -15,7 +16,7 @@ const PricingPage = ({ user, subscription }) => {
 
     const fetchPlans = async () => {
         try {
-            const response = await fetch('http://localhost:8000/api/auth/plans/');
+            const response = await fetch(getApiUrl('/api/auth/plans/'));
             const data = await response.json();
             setPlans(data);
         } catch (error) {

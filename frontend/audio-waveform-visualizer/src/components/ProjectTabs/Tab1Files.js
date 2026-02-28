@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useProjectTab } from '../../contexts/ProjectTabContext';
 import { useAuth } from '../../contexts/AuthContext';
+import clientSideTranscription from '../../services/clientSideTranscription';
 import './Tab1Files.css';
 
 /**
@@ -27,12 +28,20 @@ const Tab1Files = () => {
   const [transcribingFiles, setTranscribingFiles] = useState({}); // Track which files are transcribing
   const [taskIds, setTaskIds] = useState({}); // Track Celery task IDs
   const [uploadingPdf, setUploadingPdf] = useState(false);
+  
+  // Client-side processing state
+  const [useClientSide, setUseClientSide] = useState(false);
+  const [modelLoading, setModelLoading] = useState(false);
+  const [modelProgress, setModelProgress] = useState(null);
+  const [clientSideSupported, setClientSideSupported] = useState(false);
 
   // Load project data including PDF info on mount
   useEffect(() => {
     if (token) {
       refreshProjectData(token);
     }
+    // Check if client-side processing is supported
+    setClientSideSupported(clientSideTranscription.constructor.isSupported());
   }, [refreshProjectData, token]);
 
   // Load files on mount and set up polling
@@ -88,9 +97,99 @@ const Tab1Files = () => {
     });
   }, [audioFiles, transcribingFiles]);
 
+  // Process file client-side
+  const processFileClientSide = async (file) => {
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      // Initialize model if not loaded
+      if (!clientSideTranscription.modelLoaded) {
+        setModelLoading(true);
+        await clientSideTranscription.initialize('tiny', (progress) => {
+          setModelProgress(progress);
+          setUploadProgress(Math.min(progress.percent || 0, 30));
+        });
+        setModelLoading(false);
+      }
+
+      // Transcribe audio
+      const result = await clientSideTranscription.transcribe(
+        file,
+        {},
+        (progress) => {
+          setUploadProgress(30 + Math.round((progress.percent || 0) * 0.4));
+        }
+      );
+
+      setUploadProgress(70);
+
+      // Now upload the file with transcription data to the server
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
+      formData.append('transcription_data', JSON.stringify({
+        text: result.text,
+        segments: result.all_segments || [],
+        client_processed: true
+      }));
+
+      const response = await fetch(`http://localhost:8000/api/projects/${projectId}/files/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${token}`
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        setUploadProgress(100);
+        await refreshAudioFiles(token);
+      } else {
+        let errorMessage = `Failed to upload ${file.name}`;
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const error = await response.json();
+            errorMessage = error.error || error.message || errorMessage;
+          } else {
+            errorMessage = `Server error (${response.status}): ${response.statusText}`;
+          }
+        } catch (parseError) {
+          console.error('Error parsing response:', parseError);
+          errorMessage = `Server error (${response.status}): ${response.statusText}`;
+        }
+        alert(errorMessage);
+      }
+
+      setUploading(false);
+      setUploadProgress(0);
+      setModelLoading(false);
+      setModelProgress(null);
+    } catch (error) {
+      console.error('Client-side processing error:', error);
+      alert(`Client-side processing failed: ${error.message}\n\nPlease try server-side processing instead.`);
+      setUploading(false);
+      setUploadProgress(0);
+      setModelLoading(false);
+      setModelProgress(null);
+      setUseClientSide(false); // Fallback to server-side
+    }
+  };
+
   // Handle file upload
   const handleFileUpload = async (files) => {
     if (!files || files.length === 0) return;
+
+    // If client-side processing is enabled and only one file, use client-side
+    if (useClientSide && files.length === 1) {
+      await processFileClientSide(files[0]);
+      return;
+    } else if (useClientSide && files.length > 1) {
+      alert('Client-side processing currently supports one file at a time. Processing first file only.');
+      await processFileClientSide(files[0]);
+      return;
+    }
 
     setUploading(true);
     setUploadProgress(0);
@@ -360,6 +459,53 @@ const Tab1Files = () => {
       <div className="tab-description-banner">
         <p>📝 <strong>Upload files, press transcribe, and don't refresh or leave the page.</strong> Transcription can take a while - watch the status update automatically.</p>
       </div>
+
+      {/* Processing Mode Toggle */}
+      {clientSideSupported && (
+        <div className="processing-mode-selector">
+          <div className="processing-mode-toggle">
+            <label className="toggle-label">
+              <input
+                type="checkbox"
+                checked={useClientSide}
+                onChange={(e) => setUseClientSide(e.target.checked)}
+                disabled={uploading}
+              />
+              <span className="toggle-text">
+                {useClientSide ? '🖥️ Process on My Device' : '☁️ Process on Server'}
+              </span>
+            </label>
+          </div>
+          <div className="processing-mode-info">
+            {useClientSide ? (
+              <p>
+                ✓ <strong>Faster processing</strong> (uses your computer's CPU/GPU)<br />
+                ✓ <strong>No upload time</strong> - files stay on your device<br />
+                ⓘ First use downloads AI model (~39MB, cached for future use)
+              </p>
+            ) : (
+              <p>
+                ☁️ Processing happens on our server<br />
+                ⓘ Best for older devices or slow internet
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Model Loading Progress */}
+      {modelLoading && modelProgress && (
+        <div className="model-loading-banner">
+          <p><strong>📥 Downloading AI Model...</strong></p>
+          <p>{modelProgress.message}</p>
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: `${modelProgress.percent || 0}%` }} />
+          </div>
+          <p style={{ fontSize: '0.9em', color: '#666' }}>
+            This happens once. The model will be cached for future use.
+          </p>
+        </div>
+      )}
 
       {/* Upload Area */}
       <div 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { getApiUrl } from "../config/api";
 import "../static/CSS/ProjectPage.css";
 
 const ProjectPage = () => {
@@ -17,7 +18,7 @@ const ProjectPage = () => {
   const fetchProjects = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch("http://localhost:8000/api/projects/", {
+      const response = await fetch(getApiUrl("/api/projects/"), {
         headers: {
           'Authorization': `Token ${token}`,
           'Content-Type': 'application/json'
@@ -59,7 +60,7 @@ const ProjectPage = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch("http://localhost:8000/api/projects/", {
+      const response = await fetch(getApiUrl("/api/projects/"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -97,7 +98,7 @@ const ProjectPage = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8000/api/projects/${projectId}/`, {
+      const response = await fetch(getApiUrl(`/api/projects/${projectId}/`), {
         method: "DELETE",
         headers: {
           'Authorization': `Token ${token}`,
