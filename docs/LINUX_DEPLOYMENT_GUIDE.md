@@ -12,6 +12,52 @@ Complete step-by-step guide for deploying the Audio Processing Application to a 
 
 ---
 
+## Application Features
+
+This deployment includes all the latest client-side and backend enhancements:
+
+**Frontend (React):**
+- ✅ **Tab 1 (Upload)** - Audio file management and project creation
+- ✅ **Tab 2 (Transcribe)** - Audio transcription with progress tracking
+- ✅ **Tab 3 (Duplicates)** - Advanced duplicate detection with multiple algorithms:
+  - TF-IDF Cosine Similarity (baseline algorithm)
+  - Windowed Retry-Aware Matching (new algorithm with configurable lookahead)
+  - PDF-Guided Windowed Matching (prevents false positives using PDF anchoring)
+  - Algorithm selector dropdown with pre-start settings card
+  - PDF region selector with smart start/end detection
+  - Configurable parameters (similarity threshold, window size, word length, etc.)
+- ✅ **Tab 4 (Results)** - Waveform editor for duplicate review:
+  - Interactive audio waveform visualization (WaveSurfer.js)
+  - Configurable silence alignment with adjustable parameters:
+    - Silence threshold (-40 dB default)
+    - Search range (0.2-2.0s)
+    - Minimum silence duration (40-300ms)
+  - Visual markers for DELETE/KEEP regions
+  - Batch operations and region management
+- ✅ **Tab 5 (Compare PDF)** - Precise PDF comparison:
+  - PDF region selector for start/end point selection
+  - Smart search with word-based matching
+  - Side-by-side transcript vs PDF comparison with range selection
+  - Clean PDF text extraction and formatting
+  - Character-level position tracking
+
+**Backend (Django + Celery):**
+- ✅ RESTful API with Django REST Framework
+- ✅ Asynchronous task processing with Celery workers
+- ✅ Real-time progress tracking via Redis
+- ✅ Multiple duplicate detection algorithms with pluggable architecture
+- ✅ Audio processing with silence detection and boundary refinement
+- ✅ PDF text extraction and comparison
+- ✅ PostgreSQL database for production reliability
+
+**Key Configuration Files:**
+- `config-overrides.js` - Custom webpack configuration for CSS optimization
+- `.env.production` - Frontend environment variables
+- `docker-compose.production.yml` - Production container orchestration
+- `Dockerfile.production` - Multi-stage Docker builds for optimal image size
+
+---
+
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
@@ -193,6 +239,37 @@ ls -la
 # etc.
 ```
 
+**Critical: Verify Frontend Build Files**
+
+```bash
+cd /opt/audioapp/frontend/audio-waveform-visualizer
+
+# Check for required files
+ls -la
+
+# Must have:
+# - package.json (dependencies list)
+# - package-lock.json (locked dependency versions)
+# - config-overrides.js (webpack customization)
+# - src/ (source code directory)
+# - public/ (static assets)
+
+# Verify key source files exist
+ls -la src/components/ProjectTabs/
+
+# Should include:
+# - Tab3Duplicates.js (algorithm selector, PDF region selector)
+# - WaveformDuplicateEditor.js (silence alignment)
+# - Tab5ComparePDF.js (side-by-side comparison with ranges)
+# - Tab1Files.js, Tab2Transcribe.js, Tab4Results.js
+
+# Check config file
+cat config-overrides.js
+# Should contain CSS minimization override
+```
+
+**If any files are missing**, re-upload or ensure your Git clone is complete.
+
 ---
 
 ## Environment Configuration
@@ -262,9 +339,19 @@ nano .env.production
 REACT_APP_API_URL=https://audio.yourdomain.com/api
 REACT_APP_WS_URL=wss://audio.yourdomain.com/ws
 NODE_ENV=production
+GENERATE_SOURCEMAP=false
+OPTIMIZE_CSS=false
 ```
 
 **Save:** Ctrl+O, Enter, Ctrl+X
+
+**Note:** The frontend includes all recent features:
+- Multiple duplicate detection algorithms (TF-IDF, Windowed Retry, PDF-guided)
+- Algorithm selector dropdown with pre-start settings card
+- PDF region selector with smart start/end detection
+- Configurable silence alignment parameters (threshold, search range, min duration)
+- Side-by-side transcript/PDF comparison with range selection
+- All Tab3 (Duplicates) and Tab5 (Compare PDF) enhancements
 
 ---
 
@@ -487,7 +574,28 @@ volumes:
 
 ### 4. Build Frontend
 
-We'll build the React app locally in the container and serve static files through Nginx.
+**RECOMMENDED APPROACH: Build frontend locally on your development machine and transfer to server.**
+
+> ⚠️ **Important:** Building React apps in Docker on low-memory servers can take 30+ minutes and may fail due to memory constraints. The recommended approach is to build locally (takes 2-5 minutes) and transfer the built files to the server.
+
+**See detailed guide:** [BUILD_AND_DEPLOY_FRONTEND.md](./BUILD_AND_DEPLOY_FRONTEND.md)
+
+**Quick version:**
+
+On your local Windows machine:
+```powershell
+cd C:\Users\NickD\Documents\Github\Audio\frontend\audio-waveform-visualizer
+npm run build
+scp -r build/* yourusername@your_server_ip:/opt/audioapp/frontend/audio-waveform-visualizer/build/
+```
+
+Then skip to step 4b below to create the Dockerfile that uses pre-built files.
+
+---
+
+**Alternative: Build on Server (Not Recommended for Low Memory)**
+
+If you have 4GB+ RAM and want to build on the server, you can use this approach, but it's slower.
 
 ```bash
 cd /opt/audioapp/frontend/audio-waveform-visualizer
@@ -504,16 +612,16 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including devDependencies needed for build)
+RUN npm ci
 
-# Copy source
+# Copy source files (includes config-overrides.js for build customization)
 COPY . .
 
 # Copy production environment
 COPY .env.production .env
 
-# Build application
+# Build application (uses react-app-rewired with custom webpack config)
 RUN npm run build
 
 # Production stage - serve with Nginx
@@ -529,6 +637,45 @@ EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
 ```
+
+**Save:** Ctrl+O, Enter, Ctrl+X
+
+---
+
+**4b. Alternative: Dockerfile for Pre-Built Files (Recommended)**
+
+If you're building locally and transferring files, use this simpler Dockerfile instead:
+
+```bash
+cd /opt/audioapp/frontend/audio-waveform-visualizer
+nano Dockerfile.prebuilt
+```
+
+**Add this content:**
+
+```dockerfile
+FROM nginx:alpine
+
+# Copy pre-built files from local build directory
+COPY build/ /usr/share/nginx/html/
+
+# Copy nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+**Save:** Ctrl+O, Enter, Ctrl+X
+
+**This approach:**
+- ✅ Builds in ~10 seconds (just copying files)
+- ✅ No memory issues
+- ✅ No npm/node dependencies needed on server
+- ✅ Predictable and fast
+
+---
 
 ### 5. Create Nginx Config for Frontend Container
 
@@ -571,12 +718,13 @@ nano docker-compose.production.yml
 
 **Add the frontend service (add after the celery_beat service, before networks section):**
 
+**If building locally (recommended):**
 ```yaml
-  # React Frontend
+  # React Frontend (using pre-built files)
   frontend:
     build:
       context: ./frontend/audio-waveform-visualizer
-      dockerfile: Dockerfile.production
+      dockerfile: Dockerfile.prebuilt  # Uses pre-built files from local build
     container_name: audioapp_frontend
     restart: unless-stopped
     networks:
@@ -584,6 +732,23 @@ nano docker-compose.production.yml
     ports:
       - "3000:80"
 ```
+
+**If building on server:**
+```yaml
+  # React Frontend (builds on server - slower)
+  frontend:
+    build:
+      context: ./frontend/audio-waveform-visualizer
+      dockerfile: Dockerfile.production  # Runs npm build in container
+    container_name: audioapp_frontend
+    restart: unless-stopped
+    networks:
+      - audioapp_network
+    ports:
+      - "3000:80"
+```
+
+**Save:** Ctrl+O, Enter, Ctrl+X
 
 ---
 
@@ -921,11 +1086,92 @@ docker exec -it audioapp_backend python manage.py changepassword admin
 
 ### 4. Test Full Workflow
 
-1. Upload an audio file
-2. Generate transcription
-3. Run duplicate detection
-4. Review results
-5. Compare with PDF
+**Complete end-to-end testing of all features:**
+
+#### Step 1: Upload Audio File
+1. Navigate to **Tab 1 (Upload)**
+2. Click "Upload" and select an audio file (MP3, WAV, etc.)
+3. Verify file appears in the project list
+
+#### Step 2: Generate Transcription
+1. Go to **Tab 2 (Transcribe)**
+2. Select your uploaded file
+3. Click "Transcribe"
+4. Monitor progress bar (this tests Celery task processing)
+5. Verify transcription completes successfully
+
+#### Step 3: Test Duplicate Detection (New Features)
+1. Go to **Tab 3 (Duplicates)**
+2. **Test Algorithm Selector:**
+   - Click the algorithm dropdown
+   - Verify all three algorithms appear:
+     - TF-IDF Cosine Similarity
+     - Windowed Retry-Aware
+     - PDF-Guided Windowed Retry
+3. **Test Settings Card:**
+   - Select "Windowed Retry-Aware" algorithm
+   - Click "Show Settings" (if not auto-shown)
+   - Adjust parameters (threshold, window size, etc.)
+   - Verify settings persist when changed
+4. **Test PDF Region Selector (for PDF-Guided algorithm):**
+   - Select "PDF-Guided Windowed Retry"
+   - Upload a PDF if not already uploaded
+   - Click "Select Start Point" - verify PDF viewer appears
+   - Click in PDF to set start point
+   - Click "Select End Point" - verify smart search works
+   - Verify selected text appears in the UI
+5. **Run Detection:**
+   - Click "Start Duplicate Detection"
+   - Monitor progress in logs
+   - Verify duplicate groups are found
+
+#### Step 4: Review & Refine Results (Waveform Editor)
+1. Go to **Tab 4 (Results)**
+2. **Test Waveform Visualization:**
+   - Verify audio waveform loads
+   - Verify DELETE regions (red) and KEEP regions (green) appear
+   - Click regions to navigate audio
+3. **Test Silence Alignment (New Feature):**
+   - Expand "Silence Alignment Settings"
+   - Adjust sliders:
+     - Silence Threshold: -40 dB (default)
+     - Search Range: 0.6s (default)
+     - Min Duration: 80ms (default)
+   - Click "Align to Silence" for a DELETE region
+   - Verify region boundaries move to nearest silence
+   - Check console/logs for alignment results
+4. **Test Region Management:**
+   - Click a DELETE region to play audio
+   - Use "Convert to KEEP" if needed
+   - Verify changes save
+
+#### Step 5: Compare with PDF (Range Selection)
+1. Go to **Tab 5 (Compare PDF)**
+2. Upload PDF if not already done
+3. **Test PDF Region Selection:**
+   - Click "Select Start Point in PDF"
+   - Choose starting position (e.g., search for "England, 1813")
+   - Click "Select End Point in PDF"
+   - Choose ending position
+   - Verify character positions are captured
+4. **Test Transcript Range Selection:**
+   - Click "Select Start Point in Transcript"
+   - Choose starting position
+   - Click "Select End Point in Transcript"
+   - Choose ending position
+5. **Test Side-by-Side Comparison (New Feature):**
+   - Click "View Side by Side"
+   - Verify comparison shows ONLY selected ranges (not full text)
+   - Verify both PDF and transcript respect start/end points
+   - Check for highlighted differences
+6. **Test Precise Comparison:**
+   - Click "Run Precise Compare"
+   - Verify character-level diff highlighting works
+
+#### Step 6: Verify Background Processing
+- Check that long-running tasks don't block the UI
+- Open multiple tabs and verify they work independently
+- Test that progress updates appear in real-time
 
 ### 5. Check Celery Tasks
 
@@ -1168,6 +1414,84 @@ docker compose -f docker-compose.production.yml up -d --scale celery_worker=4
 # Enable query logging to find slow database queries
 # In backend/.env.production, temporarily add:
 # DEBUG=True  (DO NOT leave this on in production!)
+```
+
+### Frontend Build Fails
+
+```bash
+# Check frontend build logs
+docker compose -f docker-compose.production.yml logs frontend
+
+# Common issues:
+
+# 1. Missing package-lock.json
+# Solution: Generate locally and commit to repo
+cd frontend/audio-waveform-visualizer
+npm install
+# Commit package-lock.json to Git
+
+# 2. Missing config-overrides.js
+# Solution: Verify file exists
+ls -la config-overrides.js
+# Should contain CSS minimization override
+
+# 3. npm ci fails due to dependency conflicts
+# Solution: Use npm install instead (less strict)
+# In Dockerfile.production, change:
+# RUN npm ci
+# to:
+# RUN npm install
+
+# 4. Out of memory during build
+# Solution: Increase Docker memory limit
+# In docker-compose.production.yml:
+frontend:
+  build:
+    context: ./frontend/audio-waveform-visualizer
+    dockerfile: Dockerfile.production
+  mem_limit: 2g
+
+# 5. Build succeeds but app doesn't load
+# Check browser console for errors
+# Verify REACT_APP_API_URL is correct in .env.production
+# Check that build files exist:
+docker exec audioapp_frontend ls -la /usr/share/nginx/html/
+# Should see: index.html, static/, etc.
+```
+
+### Frontend Features Not Working
+
+```bash
+# Issue: Algorithm selector or PDF region selector doesn't appear
+# Check browser console (F12) for JavaScript errors
+# Verify all component files were uploaded:
+docker exec audioapp_frontend find /usr/share/nginx/html/static/js -name "*.js" | head -10
+
+# Issue: API calls fail with CORS errors
+# Check CORS settings in backend/.env.production
+# Should have:
+CORS_ALLOWED_ORIGINS=https://audio.yourdomain.com
+
+# Also check Django settings:
+docker exec audioapp_backend python manage.py shell
+>>> from django.conf import settings
+>>> settings.CORS_ALLOWED_ORIGINS
+
+# Issue: PDF selector or silence alignment not working
+# Check that WaveSurfer.js loaded correctly:
+# Open browser console and type: wavesurfer
+# Should see WaveSurfer object, not undefined
+
+# Verify environment variables:
+docker exec audioapp_frontend cat /usr/share/nginx/html/static/js/main.*.js | grep -o "REACT_APP_API_URL"
+# Should appear in the bundle
+
+# Issue: Changes not reflecting after rebuild
+# Clear Docker build cache and rebuild:
+docker compose -f docker-compose.production.yml build --no-cache frontend
+docker compose -f docker-compose.production.yml up -d frontend
+
+# Clear browser cache (Ctrl+Shift+R or Ctrl+F5)
 ```
 
 ---
