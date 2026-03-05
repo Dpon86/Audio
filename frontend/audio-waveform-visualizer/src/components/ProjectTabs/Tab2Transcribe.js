@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { API_BASE_URL } from '../../config/api';
 import { useProjectTab } from '../../contexts/ProjectTabContext';
 import { useAuth } from '../../contexts/AuthContext';
 import './Tab2Transcribe.css';
@@ -31,7 +32,7 @@ const Tab2Transcribe = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/transcribe/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/transcribe/`,
         {
           method: 'POST',
           headers: {
@@ -61,7 +62,7 @@ const Tab2Transcribe = () => {
     const interval = setInterval(async () => {
       try {
         const response = await fetch(
-          `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/transcription/status/`,
+          `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/transcription/status/`,
           {
             headers: {
               'Authorization': `Token ${token}`,
@@ -97,7 +98,7 @@ const Tab2Transcribe = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/transcription/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/transcription/`,
         {
           headers: {
             'Authorization': `Token ${token}`,

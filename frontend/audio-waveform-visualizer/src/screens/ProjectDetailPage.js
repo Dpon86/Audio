@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { API_BASE_URL } from '../config/api';
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { getApiUrl } from "../config/api";
@@ -428,7 +429,7 @@ const ProjectDetailPage = () => {
     if (!token) {
       return;
     }
-    const url = 'http://localhost:8000/api/infrastructure/status/';
+    const url = `${API_BASE_URL}/api/infrastructure/status/`;
     
     if (window.debugLog) {
       window.debugLog('api-call', `GET ${url}`, { method: 'GET' });
@@ -1120,7 +1121,7 @@ const ProjectDetailPage = () => {
     }
     
     try {
-      const audioUrl = `http://localhost:8000${project.final_processed_audio}`;
+      const audioUrl = `${API_BASE_URL}${project.final_processed_audio}`;
       const response = await fetch(audioUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -1155,7 +1156,7 @@ const ProjectDetailPage = () => {
         });
 
         // Load audio file
-        const audioUrl = `http://localhost:8000${project.final_processed_audio}`;
+        const audioUrl = `${API_BASE_URL}${project.final_processed_audio}`;
         ws.load(audioUrl);
         
         ws.on('ready', () => {
@@ -3003,7 +3004,7 @@ const MiniWaveform = ({ audioUrl, startTime, endTime, segmentId }) => {
     
     try {
       // Ensure full URL
-      const fullAudioUrl = audioUrl.startsWith('http') ? audioUrl : `http://localhost:8000${audioUrl}`;
+      const fullAudioUrl = audioUrl.startsWith('http') ? audioUrl : `${API_BASE_URL}${audioUrl}`;
 
       // Create WaveSurfer instance
       wavesurfer = WaveSurfer.create({

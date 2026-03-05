@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { API_BASE_URL } from '../../config/api';
 import { useProjectTab } from '../../contexts/ProjectTabContext';
 import { useAuth } from '../../contexts/AuthContext';
 import WaveSurfer from 'wavesurfer.js';
@@ -79,7 +80,7 @@ const Tab3Duplicates = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/transcription/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/transcription/`,
         {
           headers: {
             'Authorization': `Token ${token}`,
@@ -107,7 +108,7 @@ const Tab3Duplicates = () => {
     
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/duplicates/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/duplicates/`,
         {
           headers: {
             'Authorization': `Token ${token}`,
@@ -190,7 +191,7 @@ const Tab3Duplicates = () => {
         normalize: true,
       });
 
-      const audioUrl = `http://localhost:8000${selectedAudioFile.audio_file}`;
+      const audioUrl = `${API_BASE_URL}${selectedAudioFile.audio_file}`;
       ws.load(audioUrl);
       
       ws.on('ready', () => {
@@ -294,7 +295,7 @@ const Tab3Duplicates = () => {
       console.log(`📤 Payload:`, { start_time: newStartTime, end_time: newEndTime });
       
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/segments/${segmentId}/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/segments/${segmentId}/`,
         {
           method: 'PATCH',
           headers: {
@@ -380,7 +381,7 @@ const Tab3Duplicates = () => {
       if (pdfEndChar !== null) requestBody.pdf_end_char = pdfEndChar;
 
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/clean-pdf-text/`,
+        `${API_BASE_URL}/api/projects/${projectId}/clean-pdf-text/`,
         {
           method: 'POST',
           headers: {
@@ -444,7 +445,7 @@ const Tab3Duplicates = () => {
     
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/detect-duplicates/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/detect-duplicates/`,
         {
           method: 'POST',
           headers: {
@@ -470,7 +471,7 @@ const Tab3Duplicates = () => {
           
           // Check if detection is complete
           const statusResponse = await fetch(
-            `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/status/`,
+            `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/status/`,
             {
               headers: {
                 'Authorization': `Token ${token}`,

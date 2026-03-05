@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 import './DebugPanel.css';
 
 const DebugPanel = ({ isVisible, onToggle }) => {
@@ -29,7 +30,7 @@ const DebugPanel = ({ isVisible, onToggle }) => {
     // Check backend connectivity
     try {
       const token = localStorage.getItem('token');
-      const backendResponse = await fetch('http://localhost:8000/api/projects/', {
+      const backendResponse = await fetch(`${API_BASE_URL}/api/projects/`, {
         method: 'GET',
         headers: {
           'Authorization': `Token ${token}`,
@@ -52,7 +53,7 @@ const DebugPanel = ({ isVisible, onToggle }) => {
     // Check infrastructure status
     try {
       const token = localStorage.getItem('token');
-      const infraResponse = await fetch('http://localhost:8000/api/infrastructure/status/', {
+      const infraResponse = await fetch(`${API_BASE_URL}/api/infrastructure/status/`, {
         method: 'GET',
         headers: {
           'Authorization': `Token ${token}`,

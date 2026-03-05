@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { useProjectTab } from '../contexts/ProjectTabContext';
 import { useAuth } from '../contexts/AuthContext';
 import './Tab4Review.css';
@@ -27,7 +28,7 @@ const Tab4Review = () => {
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/comparison/`,
+        `${API_BASE_URL}/api/projects/${projectId}/comparison/`,
         {
           headers: {
             'Authorization': `Token ${token}`,
@@ -53,7 +54,7 @@ const Tab4Review = () => {
   const markAsReviewed = async (fileId) => {
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${fileId}/mark-reviewed/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${fileId}/mark-reviewed/`,
         {
           method: 'POST',
           headers: {

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { API_BASE_URL } from '../config/api';
 
 const ProjectTabContext = createContext();
 
@@ -30,7 +31,7 @@ export const ProjectTabProvider = ({ children, projectId }) => {
     if (!projectId || !token) return;
     
     try {
-      const response = await fetch(`http://localhost:8000/api/projects/${projectId}/`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/`, {
         headers: {
           'Authorization': `Token ${token}`,
           'Content-Type': 'application/json'
@@ -54,7 +55,7 @@ export const ProjectTabProvider = ({ children, projectId }) => {
     
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:8000/api/projects/${projectId}/files/`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/files/`, {
         headers: {
           'Authorization': `Token ${token}`,
           'Content-Type': 'application/json'

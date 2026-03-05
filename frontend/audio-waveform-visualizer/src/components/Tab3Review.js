@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { useProjectTab } from '../contexts/ProjectTabContext';
 import { useAuth } from '../contexts/AuthContext';
 import WaveSurfer from 'wavesurfer.js';
@@ -46,7 +47,7 @@ const Tab3Review = () => {
   const fetchPreviewStatus = async () => {
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/deletion-preview/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/deletion-preview/`,
         {
           headers: {
             'Authorization': `Token ${token}`,
@@ -72,7 +73,7 @@ const Tab3Review = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/preview-deletions/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/preview-deletions/`,
         {
           method: 'POST',
           headers: {
@@ -104,7 +105,7 @@ const Tab3Review = () => {
     const interval = setInterval(async () => {
       try {
         const response = await fetch(
-          `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/deletion-preview/`,
+          `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/deletion-preview/`,
           {
             headers: {
               'Authorization': `Token ${token}`,
@@ -153,7 +154,7 @@ const Tab3Review = () => {
     });
 
     // Load audio
-    const audioUrl = `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/preview-audio/?t=${Date.now()}`;
+    const audioUrl = `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/preview-audio/?t=${Date.now()}`;
     wavesurferRef.current.load(audioUrl);
 
     // Add deletion regions
@@ -220,7 +221,7 @@ const Tab3Review = () => {
       );
 
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/restore-segments/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/restore-segments/`,
         {
           method: 'POST',
           headers: {
@@ -260,7 +261,7 @@ const Tab3Review = () => {
   const cancelPreview = async () => {
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/cancel-preview/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/cancel-preview/`,
         {
           method: 'DELETE',
           headers: {

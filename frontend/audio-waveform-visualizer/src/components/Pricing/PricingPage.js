@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { Link, useNavigate } from 'react-router-dom';
 import { getApiUrl } from '../../config/api';
 import './Pricing.css';
@@ -36,7 +37,7 @@ const PricingPage = ({ user, subscription }) => {
         
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:8000/api/auth/checkout/', {
+            const response = await fetch(`${API_BASE_URL}/api/auth/checkout/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

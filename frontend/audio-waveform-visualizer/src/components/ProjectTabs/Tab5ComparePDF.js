@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { API_BASE_URL } from '../../config/api';
 import { useProjectTab } from '../../contexts/ProjectTabContext';
 import { useAuth } from '../../contexts/AuthContext';
 import PDFRegionSelector from '../PDFRegionSelector';
@@ -72,7 +73,7 @@ const Tab5ComparePDF = () => {
     
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/pdf-result/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/pdf-result/`,
         {
           headers: {
             'Authorization': `Token ${token}`
@@ -97,7 +98,7 @@ const Tab5ComparePDF = () => {
     
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/ignored-sections/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/ignored-sections/`,
         {
           headers: {
             'Authorization': `Token ${token}`
@@ -129,7 +130,7 @@ const Tab5ComparePDF = () => {
     
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/pdf-status/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/pdf-status/`,
         {
           headers: {
             'Authorization': `Token ${token}`
@@ -184,7 +185,7 @@ const Tab5ComparePDF = () => {
     
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/compare-pdf/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/compare-pdf/`,
         {
           method: 'POST',
           headers: {
@@ -283,7 +284,7 @@ const Tab5ComparePDF = () => {
     
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/precise-compare/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/precise-compare/`,
         {
           method: 'POST',
           headers: {
@@ -383,7 +384,7 @@ const Tab5ComparePDF = () => {
 
       const queryString = params.toString();
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/side-by-side/${queryString ? `?${queryString}` : ''}`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/side-by-side/${queryString ? `?${queryString}` : ''}`,
         {
           headers: {
             'Authorization': `Token ${token}`
@@ -420,7 +421,7 @@ const Tab5ComparePDF = () => {
     
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/ignored-sections/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/ignored-sections/`,
         {
           method: 'POST',
           headers: {
@@ -460,7 +461,7 @@ const Tab5ComparePDF = () => {
     
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/ignored-sections/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/ignored-sections/`,
         {
           method: 'POST',
           headers: {
@@ -491,7 +492,7 @@ const Tab5ComparePDF = () => {
     
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/reset-comparison/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/reset-comparison/`,
         {
           method: 'POST',
           headers: {
@@ -548,7 +549,7 @@ const Tab5ComparePDF = () => {
       // Use the timestamps to mark segments for deletion
       // This will integrate with the existing deletion workflow
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/mark-for-deletion/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/mark-for-deletion/`,
         {
           method: 'POST',
           headers: {
@@ -606,7 +607,7 @@ const Tab5ComparePDF = () => {
       if (pdfEndChar !== null) requestBody.pdf_end_char = pdfEndChar;
 
       const makeCleanRequest = () => fetch(
-        `http://localhost:8000/api/projects/${projectId}/clean-pdf-text/`,
+        `${API_BASE_URL}/api/projects/${projectId}/clean-pdf-text/`,
         {
           method: 'POST',
           headers: {
@@ -646,7 +647,7 @@ const Tab5ComparePDF = () => {
     } catch (err) {
       setCleanupMessage({
         type: 'error',
-        text: `Network error: ${err.message}. If this persists, confirm backend is running on http://localhost:8000 and try again.`
+        text: `Network error: ${err.message}. If this persists, confirm backend is running on ${API_BASE_URL} and try again.`
       });
     } finally {
       setIsCleaningPDF(false);
@@ -707,7 +708,7 @@ const Tab5ComparePDF = () => {
       }
       
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/audiobook-analysis/`,
+        `${API_BASE_URL}/api/projects/${projectId}/audiobook-analysis/`,
         {
           method: 'POST',
           headers: {
@@ -740,7 +741,7 @@ const Tab5ComparePDF = () => {
     const poll = async () => {
       try {
         const response = await fetch(
-          `http://localhost:8000/api/audiobook-analysis/${taskId}/progress/`,
+          `${API_BASE_URL}/api/audiobook-analysis/${taskId}/progress/`,
           {
             headers: {
               'Authorization': `Token ${token}`
@@ -784,7 +785,7 @@ const Tab5ComparePDF = () => {
   const fetchAnalysisResult = async (taskId) => {
     try {
       const response = await fetch(
-        `http://localhost:8000/api/audiobook-analysis/${taskId}/result/`,
+        `${API_BASE_URL}/api/audiobook-analysis/${taskId}/result/`,
         {
           headers: {
             'Authorization': `Token ${token}`

@@ -82,7 +82,7 @@ if (-not $SkipBuild) {
     
     $buildSize = (Get-ChildItem build -Recurse | Measure-Object -Property Length -Sum).Sum
     $buildSizeMB = [math]::Round($buildSize / 1MB, 2)
-    Write-Success "Build completed successfully! ($buildSizeMB MB)"
+    Write-Success "Build completed successfully! $buildSizeMB MB"
     
     Pop-Location
 } else {

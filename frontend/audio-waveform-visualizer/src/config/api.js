@@ -4,7 +4,7 @@
  */
 
 // Get API URL from environment variable or default to localhost
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 /**
  * Get the full API URL for a given endpoint

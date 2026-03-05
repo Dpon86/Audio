@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useProjectTab } from '../../contexts/ProjectTabContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_BASE_URL } from '../../config/api';
 import clientSideTranscription from '../../services/clientSideTranscription';
 import './Tab1Files.css';
 
@@ -134,7 +135,7 @@ const Tab1Files = () => {
         client_processed: true
       }));
 
-      const response = await fetch(`http://localhost:8000/api/projects/${projectId}/files/`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/files/`, {
         method: 'POST',
         headers: {
           'Authorization': `Token ${token}`
@@ -201,7 +202,7 @@ const Tab1Files = () => {
       formData.append('title', file.name.replace(/\.[^/.]+$/, ''));  // Remove extension for title
 
       try {
-        const response = await fetch(`http://localhost:8000/api/projects/${projectId}/files/`, {
+        const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/files/`, {
           method: 'POST',
           headers: {
             'Authorization': `Token ${token}`
@@ -252,7 +253,7 @@ const Tab1Files = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:8000/api/projects/${projectId}/files/${fileId}/`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/files/${fileId}/`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Token ${token}`,
@@ -297,7 +298,7 @@ const Tab1Files = () => {
     try {
       setTranscribingFiles(prev => ({ ...prev, [fileId]: true }));
       
-      const response = await fetch(`http://localhost:8000/api/projects/${projectId}/files/${fileId}/transcribe/`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/files/${fileId}/transcribe/`, {
         method: 'POST',
         headers: {
           'Authorization': `Token ${token}`,
@@ -356,7 +357,7 @@ const Tab1Files = () => {
     formData.append('pdf_file', file);
 
     try {
-      const response = await fetch(`http://localhost:8000/api/projects/${projectId}/`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Token ${token}`
@@ -394,7 +395,7 @@ const Tab1Files = () => {
     setUploadingPdf(true);
 
     try {
-      const response = await fetch(`http://localhost:8000/api/projects/${projectId}/`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Token ${token}`,
@@ -606,7 +607,7 @@ const Tab1Files = () => {
                       {projectData?.pdf_file ? (
                         <div className="pdf-actions">
                           <a 
-                            href={`http://localhost:8000${projectData.pdf_file}`}
+                            href={`${API_BASE_URL}${projectData.pdf_file}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="pdf-link"

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { useAuth } from '../contexts/AuthContext';
 import './PDFRegionSelector.css';
 
@@ -113,7 +114,7 @@ const PDFRegionSelector = ({
     
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/pdf-text/`,
+        `${API_BASE_URL}/api/projects/${projectId}/pdf-text/`,
         {
           headers: {
             'Authorization': `Token ${token}`

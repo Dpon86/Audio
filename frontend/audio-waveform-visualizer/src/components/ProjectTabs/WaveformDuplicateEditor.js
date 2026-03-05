@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { API_BASE_URL } from '../../config/api';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import './WaveformDuplicateEditor.css';
@@ -146,7 +147,7 @@ const WaveformDuplicateEditor = ({
         });
 
         // Load audio file (after event listeners are set up)
-        const audioUrl = `http://localhost:8000${audioFile}`;
+        const audioUrl = `${API_BASE_URL}${audioFile}`;
         console.log('Loading audio from:', audioUrl);
         
         try {

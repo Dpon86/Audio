@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { API_BASE_URL } from '../../config/api';
 import { useProjectTab } from '../../contexts/ProjectTabContext';
 import { useAuth } from '../../contexts/AuthContext';
 import WaveSurfer from 'wavesurfer.js';
@@ -41,7 +42,7 @@ const Tab4Results = () => {
     try {
       // Update the audio file with processed data
       const fileResponse = await fetch(
-        `http://localhost:8000/api/projects/${audioFileInfo.project}/files/${audioFileInfo.id}/`,
+        `${API_BASE_URL}/api/projects/${audioFileInfo.project}/files/${audioFileInfo.id}/`,
         {
           headers: {
             'Authorization': `Token ${token}`,
@@ -81,7 +82,7 @@ const Tab4Results = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${pendingDeletions.audioFile.id}/confirm-deletions/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${pendingDeletions.audioFile.id}/confirm-deletions/`,
         {
           method: 'POST',
           headers: {
@@ -176,7 +177,7 @@ const Tab4Results = () => {
       
       try {
         const response = await fetch(
-          `http://localhost:8000/api/tasks/${processingDeletion.taskId}/status/`,
+          `${API_BASE_URL}/api/tasks/${processingDeletion.taskId}/status/`,
           {
             headers: {
               'Authorization': `Token ${token}`,
@@ -269,7 +270,7 @@ const Tab4Results = () => {
         normalize: true,
       });
 
-      const audioUrl = `http://localhost:8000${selectedAudioFile.processed_audio}`;
+      const audioUrl = `${API_BASE_URL}${selectedAudioFile.processed_audio}`;
       
       // Load audio with error handling
       ws.load(audioUrl).catch((error) => {
@@ -351,7 +352,7 @@ const Tab4Results = () => {
     if (!selectedAudioFile || !selectedAudioFile.processed_audio) return;
     
     try {
-      const audioUrl = `http://localhost:8000${selectedAudioFile.processed_audio}`;
+      const audioUrl = `${API_BASE_URL}${selectedAudioFile.processed_audio}`;
       const response = await fetch(audioUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -378,7 +379,7 @@ const Tab4Results = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/retranscribe/`,
+        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/retranscribe/`,
         {
           method: 'POST',
           headers: {
@@ -399,7 +400,7 @@ const Tab4Results = () => {
           try {
             console.log('[Re-transcribe] Polling task status...');
             const statusResponse = await fetch(
-              `http://localhost:8000/api/tasks/${data.task_id}/status/`,
+              `${API_BASE_URL}/api/tasks/${data.task_id}/status/`,
               {
                 headers: {
                   'Authorization': `Token ${token}`,
@@ -420,7 +421,7 @@ const Tab4Results = () => {
                 
                 // Refresh audio file data
                 const fileResponse = await fetch(
-                  `http://localhost:8000/api/projects/${projectId}/files/${selectedAudioFile.id}/`,
+                  `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/`,
                   {
                     headers: {
                       'Authorization': `Token ${token}`,
