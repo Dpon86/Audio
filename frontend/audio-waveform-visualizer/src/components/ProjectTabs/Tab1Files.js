@@ -3,6 +3,7 @@ import { useProjectTab } from '../../contexts/ProjectTabContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../config/api';
 import clientSideTranscription from '../../services/clientSideTranscription';
+import clientAudioStorage from '../../services/clientAudioStorage';
 import './Tab1Files.css';
 
 /**
@@ -31,10 +32,16 @@ const Tab1Files = () => {
   const [uploadingPdf, setUploadingPdf] = useState(false);
   
   // Client-side processing state
-  const [useClientSide, setUseClientSide] = useState(false);
+  const [useClientSide, setUseClientSide] = useState(true); // Default to client-side (server has low memory)
   const [modelLoading, setModelLoading] = useState(false);
   const [modelProgress, setModelProgress] = useState(null);
   const [clientSideSupported, setClientSideSupported] = useState(false);
+  const [processingTimeEstimate, setProcessingTimeEstimate] = useState(null); // { min, max, audioDuration }
+  const [processingElapsed, setProcessingElapsed] = useState(0); // Minutes elapsed
+  
+  // State for displaying merged files (server + local)
+  const [displayFiles, setDisplayFiles] = useState([]);
+  const [processingStep, setProcessingStep] = useState(''); // Track current processing step for progress display
 
   // Load project data including PDF info on mount
   useEffect(() => {
@@ -98,10 +105,217 @@ const Tab1Files = () => {
     });
   }, [audioFiles, transcribingFiles]);
 
+  // Server storage functions for cross-device persistence
+  const saveTranscriptionToServer = async (fileId, filename, transcriptionData, duration, fileSize) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/client-transcriptions/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify({
+          filename: filename,
+          file_size_bytes: fileSize,
+          transcription_data: {
+            segments: transcriptionData.all_segments || [],
+            text: transcriptionData.text,
+            language: 'en'
+          },
+          processing_method: 'client',
+          model_used: 'Xenova/whisper-tiny',
+          duration_seconds: duration,
+          language: 'en',
+          metadata: {
+            saved_at: new Date().toISOString(),
+            local_file_id: fileId
+          }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[Tab1Files] Transcription saved to server:', data);
+        return { success: true, data: data.transcription };
+      } else {
+        console.error('[Tab1Files] Failed to save transcription to server:', response.status);
+        return { success: false, error: 'Server error' };
+      }
+    } catch (error) {
+      console.error('[Tab1Files] Error saving transcription to server:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  const loadServerTranscriptions = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/client-transcriptions/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Token ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[Tab1Files] Loaded transcriptions from server:', data.total_count);
+        return data.transcriptions || [];
+      } else {
+        console.error('[Tab1Files] Failed to load transcriptions from server:', response.status);
+        return [];
+      }
+    } catch (error) {
+      console.error('[Tab1Files] Error loading transcriptions from server:', error);
+      return [];
+    }
+  };
+
+  // Load and merge client-processed files from localStorage with server files
+  useEffect(() => {
+    const loadLocalFiles = async () => {
+      // First, load transcriptions from server
+      const serverTranscriptions = await loadServerTranscriptions();
+      
+      // Build map of server transcriptions by filename for easy lookup
+      const serverTranscriptionsMap = {};
+      serverTranscriptions.forEach(st => {
+        serverTranscriptionsMap[st.filename] = st;
+      });
+      
+      const storageKey = `client_transcriptions_${projectId}`;
+      const localFilesJson = localStorage.getItem(storageKey);
+      
+      if (localFilesJson) {
+        try {
+          const localFiles = JSON.parse(localFilesJson);
+          
+          // Load audio files from IndexedDB
+          const localFilesWithAudio = await Promise.all(
+            localFiles.map(async (lf) => {
+              // Check if this file has a server transcription
+              const serverTranscription = serverTranscriptionsMap[lf.filename];
+              
+              let audioFile = null;
+              if (lf.has_local_audio) {
+                try {
+                  const stored = await clientAudioStorage.getFile(lf.id);
+                  if (stored && stored.file) {
+                    audioFile = stored.file;
+                    console.log(`[Tab1Files] Loaded audio from IndexedDB for ${lf.filename}`);
+                  }
+                } catch (error) {
+                  console.error(`[Tab1Files] Failed to load audio for ${lf.filename}:`, error);
+                }
+              }
+              
+              // Use server transcription if available (it's the source of truth)
+              const transcription = serverTranscription 
+                ? {
+                    text: serverTranscription.full_text || '',
+                    all_segments: serverTranscription.transcription_data?.segments || [],
+                    word_count: serverTranscription.full_text?.split(/\s+/).filter(w => w.length > 0).length || 0,
+                    client_processed: true
+                  }
+                : lf.transcription;
+              
+              return {
+                id: lf.id,
+                filename: lf.filename,
+                title: lf.title,
+                status: 'transcribed',
+                file_size_bytes: serverTranscription?.file_size_bytes || lf.file_size_bytes || 0,
+                duration_seconds: serverTranscription?.duration_seconds || lf.duration_seconds || 0,
+                transcription: transcription,
+                client_only: true,
+                local_file: audioFile, // Add the audio File object from IndexedDB
+                server_synced: !!serverTranscription,
+                server_id: serverTranscription?.id,
+                status_badge: serverTranscription ? '☁️ Synced' : '📱 Local'
+              };
+            })
+          );
+          
+          // Also add any server transcriptions that don't have local files
+          const localFileNames = localFiles.map(lf => lf.filename);
+          const serverOnlyFiles = serverTranscriptions
+            .filter(st => !localFileNames.includes(st.filename))
+            .map(st => ({
+              id: `server-${st.id}`,
+              filename: st.filename,
+              title: st.filename.replace(/\.[^/.]+$/, ''),
+              status: 'transcribed',
+              file_size_bytes: st.file_size_bytes || 0,
+              duration_seconds: st.duration_seconds || 0,
+              transcription: {
+                text: st.full_text || '',
+                all_segments: st.transcription_data?.segments || [],
+                word_count: st.full_text?.split(/\s+/).filter(w => w.length > 0).length || 0,
+                client_processed: true
+              },
+              client_only: true,
+              local_file: null,
+              server_synced: true,
+              server_id: st.id,
+              status_badge: '☁️🔄 Server' // Server only, no local audio
+            }));
+          
+          // Merge with server files (avoid duplicates by filename)
+          const serverFileNames = audioFiles.map(f => f.filename);
+          const allLocalFiles = [...localFilesWithAudio, ...serverOnlyFiles];
+          const uniqueLocalFiles = allLocalFiles.filter(
+            lf => !serverFileNames.includes(lf.filename)
+          );
+          
+          setDisplayFiles([...audioFiles, ...uniqueLocalFiles]);
+          
+          console.log('[Tab1Files] Loaded', uniqueLocalFiles.length, 'client files (server + local)');
+          console.log('[Tab1Files] Server transcriptions:', serverOnlyFiles.length, 'Server synced:', localFilesWithAudio.filter(f => f.server_synced).length);
+        } catch (error) {
+          console.error('[Tab1Files] Error loading local files:', error);
+          setDisplayFiles(audioFiles);
+        }
+      } else if (serverTranscriptions.length > 0) {
+        // No local storage, but we have server transcriptions
+        const serverFiles = serverTranscriptions.map(st => ({
+          id: `server-${st.id}`,
+          filename: st.filename,
+          title: st.filename.replace(/\.[^/.]+$/, ''),
+          status: 'transcribed',
+          file_size_bytes: st.file_size_bytes || 0,
+          duration_seconds: st.duration_seconds || 0,
+          transcription: {
+            text: st.full_text || '',
+            all_segments: st.transcription_data?.segments || [],
+            word_count: st.full_text?.split(/\s+/).filter(w => w.length > 0).length || 0,
+            client_processed: true
+          },
+          client_only: true,
+          local_file: null,
+          server_synced: true,
+          server_id: st.id,
+          status_badge: '☁️🔄 Server'
+        }));
+        
+        const serverFileNames = audioFiles.map(f => f.filename);
+        const uniqueServerFiles = serverFiles.filter(
+          sf => !serverFileNames.includes(sf.filename)
+        );
+        
+        setDisplayFiles([...audioFiles, ...uniqueServerFiles]);
+        console.log('[Tab1Files] Loaded', uniqueServerFiles.length, 'files from server');
+      } else {
+        setDisplayFiles(audioFiles);
+      }
+    };
+    
+    loadLocalFiles();
+  }, [audioFiles, projectId]);
+
   // Process file client-side
   const processFileClientSide = async (file) => {
     setUploading(true);
     setUploadProgress(0);
+    setProcessingStep('loading');
 
     try {
       // Initialize model if not loaded
@@ -114,59 +328,154 @@ const Tab1Files = () => {
         setModelLoading(false);
       }
 
+      // Reading audio file
+      setProcessingStep('reading');
+      setUploadProgress(30);
+
       // Transcribe audio
+      setProcessingStep('transcribing');
+      setProcessingTimeEstimate(null);
+      setProcessingElapsed(0);
+      
       const result = await clientSideTranscription.transcribe(
         file,
         {},
         (progress) => {
+          // Update progress percentage
           setUploadProgress(30 + Math.round((progress.percent || 0) * 0.4));
+          
+          // Update time estimate on first progress update
+          if (progress.estimatedTimeMin && progress.estimatedTimeMax && !processingTimeEstimate) {
+            setProcessingTimeEstimate({
+              min: progress.estimatedTimeMin,
+              max: progress.estimatedTimeMax,
+              audioDuration: progress.audioDuration
+            });
+          }
+          
+          // Update elapsed time
+          if (progress.elapsed !== undefined) {
+            setProcessingElapsed(progress.elapsed);
+          }
         }
       );
 
+      setProcessingStep('finalizing');
       setUploadProgress(70);
 
-      // Now upload the file with transcription data to the server
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
-      formData.append('transcription_data', JSON.stringify({
-        text: result.text,
-        segments: result.all_segments || [],
-        client_processed: true
-      }));
-
-      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/files/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Token ${token}`
+      // For client-side processing, store locally and display in UI
+      // No need to upload to server - keep everything client-side
+      console.log('[Tab1Files] Client-side transcription complete, storing locally');
+      
+      // Create a unique ID for this file
+      const fileId = `local-${Date.now()}`;
+      
+      // Store the actual File object in IndexedDB for persistence
+      await clientAudioStorage.storeFile(fileId, projectId, file, {
+        transcription: {
+          text: result.text,
+          all_segments: result.all_segments || [],
+          word_count: result.text.split(/\s+/).filter(w => w.length > 0).length,
+          client_processed: true
         },
-        body: formData
+        duration_seconds: result.all_segments && result.all_segments.length > 0 
+          ? result.all_segments[result.all_segments.length - 1].end 
+          : 0
       });
+      
+      console.log(`[Tab1Files] Stored audio file in IndexedDB: ${fileId}`);
+      
+      // Create a local file object to display in the list
+      const localFile = {
+        id: fileId,
+        filename: file.name,
+        title: file.name.replace(/\.[^/.]+$/, ''),
+        status: 'transcribed',
+        file_size_bytes: file.size,
+        duration_seconds: result.all_segments && result.all_segments.length > 0 
+          ? result.all_segments[result.all_segments.length - 1].end 
+          : 0,
+        transcription: {
+          text: result.text,
+          all_segments: result.all_segments || [],
+          word_count: result.text.split(/\s+/).filter(w => w.length > 0).length,
+          client_processed: true
+        },
+        client_only: true, // Flag to indicate this is client-side only
+        has_local_audio: true // Flag to indicate audio is in IndexedDB
+      };
 
-      if (response.ok) {
-        setUploadProgress(100);
-        await refreshAudioFiles(token);
+      // Store metadata in localStorage for quick access
+      const storageKey = `client_transcriptions_${projectId}`;
+      const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      existing.push({
+        id: localFile.id,
+        filename: localFile.filename,
+        title: localFile.title,
+        transcription: localFile.transcription,
+        timestamp: Date.now(),
+        has_local_audio: true
+      });
+      localStorage.setItem(storageKey, JSON.stringify(existing));
+
+      // Save to server for cross-device persistence
+      const serverSave = await saveTranscriptionToServer(
+        fileId,
+        file.name,
+        localFile.transcription,
+        localFile.duration_seconds,
+        file.size
+      );
+
+      // Update local file with server sync status
+      if (serverSave.success) {
+        localFile.server_synced = true;
+        localFile.server_id = serverSave.data?.id;
+        console.log('[Tab1Files] Transcription synced to server');
       } else {
-        let errorMessage = `Failed to upload ${file.name}`;
-        try {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const error = await response.json();
-            errorMessage = error.error || error.message || errorMessage;
-          } else {
-            errorMessage = `Server error (${response.status}): ${response.statusText}`;
-          }
-        } catch (parseError) {
-          console.error('Error parsing response:', parseError);
-          errorMessage = `Server error (${response.status}): ${response.statusText}`;
-        }
-        alert(errorMessage);
+        localFile.server_synced = false;
+        console.log('[Tab1Files] Transcription saved locally only (server unavailable)');
       }
+
+      setProcessingStep('complete');
+      setUploadProgress(100);
+      
+      // Add to audioFiles state for immediate display
+      const currentFiles = audioFiles || [];
+      const updatedFiles = [...currentFiles, localFile];
+      // Trigger refresh to include local file
+      await refreshAudioFiles(token);
+      
+      // Enhanced success alert with detailed information
+      const duration = formatDuration(localFile.duration_seconds);
+      const segments = result.all_segments?.length || 0;
+      const words = localFile.transcription.word_count;
+      
+      const syncStatus = localFile.server_synced 
+        ? `☁️ Synced to Server: Available on all your devices`
+        : `📱 Saved Locally Only: Server unavailable, will sync when available`;
+      
+      alert(
+        `✅ Transcription Complete!\n\n` +
+        `📄 File: ${file.name}\n` +
+        `⏱️ Duration: ${duration}\n` +
+        `💬 Words: ${words.toLocaleString()}\n` +
+        `📝 Segments: ${segments}\n\n` +
+        `🖥️ Processing Method: Client-Side (Your Device)\n` +
+        `💾 ${syncStatus}\n\n` +
+        `Your audio file never left your device. ` +
+        (localFile.server_synced 
+          ? `Transcription saved to server for cross-device access.`
+          : `Transcription saved locally. Will sync to server when connection available.`)
+      );
 
       setUploading(false);
       setUploadProgress(0);
       setModelLoading(false);
       setModelProgress(null);
+      setProcessingStep('');
+      setProcessingTimeEstimate(null);
+      setProcessingElapsed(0);
     } catch (error) {
       console.error('Client-side processing error:', error);
       alert(`Client-side processing failed: ${error.message}\n\nPlease try server-side processing instead.`);
@@ -174,6 +483,9 @@ const Tab1Files = () => {
       setUploadProgress(0);
       setModelLoading(false);
       setModelProgress(null);
+      setProcessingStep('');
+      setProcessingTimeEstimate(null);
+      setProcessingElapsed(0);
       setUseClientSide(false); // Fallback to server-side
     }
   };
@@ -457,12 +769,17 @@ const Tab1Files = () => {
 
   return (
     <div className="tab1-container">
-      <div className="tab-description-banner">
-        <p>📝 <strong>Upload files, press transcribe, and don't refresh or leave the page.</strong> Transcription can take a while - watch the status update automatically.</p>
+      {/* Client-Side Processing Info Banner */}
+      <div className="client-side-info-banner">
+        <p>
+          🖥️ <strong>Processing on Your Device</strong><br />
+          All transcription happens in your browser for faster, private processing.
+          Your audio files never leave your device. Results are saved locally in your browser.
+        </p>
       </div>
 
-      {/* Processing Mode Toggle */}
-      {clientSideSupported && (
+      {/* Processing Mode Toggle - DISABLED (server has low memory) */}
+      {false && clientSideSupported && (
         <div className="processing-mode-selector">
           <div className="processing-mode-toggle">
             <label className="toggle-label">
@@ -494,16 +811,16 @@ const Tab1Files = () => {
         </div>
       )}
 
-      {/* Model Loading Progress */}
+      {/* Processing Software Loading Progress */}
       {modelLoading && modelProgress && (
         <div className="model-loading-banner">
-          <p><strong>📥 Downloading AI Model...</strong></p>
+          <p><strong>📥 Loading Processing Software...</strong></p>
           <p>{modelProgress.message}</p>
           <div className="progress-bar">
             <div className="progress-fill" style={{ width: `${modelProgress.percent || 0}%` }} />
           </div>
           <p style={{ fontSize: '0.9em', color: '#666' }}>
-            This happens once. The model will be cached for future use.
+            This happens once. The software will be cached for future use.
           </p>
         </div>
       )}
@@ -534,11 +851,73 @@ const Tab1Files = () => {
         </label>
 
         {uploading && (
-          <div className="upload-progress">
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${uploadProgress}%` }} />
+          <div className="upload-progress-overlay">
+            <div className="progress-modal">
+              <div className="processing-animation">
+                <div className="spinner"></div>
+              </div>
+              
+              <h3 className="processing-title">Processing Your Audio</h3>
+              
+              {processingStep === 'transcribing' && (
+                <>
+                  <div className="browser-warning">
+                    ⚠️ <strong>Your browser may report this page as unresponsive.</strong><br/>
+                    This is normal – the transcription is processing on your device.<br/>
+                    <strong>Please wait and click "Wait" if prompted.</strong>
+                  </div>
+                  
+                  {processingTimeEstimate && (
+                    <div className="time-estimate">
+                      <div className="time-row">
+                        <span className="time-label">⏱️ Audio Duration:</span>
+                        <span className="time-value">{Math.ceil(processingTimeEstimate.audioDuration / 60)} minutes</span>
+                      </div>
+                      <div className="time-row">
+                        <span className="time-label">⏳ Estimated Time:</span>
+                        <span className="time-value">{processingTimeEstimate.min}-{processingTimeEstimate.max} minutes</span>
+                      </div>
+                      {processingElapsed > 0 && (
+                        <div className="time-row elapsed">
+                          <span className="time-label">⌛ Elapsed:</span>
+                          <span className="time-value">{processingElapsed.toFixed(1)} minutes</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+              
+              <div className="progress-steps">
+                <div className={`step-item ${processingStep === 'loading' ? 'active' : ''}`}>
+                  <span className="step-icon">{processingStep === 'loading' ? '⏳' : '✓'}</span>
+                  <span className="step-text">Loading Processing Software</span>
+                </div>
+                <div className={`step-item ${processingStep === 'reading' ? 'active' : ''}`}>
+                  <span className="step-icon">{processingStep === 'reading' ? '⏳' : processingStep === 'loading' ? '○' : '✓'}</span>
+                  <span className="step-text">Reading Audio File</span>
+                </div>
+                <div className={`step-item ${processingStep === 'transcribing' ? 'active' : ''}`}>
+                  <span className="step-icon">{processingStep === 'transcribing' ? '⏳' : ['loading', 'reading'].includes(processingStep) ? '○' : '✓'}</span>
+                  <span className="step-text">Transcribing Audio (This may take a while)</span>
+                </div>
+                <div className={`step-item ${processingStep === 'finalizing' ? 'active' : ''}`}>
+                  <span className="step-icon">{processingStep === 'finalizing' ? '⏳' : ['loading', 'reading', 'transcribing'].includes(processingStep) ? '○' : '✓'}</span>
+                  <span className="step-text">Finalizing Results</span>
+                </div>
+              </div>
+              
+              <div className="progress-bar-container">
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{ width: `${uploadProgress}%` }} />
+                </div>
+                <div className="progress-text">{uploadProgress}% complete</div>
+              </div>
+              
+              <div className="processing-info">
+                💡 Tip: Processing happens on your device for privacy and security.
+              </div>
             </div>
-            <span>{uploadProgress}% uploaded</span>
           </div>
         )}
       </div>
@@ -546,13 +925,13 @@ const Tab1Files = () => {
       {/* Files Table */}
       <div className="files-table-container">
         <div className="files-header">
-          <h3>Audio Files ({audioFiles.length})</h3>
+          <h3>Audio Files ({displayFiles.length})</h3>
           <button className="refresh-button" onClick={() => refreshAudioFiles(token)}>
             🔄 Refresh
           </button>
         </div>
 
-        {audioFiles.length === 0 ? (
+        {displayFiles.length === 0 ? (
           <div className="empty-state">
             <p>No audio files yet. Upload your first file above!</p>
           </div>
@@ -569,7 +948,7 @@ const Tab1Files = () => {
               </tr>
             </thead>
             <tbody>
-              {audioFiles.map((file) => {
+              {displayFiles.map((file) => {
                 const isTranscribing = transcribingFiles[file.id];
                 const hasTranscription = file.transcription && file.transcription.text;
                 const hasFailureWithoutTranscription = (file.status === 'failed' || file.error_message) && !hasTranscription;
@@ -587,7 +966,10 @@ const Tab1Files = () => {
                       <div className="file-info-inline">
                         <span className="file-icon">🎵</span>
                         <div className="file-details">
-                          <div className="file-name" title={file.filename}>{file.filename}</div>
+                          <div className="file-name" title={file.filename}>
+                            {file.filename}
+                            {file.status_badge && <span className="local-badge">{file.status_badge}</span>}
+                          </div>
                           <div className="file-meta">
                             <span>💾 {formatFileSize(file.file_size_bytes)}</span>
                           </div>

@@ -346,3 +346,115 @@ class ProcessingResult(models.Model):
     
     def __str__(self):
         return f"Processing Result for {self.project.title}"
+
+
+class ClientTranscription(models.Model):
+    """
+    Stores client-side transcription metadata from browser-based Whisper processing.
+    Audio files remain in browser IndexedDB, but transcription results are saved to server
+    for cross-device access and persistence.
+    """
+    project = models.ForeignKey(AudioProject, on_delete=models.CASCADE, related_name='client_transcriptions')
+    audio_file = models.ForeignKey(AudioFile, on_delete=models.CASCADE, null=True, blank=True, related_name='client_transcriptions')
+    
+    # File identification (for files that don't have AudioFile record yet)
+    filename = models.CharField(max_length=255)
+    file_size_bytes = models.BigIntegerField(null=True, blank=True)
+    
+    # Transcription data (JSON format matching @xenova/transformers output)
+    transcription_data = models.JSONField()  # Full segments array from Whisper
+    
+    # Processing metadata
+    processing_method = models.CharField(max_length=50, default='client')  # 'client' or 'server'
+    model_used = models.CharField(max_length=100, default='Xenova/whisper-tiny')
+    duration_seconds = models.FloatField(null=True, blank=True)
+    language = models.CharField(max_length=10, null=True, blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Additional metadata
+    metadata = models.JSONField(null=True, blank=True)  # Flexible field for future enhancements
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['project', '-created_at']),
+            models.Index(fields=['audio_file']),
+            models.Index(fields=['filename']),
+        ]
+        # Allow multiple transcriptions per audio_file (e.g., different models, re-transcriptions)
+        # but typically one per file
+    
+    def __str__(self):
+        return f"Client Transcription: {self.filename} ({self.project.title})"
+    
+    @property
+    def segment_count(self):
+        """Get number of segments in transcription"""
+        if self.transcription_data and isinstance(self.transcription_data, dict):
+            segments = self.transcription_data.get('segments', [])
+            return len(segments)
+        return 0
+    
+    @property
+    def full_text(self):
+        """Extract full text from transcription segments"""
+        if self.transcription_data and isinstance(self.transcription_data, dict):
+            segments = self.transcription_data.get('segments', [])
+            return ' '.join(seg.get('text', '').strip() for seg in segments)
+        return ""
+
+
+class DuplicateAnalysis(models.Model):
+    """
+    Stores client-side duplicate detection results.
+    Preserves duplicate groups, selected deletions, and assembly information
+    for cross-device access.
+    """
+    project = models.ForeignKey(AudioProject, on_delete=models.CASCADE, related_name='duplicate_analyses')
+    audio_file = models.ForeignKey(AudioFile, on_delete=models.CASCADE, null=True, blank=True, related_name='duplicate_analyses')
+    
+    # File identification
+    filename = models.CharField(max_length=255)
+    
+    # Duplicate detection results (JSON format from clientDuplicateDetection.js)
+    duplicate_groups = models.JSONField()  # Array of duplicate groups
+    algorithm = models.CharField(max_length=50, default='jaccard')  # 'jaccard' or other
+    
+    # Statistics
+    total_segments = models.IntegerField(default=0)
+    duplicate_count = models.IntegerField(default=0)  # Number of duplicate segments
+    duplicate_groups_count = models.IntegerField(default=0)  # Number of groups
+    
+    # User selections and actions
+    selected_deletions = models.JSONField(null=True, blank=True)  # Array of segment indices to delete
+    assembly_info = models.JSONField(null=True, blank=True)  # Info about assembled audio
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Additional metadata
+    metadata = models.JSONField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['project', '-created_at']),
+            models.Index(fields=['audio_file']),
+            models.Index(fields=['filename']),
+        ]
+        verbose_name_plural = 'Duplicate analyses'
+    
+    def __str__(self):
+        return f"Duplicate Analysis: {self.filename} ({self.duplicate_groups_count} groups)"
+    
+    @property
+    def deletion_percentage(self):
+        """Calculate percentage of segments marked for deletion"""
+        if self.total_segments > 0 and self.selected_deletions:
+            deletion_count = len(self.selected_deletions) if isinstance(self.selected_deletions, list) else 0
+            return (deletion_count / self.total_segments) * 100
+        return 0

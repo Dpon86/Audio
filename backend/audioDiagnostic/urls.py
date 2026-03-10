@@ -19,6 +19,9 @@ from .views import (
     ProjectMatchPDFView, ProjectValidatePDFView, ProjectValidationProgressView,
     # Infrastructure
     InfrastructureStatusView, TaskStatusView,
+    # Client Storage
+    ClientTranscriptionListCreateView, ClientTranscriptionDetailView,
+    DuplicateAnalysisListCreateView, DuplicateAnalysisDetailView,
     # Legacy
     upload_chunk, assemble_chunks, download_audio, cut_audio,
     AnalyzePDFView, N8NTranscribeView, AudioTaskStatusSentencesView,
@@ -107,6 +110,17 @@ urlpatterns = [
     path('projects/<int:project_id>/audio-files/<int:audio_file_id>/restart/', AudioFileRestartView.as_view(), name='audio-file-restart'),
     path('projects/<int:project_id>/audio-files/<int:audio_file_id>/process/', AudioFileProcessView.as_view(), name='audio-file-process'),
     path('projects/<int:project_id>/transcript/', ProjectTranscriptView.as_view(), name='project-transcript'),
+    
+    # ============================================================================
+    # CLIENT STORAGE API (Cross-device persistence for client-side processing)
+    # ============================================================================
+    # Client Transcriptions
+    path('api/projects/<int:project_id>/client-transcriptions/', ClientTranscriptionListCreateView.as_view(), name='client-transcription-list-create'),
+    path('api/projects/<int:project_id>/client-transcriptions/<int:transcription_id>/', ClientTranscriptionDetailView.as_view(), name='client-transcription-detail'),
+    
+    # Duplicate Analyses
+    path('api/projects/<int:project_id>/duplicate-analyses/', DuplicateAnalysisListCreateView.as_view(), name='duplicate-analysis-list-create'),
+    path('api/projects/<int:project_id>/duplicate-analyses/<int:analysis_id>/', DuplicateAnalysisDetailView.as_view(), name='duplicate-analysis-detail'),
     
     # ============================================================================
     # TAB-BASED ARCHITECTURE ENDPOINTS

@@ -49,7 +49,7 @@ const AudioPage = () => {
   const messageIntervalRef = useRef();
   
   // Client-side processing state
-  const [useClientSide, setUseClientSide] = useState(false);
+  const [useClientSide, setUseClientSide] = useState(true); // Default to client-side (server has low memory)
   const [modelLoading, setModelLoading] = useState(false);
   const [modelProgress, setModelProgress] = useState(null);
   const [clientSideSupported, setClientSideSupported] = useState(false);
@@ -213,8 +213,8 @@ const AudioPage = () => {
 
   return (
     <div className="audiopage-container">
-      {/* Processing Mode Toggle */}
-      {clientSideSupported && (
+      {/* Processing Mode Toggle - DISABLED (server has low memory) */}
+      {false && clientSideSupported && (
         <div className="processing-mode-selector">
           <div className="processing-mode-toggle">
             <label className="toggle-label">
@@ -234,7 +234,7 @@ const AudioPage = () => {
               <p>
                 ✓ <strong>Faster processing</strong> (uses your computer's CPU/GPU)<br />
                 ✓ <strong>No upload time</strong> - files stay on your device<br />
-                ⓘ First use downloads AI model (~39MB, cached for future use)
+                ⓘ First use downloads processing software (~39MB, cached for future use)
               </p>
             ) : (
               <p>
@@ -252,10 +252,10 @@ const AudioPage = () => {
         <div className="audiopage-processing-box">
           {modelLoading && modelProgress && (
             <div className="model-loading">
-              <p><strong>Downloading AI Model...</strong></p>
+              <p><strong>Loading Processing Software...</strong></p>
               <p>{modelProgress.message}</p>
               <p style={{ fontSize: '0.9em', color: '#666' }}>
-                This happens once. The model will be cached for future use.
+                This happens once. The software will be cached for future use.
               </p>
             </div>
           )}

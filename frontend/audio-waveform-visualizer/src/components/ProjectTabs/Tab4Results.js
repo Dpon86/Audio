@@ -78,6 +78,25 @@ const Tab4Results = () => {
       return;
     }
 
+    // Check if this is a client-only file
+    const isClientOnly = pendingDeletions.audioFile.client_only || pendingDeletions.audioFile.id.startsWith('local-');
+    
+    if (isClientOnly) {
+      // Client-only files are processed in Tab3 (duplicate detection tab)
+      // The assembly happens there, not in this tab
+      console.log('[Tab4Results] Client-only file - processing happens in Tab3Duplicates');
+      alert(
+        'This file was processed locally in your browser.\n\n' +
+        'To remove duplicates and assemble audio:\n' +
+        '1. Go to the Duplicates tab\n' +
+        '2. Click "Assemble Audio"\n\n' +
+        'This will create the final audio file without the duplicate segments.'
+      );
+      setPendingDeletions(null);
+      setProcessing(false);
+      return;
+    }
+
     setProcessing(true);
 
     try {

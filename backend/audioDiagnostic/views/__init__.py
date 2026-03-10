@@ -58,6 +58,14 @@ from .infrastructure_views import (
     TaskStatusView
 )
 
+# Client storage (client-side transcriptions and duplicate analyses)
+from .client_storage import (
+    ClientTranscriptionListCreateView,
+    ClientTranscriptionDetailView,
+    DuplicateAnalysisListCreateView,
+    DuplicateAnalysisDetailView
+)
+
 # Legacy endpoints (kept for backward compatibility)
 from .legacy_views import (
     upload_chunk,
@@ -110,6 +118,12 @@ __all__ = [
     # Infrastructure views
     'InfrastructureStatusView',
     'TaskStatusView',
+    
+    # Client storage views
+    'ClientTranscriptionListCreateView',
+    'ClientTranscriptionDetailView',
+    'DuplicateAnalysisListCreateView',
+    'DuplicateAnalysisDetailView',
     
     # Legacy views
     'upload_chunk',

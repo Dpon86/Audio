@@ -3,7 +3,11 @@ Serializers for the audioDiagnostic app.
 Provides input validation and serialization for API endpoints.
 """
 from rest_framework import serializers
-from .models import AudioProject, AudioFile, TranscriptionSegment, TranscriptionWord, ProcessingResult, Transcription, DuplicateGroup
+from .models import (
+    AudioProject, AudioFile, TranscriptionSegment, TranscriptionWord, 
+    ProcessingResult, Transcription, DuplicateGroup, ClientTranscription, 
+    DuplicateAnalysis
+)
 
 
 class AudioProjectSerializer(serializers.ModelSerializer):
@@ -397,3 +401,121 @@ class AudioFileUploadSerializer(serializers.ModelSerializer):
         
         audio_file.save()
         return audio_file
+
+
+class ClientTranscriptionSerializer(serializers.ModelSerializer):
+    """
+    Serializer for client-side transcription metadata.
+    Used to save/load transcription results from browser-based Whisper processing.
+    """
+    segment_count = serializers.IntegerField(read_only=True)
+    full_text = serializers.CharField(read_only=True)
+    
+    class Meta:
+        model = ClientTranscription
+        fields = [
+            'id', 'project', 'audio_file', 'filename', 'file_size_bytes',
+            'transcription_data', 'processing_method', 'model_used',
+            'duration_seconds', 'language', 'created_at', 'updated_at',
+            'metadata', 'segment_count', 'full_text'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'segment_count', 'full_text']
+    
+    def validate_transcription_data(self, value):
+        """Validate transcription data is valid JSON with expected structure"""
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Transcription data must be a JSON object")
+        
+        # Check for required keys
+        if 'segments' not in value:
+            raise serializers.ValidationError("Transcription data must contain 'segments' array")
+        
+        segments = value.get('segments', [])
+        if not isinstance(segments, list):
+            raise serializers.ValidationError("'segments' must be an array")
+        
+        # Validate each segment has required fields
+        for i, segment in enumerate(segments):
+            if not isinstance(segment, dict):
+                raise serializers.ValidationError(f"Segment {i} must be an object")
+            
+            required_fields = ['text']
+            for field in required_fields:
+                if field not in segment:
+                    raise serializers.ValidationError(f"Segment {i} missing required field: {field}")
+        
+        return value
+    
+    def validate_filename(self, value):
+        """Validate filename"""
+        if not value or len(value.strip()) < 1:
+            raise serializers.ValidationError("Filename is required")
+        if len(value) > 255:
+            raise serializers.ValidationError("Filename cannot exceed 255 characters")
+        return value.strip()
+    
+    def validate_duration_seconds(self, value):
+        """Validate duration is positive"""
+        if value is not None and value < 0:
+            raise serializers.ValidationError("Duration cannot be negative")
+        return value
+
+
+class DuplicateAnalysisSerializer(serializers.ModelSerializer):
+    """
+    Serializer for client-side duplicate detection results.
+    Preserves duplicate groups, user selections, and assembly information.
+    """
+    deletion_percentage = serializers.FloatField(read_only=True)
+    
+    class Meta:
+        model = DuplicateAnalysis
+        fields = [
+            'id', 'project', 'audio_file', 'filename', 'duplicate_groups',
+            'algorithm', 'total_segments', 'duplicate_count', 'duplicate_groups_count',
+            'selected_deletions', 'assembly_info', 'created_at', 'updated_at',
+            'metadata', 'deletion_percentage'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'deletion_percentage']
+    
+    def validate_duplicate_groups(self, value):
+        """Validate duplicate groups is valid JSON array"""
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Duplicate groups must be an array")
+        
+        # Validate each group has expected structure
+        for i, group in enumerate(value):
+            if not isinstance(group, dict):
+                raise serializers.ValidationError(f"Duplicate group {i} must be an object")
+            
+            # Check for common fields (flexible to allow different structures)
+            if 'instances' not in group and 'segments' not in group:
+                raise serializers.ValidationError(
+                    f"Duplicate group {i} must contain 'instances' or 'segments' array"
+                )
+        
+        return value
+    
+    def validate_selected_deletions(self, value):
+        """Validate selected deletions is an array"""
+        if value is not None and not isinstance(value, list):
+            raise serializers.ValidationError("Selected deletions must be an array")
+        return value
+    
+    def validate_assembly_info(self, value):
+        """Validate assembly info is a JSON object"""
+        if value is not None and not isinstance(value, dict):
+            raise serializers.ValidationError("Assembly info must be a JSON object")
+        return value
+    
+    def validate_total_segments(self, value):
+        """Validate total segments is non-negative"""
+        if value < 0:
+            raise serializers.ValidationError("Total segments cannot be negative")
+        return value
+    
+    def validate_duplicate_count(self, value):
+        """Validate duplicate count is non-negative"""
+        if value < 0:
+            raise serializers.ValidationError("Duplicate count cannot be negative")
+        return value

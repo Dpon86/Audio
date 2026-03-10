@@ -606,3 +606,234 @@
 .modal-button.secondary-button:hover {
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
 }
+
+/* Client-Side Detection Progress */
+.detection-progress {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+  border-radius: 8px;
+  border: 1px solid #bae6fd;
+}
+
+.progress-status {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0c4a6e;
+  text-align: center;
+}
+
+.detection-progress .progress-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.detection-progress .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0ea5e9 0%, #0284c7 100%);
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+/* Audio Assembly Progress */
+.assembly-progress {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border-radius: 8px;
+  border: 1px solid #6ee7b7;
+}
+
+.assembly-progress .progress-status {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #065f46;
+  text-align: center;
+}
+
+.assembly-progress .progress-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.assembly-progress .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+/* Assembled Audio Info */
+.assembled-audio-info {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border-radius: 12px;
+  border: 2px solid #10b981;
+  box-shadow: 0 4px 6px rgba(16, 185, 129, 0.1);
+}
+
+.assembled-audio-info h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  color: #065f46;
+  text-align: center;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.info-item .label {
+  font-size: 0.85rem;
+  color: #059669;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.info-item .value {
+  font-size: 1.1rem;
+  color: #064e3b;
+  font-weight: 700;
+}
+
+.download-button {
+  width: 100%;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
+}
+
+/* New top-positioned action section */
+.review-actions-top {
+  position: sticky;
+  top: 10px;
+  z-index: 100;
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.assembly-progress-inline {
+  padding: 1rem;
+  background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+  border-radius: 8px;
+  border: 2px solid #f59e0b;
+}
+
+.assembly-progress-inline .progress-status {
+  margin: 0 0 0.75rem 0;
+  font-weight: 600;
+  color: #92400e;
+  font-size: 0.95rem;
+}
+
+.assembled-audio-info-inline {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border-radius: 10px;
+  border: 2px solid #10b981;
+}
+
+.assembled-audio-info-inline .success-icon {
+  font-size: 1.5rem;
+}
+
+.assembled-audio-info-inline .info-text {
+  flex: 1;
+  font-weight: 600;
+  color: #065f46;
+  font-size: 1rem;
+}
+
+.download-button-inline {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
+  white-space: nowrap;
+}
+
+.download-button-inline:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3);
+}
+
+.assemble-button {
+  width: 100%;
+}
+
+
+.download-button:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3);
+}
+
+.download-button:active {
+  transform: translateY(0);
+}
+
+/* Download Format Buttons */
+.download-format-button {
+  padding: 0.5rem 1rem;
+  background: white;
+  color: #475569;
+  border: 2px solid #cbd5e1;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.download-format-button:hover {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(59, 130, 246, 0.2);
+}
+
+.download-format-button:active {
+  transform: translateY(0);
+}
+
