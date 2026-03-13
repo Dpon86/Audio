@@ -218,6 +218,19 @@ const Tab3Duplicates = () => {
               setSelectedDeletions(JSON.parse(savedSelections));
             }
             
+            // Load assembly info if it exists
+            const assemblyInfoKey = `${storageKey}_assembly`;
+            const savedAssembly = localStorage.getItem(assemblyInfoKey);
+            if (savedAssembly) {
+              try {
+                const assemblyData = JSON.parse(savedAssembly);
+                setAssemblyInfo(assemblyData.info);
+                console.log(`[Tab3Duplicates] Loaded assembly info from localStorage`);
+              } catch (error) {
+                console.error('[Tab3Duplicates] Error loading assembly info:', error);
+              }
+            }
+            
             // Expand first 3 groups
             if (data.duplicateGroups && data.duplicateGroups.length > 0) {
               const firstThree = new Set();
@@ -488,38 +501,15 @@ const Tab3Duplicates = () => {
     console.log(`📝 Region: group=${groupId}, segment=${segmentId}`);
     console.log(`📝 New times: ${newStartTime.toFixed(2)}s - ${newEndTime.toFixed(2)}s`);
     
+    // CRITICAL: Check if this is a client-only file FIRST to avoid 404 errors
+    const isClientOnly = selectedAudioFile?.client_only || 
+                         selectedAudioFile?.client_processed || 
+                         (selectedAudioFile?.id && selectedAudioFile.id.toString().startsWith('local-'));
+    
+    console.log(`📋 File type: ${isClientOnly ? 'CLIENT-ONLY' : 'SERVER'}`);
+    
     try {
-      // Save to backend FIRST (before optimistic update)
-      console.log(`📤 Sending PATCH to: /api/projects/${projectId}/files/${selectedAudioFile.id}/segments/${segmentId}/`);
-      console.log(`📤 Payload:`, { start_time: newStartTime, end_time: newEndTime });
-      
-      const response = await fetch(
-        `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/segments/${segmentId}/`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Token ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            start_time: newStartTime,
-            end_time: newEndTime
-          })
-        }
-      );
-
-      console.log(`📥 Response status: ${response.status} ${response.statusText}`);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`❌ PATCH failed:`, errorText);
-        throw new Error(`Failed to update segment times: ${response.status}`);
-      }
-      
-      const responseData = await response.json();
-      console.log(`✅ Backend updated successfully:`, responseData);
-
-      // Now update local state to match backend
+      // Update local state immediately
       setDuplicateGroups(prevGroups =>
         prevGroups.map(group => {
           if (group.group_id !== groupId) return group;
@@ -534,16 +524,105 @@ const Tab3Duplicates = () => {
           };
         })
       );
-      
-      console.log(`✅ Local state updated`);
-      console.log(`---- UPDATE COMPLETE ----\n`);
+
+      if (isClientOnly) {
+        // For client-only files, update localStorage
+        console.log(`📱 Client-only file detected, updating localStorage`);
+        
+        // Update the duplicate groups in localStorage
+        const storageKey = `duplicates_${selectedAudioFile.id}_${projectId}`;
+        const stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
+        
+        if (stored.duplicateGroups) {
+          stored.duplicateGroups = stored.duplicateGroups.map(group => {
+            if (group.group_id !== groupId) return group;
+            
+            return {
+              ...group,
+              segments: group.segments.map(seg =>
+                seg.id === segmentId
+                  ? { ...seg, start_time: newStartTime, end_time: newEndTime }
+                  : seg
+              )
+            };
+          });
+          
+          localStorage.setItem(storageKey, JSON.stringify(stored));
+          console.log(`✅ localStorage updated successfully`);
+        }
+        
+        // Also update the transcription segments in localStorage if they exist
+        const transcriptionKey = `client_transcriptions_${projectId}`;
+        const transcriptions = JSON.parse(localStorage.getItem(transcriptionKey) || '[]');
+        const updatedTranscriptions = transcriptions.map(file => {
+          if (file.id !== selectedAudioFile.id && file.filename !== selectedAudioFile.filename) {
+            return file;
+          }
+          
+          if (file.transcription && file.transcription.all_segments) {
+            return {
+              ...file,
+              transcription: {
+                ...file.transcription,
+                all_segments: file.transcription.all_segments.map(seg =>
+                  seg.id === segmentId
+                    ? { ...seg, start_time: newStartTime, end_time: newEndTime }
+                    : seg
+                )
+              }
+            };
+          }
+          return file;
+        });
+        
+        localStorage.setItem(transcriptionKey, JSON.stringify(updatedTranscriptions));
+        console.log(`✅ Transcription segments updated in localStorage`);
+        console.log(`---- UPDATE COMPLETE (CLIENT-ONLY) ----\n`);
+        
+      } else {
+        // For server files, save to backend
+        console.log(`📤 Sending PATCH to: /api/projects/${projectId}/files/${selectedAudioFile.id}/segments/${segmentId}/`);
+        console.log(`📤 Payload:`, { start_time: newStartTime, end_time: newEndTime });
+        
+        const response = await fetch(
+          `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/segments/${segmentId}/`,
+          {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Token ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              start_time: newStartTime,
+              end_time: newEndTime
+            })
+          }
+        );
+
+        console.log(`📥 Response status: ${response.status} ${response.statusText}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ PATCH failed:`, errorText);
+          throw new Error(`Failed to update segment times: ${response.status}`);
+        }
+        
+        const responseData = await response.json();
+        console.log(`✅ Backend updated successfully:`, responseData);
+        console.log(`---- UPDATE COMPLETE (SERVER) ----\n`);
+      }
 
     } catch (error) {
       console.error('\n❌❌❌ ERROR UPDATING SEGMENT:', error);
       console.error('Error details:', error.message);
       console.log(`---- UPDATE FAILED ----\n`);
-      // Don't reload - just show the error
-      alert(`Failed to update segment: ${error.message}`);
+      
+      // Only show alert for server files - client files are handled locally
+      if (!isClientOnly) {
+        alert(`Failed to update segment: ${error.message}`);
+      } else {
+        console.warn('⚠️ Client-only file update failed but changes are saved locally');
+      }
     }
   };
 
@@ -683,20 +762,6 @@ const Tab3Duplicates = () => {
         }));
         console.log(`[Tab3Duplicates] Saved duplicates to localStorage: ${storageKey}`);
 
-        // Save to server for cross-device persistence
-        const serverSave = await saveDuplicateAnalysisToServer(
-          selectedAudioFile.filename,
-          results.duplicate_groups,
-          detectionAlgorithm,
-          toDelete  // Save selected deletions right away
-        );
-
-        if (serverSave.success) {
-          console.log('[Tab3Duplicates] Duplicate analysis synced to server');
-        } else {
-          console.log('[Tab3Duplicates] Analysis saved locally only (server unavailable)');
-        }
-
         // Auto-select duplicates for deletion (all but last occurrence)
         const toDelete = [];
         results.duplicate_groups.forEach(group => {
@@ -711,6 +776,20 @@ const Tab3Duplicates = () => {
 
         // Also save selected deletions
         localStorage.setItem(`${storageKey}_selectedDeletions`, JSON.stringify(toDelete));
+
+        // Save to server for cross-device persistence
+        const serverSave = await saveDuplicateAnalysisToServer(
+          selectedAudioFile.filename,
+          results.duplicate_groups,
+          detectionAlgorithm,
+          toDelete  // Save selected deletions after they're created
+        );
+
+        if (serverSave.success) {
+          console.log('[Tab3Duplicates] Duplicate analysis synced to server');
+        } else {
+          console.log('[Tab3Duplicates] Analysis saved locally only (server unavailable)');
+        }
 
         // Expand first 3 groups
         const firstThree = results.duplicate_groups.slice(0, 3).map(g => g.group_id);
@@ -1003,14 +1082,31 @@ const Tab3Duplicates = () => {
 
       // Save to localStorage (note: blob can't be stored, only the info)
       const storageKey = `duplicates_${selectedAudioFile.id}_${projectId}`;
-      const assemblyInfoKey = `${storageKey}_assembly`;
       const assemblyData = {
         info: result.info,
         timestamp: Date.now(),
         removedCount: result.removedCount,
         keptCount: result.keptCount
       };
+      
+      // Save assembly info in BOTH locations for compatibility
+      // 1. Separate key (for backward compatibility)
+      const assemblyInfoKey = `${storageKey}_assembly`;
       localStorage.setItem(assemblyInfoKey, JSON.stringify(assemblyData));
+      
+      // 2. Update main duplicates storage to include assemblyInfo (for Results tab detection)
+      const existingDuplicates = localStorage.getItem(storageKey);
+      if (existingDuplicates) {
+        try {
+          const duplicatesData = JSON.parse(existingDuplicates);
+          duplicatesData.assemblyInfo = assemblyData.info;
+          localStorage.setItem(storageKey, JSON.stringify(duplicatesData));
+          console.log(`[Tab3Duplicates] Saved assembly info to duplicates storage for Results tab`);
+        } catch (error) {
+          console.error('[Tab3Duplicates] Error updating duplicates storage with assembly info:', error);
+        }
+      }
+      
       console.log(`[Tab3Duplicates] Saved assembly info to localStorage`);
 
       // Update server with assembly info
@@ -1071,6 +1167,36 @@ const Tab3Duplicates = () => {
     URL.revokeObjectURL(url);
 
     console.log('[Tab3Duplicates] Assembled audio downloaded');
+  };
+
+  // Select all duplicates for deletion
+  const handleSelectAllDuplicates = () => {
+    const allDuplicates = [];
+    duplicateGroups.forEach(group => {
+      group.segments.forEach(seg => {
+        if (seg.is_duplicate === true) {
+          allDuplicates.push(seg.id);
+        }
+      });
+    });
+    setSelectedDeletions(allDuplicates);
+    
+    // Save to localStorage
+    if (selectedAudioFile) {
+      const storageKey = `duplicates_${selectedAudioFile.id}_${projectId}`;
+      localStorage.setItem(`${storageKey}_selectedDeletions`, JSON.stringify(allDuplicates));
+    }
+  };
+
+  // Deselect all duplicates
+  const handleDeselectAll = () => {
+    setSelectedDeletions([]);
+    
+    // Save to localStorage
+    if (selectedAudioFile) {
+      const storageKey = `duplicates_${selectedAudioFile.id}_${projectId}`;
+      localStorage.setItem(`${storageKey}_selectedDeletions`, JSON.stringify([]));
+    }
   };
 
   const handleDownloadTranscription = (format) => {
@@ -1555,21 +1681,41 @@ const Tab3Duplicates = () => {
       {duplicateGroups.length > 0 && (
         <div className="review-actions-top">
           {(selectedAudioFile?.client_only || selectedAudioFile?.client_processed) && (
-            <button
-              onClick={handleAssembleAudio}
-              disabled={selectedDeletions.length === 0 || isAssemblingAudio || processing}
-              className="confirm-button assemble-button"
-              style={{ background: isAssemblingAudio ? '#f59e0b' : '#16a34a' }}
-            >
-              {isAssemblingAudio ? (
-                <>
-                  <span className="spinner"></span>
-                  Assembling Audio...
-                </>
-              ) : (
-                `🎵 Assemble Audio (Remove ${selectedDeletions.length} segments)`
-              )}
-            </button>
+            <>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <button
+                  onClick={handleSelectAllDuplicates}
+                  disabled={processing || isAssemblingAudio}
+                  className="secondary-button"
+                  style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+                >
+                  ✓ Select All
+                </button>
+                <button
+                  onClick={handleDeselectAll}
+                  disabled={processing || isAssemblingAudio || selectedDeletions.length === 0}
+                  className="secondary-button"
+                  style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+                >
+                  ✗ Deselect All
+                </button>
+                <button
+                  onClick={handleAssembleAudio}
+                  disabled={selectedDeletions.length === 0 || isAssemblingAudio || processing}
+                  className="confirm-button assemble-button"
+                  style={{ background: isAssemblingAudio ? '#f59e0b' : '#16a34a' }}
+                >
+                  {isAssemblingAudio ? (
+                    <>
+                      <span className="spinner"></span>
+                      Assembling Audio...
+                    </>
+                  ) : (
+                    `🎵 Assemble Audio (Remove ${selectedDeletions.length} segments)`
+                  )}
+                </button>
+              </div>
+            </>
           )}
 
           {selectedDeletions.length > 0 && assembledAudioBlob && assemblyInfo && (
@@ -1636,14 +1782,11 @@ const Tab3Duplicates = () => {
                     }}
                   >
                     <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
-                    <div className="group-info">
-                      <h4>Duplicate Group {duplicateGroups.length - groupIndex}</h4>
-                      <p className="group-text">"{group.duplicate_text?.substring(0, 150) || (segments[0]?.text?.substring(0, 150)) || 'No text'}{(group.duplicate_text?.length > 150 || segments[0]?.text?.length > 150) ? '...' : ''}"</p>
-                      <div className="group-meta">
-                        <span>📊 {group.occurrence_count || segments.length} occurrences</span>
-                        <span>⏱️ {(group.total_duration_seconds || segments.reduce((sum, s) => sum + (s.end_time - s.start_time), 0)).toFixed(1)}s total</span>
-                      </div>
-                    </div>
+                    <span className="group-title">Group {duplicateGroups.length - groupIndex}</span>
+                    <span className="group-text-inline">"{group.duplicate_text?.substring(0, 60) || (segments[0]?.text?.substring(0, 60)) || 'No text'}{(group.duplicate_text?.length > 60 || segments[0]?.text?.length > 60) ? '...' : ''}"</span>
+                    <span className="group-meta-inline">
+                      📊 {group.occurrence_count || segments.length} · ⏱️ {(group.total_duration_seconds || segments.reduce((sum, s) => sum + (s.end_time - s.start_time), 0)).toFixed(1)}s
+                    </span>
                   </div>
 
                   {isExpanded && segments.length > 0 && (

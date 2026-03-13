@@ -34,8 +34,28 @@ const Tab4Results = () => {
   const pollingIntervalRef = useRef(null);
   const autoProcessedRef = useRef(false);
 
-  // Get processed files (status === 'processed')
-  const processedFiles = audioFiles.filter(f => f.status === 'processed' && f.processed_audio);
+  // Get processed files (status === 'processed' for server, or client-processed with assembly)
+  const serverProcessedFiles = audioFiles.filter(f => f.status === 'processed' && f.processed_audio);
+  
+  // Get client-processed files that have been assembled
+  const clientProcessedFiles = audioFiles.filter(f => {
+    const isClientFile = f.client_only || f.client_processed || (f.id && f.id.toString().startsWith('local-'));
+    if (!isClientFile) return false;
+    
+    // Check if assembly info exists in localStorage
+    const storageKey = `duplicates_${f.id}_${projectId}`;
+    const stored = localStorage.getItem(storageKey);
+    if (!stored) return false;
+    
+    try {
+      const data = JSON.parse(stored);
+      return data.assemblyInfo && data.assemblyInfo.assembledDuration > 0;
+    } catch {
+      return false;
+    }
+  });
+  
+  const processedFiles = [...serverProcessedFiles, ...clientProcessedFiles];
 
   // Handle completion of processing task
   const handleProcessingComplete = useCallback(async (taskId, audioFileInfo) => {
@@ -773,7 +793,97 @@ const Tab4Results = () => {
         </div>
       )}
 
-      {!pendingDeletions && !processingDeletion && processedFiles.length === 0 && (
+      {/* Client-Processed File Results */}
+      {selectedAudioFile && !selectedAudioFile.processed_audio && (selectedAudioFile.client_only || selectedAudioFile.client_processed) && !pendingDeletions && !processingDeletion && (() => {
+        const storageKey = `duplicates_${selectedAudioFile.id}_${projectId}`;
+        const stored = localStorage.getItem(storageKey);
+        if (!stored) return null;
+        
+        try {
+          const data = JSON.parse(stored);
+          const assemblyInfo = data.assemblyInfo;
+          if (!assemblyInfo) return null;
+          
+          const formatDuration = (seconds) => {
+            if (!seconds) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+          };
+          
+          const timeSaved = (data.originalDuration || 0) - assemblyInfo.assembledDuration;
+          const percentSaved = data.originalDuration > 0 ? (timeSaved / data.originalDuration * 100) : 0;
+          
+          return (
+            <div className="results-content client-processed">
+              <div className="client-processed-notice">
+                <h3>🖥️ Client-Side Processed Audio</h3>
+                <p>This file was processed entirely in your browser. The assembled audio is available for download in the <strong>Duplicates</strong> tab.</p>
+              </div>
+              
+              {/* Statistics Cards */}
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <div className="stat-icon">⏱️</div>
+                  <div className="stat-info">
+                    <div className="stat-label">Original Duration</div>
+                    <div className="stat-value">{formatDuration(data.originalDuration || 0)}</div>
+                  </div>
+                </div>
+
+                <div className="stat-card">
+                  <div className="stat-icon">✂️</div>
+                  <div className="stat-info">
+                    <div className="stat-label">Clean Duration</div>
+                    <div className="stat-value">{formatDuration(assemblyInfo.assembledDuration)}</div>
+                  </div>
+                </div>
+
+                <div className="stat-card success">
+                  <div className="stat-icon">💾</div>
+                  <div className="stat-info">
+                    <div className="stat-label">Time Saved</div>
+                    <div className="stat-value">{formatDuration(timeSaved)}</div>
+                    <div className="stat-subtitle">{percentSaved.toFixed(1)}% reduction</div>
+                  </div>
+                </div>
+
+                <div className="stat-card">
+                  <div className="stat-icon">🗑️</div>
+                  <div className="stat-info">
+                    <div className="stat-label">Segments Removed</div>
+                    <div className="stat-value">{assemblyInfo.removedCount || 0}</div>
+                    <div className="stat-subtitle">{assemblyInfo.keptCount || 0} kept</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="download-card client-download">
+                <h3>📥 Download Assembled Audio</h3>
+                <p>The assembled audio file is available in your browser memory. Go to the Duplicates tab to download it.</p>
+                <button
+                  onClick={() => {
+                    // Navigate to Duplicates tab
+                    const duplicatesTab = document.querySelector('[data-tab="duplicates"]');
+                    if (duplicatesTab) duplicatesTab.click();
+                  }}
+                  className="download-button primary"
+                >
+                  Go to Duplicates Tab to Download
+                </button>
+                <p className="download-hint">
+                  ℹ️ The assembled audio file exists only in browser memory and will be lost if you refresh the page or close the tab.
+                </p>
+              </div>
+            </div>
+          );
+        } catch (error) {
+          console.error('Error reading assembly info:', error);
+          return null;
+        }
+      })()}
+
+      {/* Empty States */}
         <div className="empty-state">
           <div className="empty-icon">📭</div>
           <h3>No Processed Files Yet</h3>

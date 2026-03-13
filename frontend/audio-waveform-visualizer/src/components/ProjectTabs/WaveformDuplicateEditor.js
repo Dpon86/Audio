@@ -147,8 +147,17 @@ const WaveformDuplicateEditor = ({
         });
 
         // Load audio file (after event listeners are set up)
-        const audioUrl = `${API_BASE_URL}${audioFile}`;
-        console.log('Loading audio from:', audioUrl);
+        // Check if audioFile is a File object (client-processed) or URL string (server)
+        let audioUrl;
+        if (audioFile instanceof File) {
+          // Create blob URL for File objects
+          audioUrl = URL.createObjectURL(audioFile);
+          console.log('Loading audio from File object (blob URL):', audioUrl);
+        } else {
+          // Use server URL for server-processed files
+          audioUrl = `${API_BASE_URL}${audioFile}`;
+          console.log('Loading audio from server URL:', audioUrl);
+        }
         
         try {
           await ws.load(audioUrl);

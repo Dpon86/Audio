@@ -332,10 +332,16 @@ const Tab1Files = () => {
       setProcessingStep('reading');
       setUploadProgress(30);
 
-      // Transcribe audio
+      // Transcribe audio - show time estimate based on file duration
       setProcessingStep('transcribing');
       setProcessingTimeEstimate(null);
       setProcessingElapsed(0);
+      
+      // Calculate estimated time (rough estimate: 1 minute of audio = ~30 seconds processing)
+      const audioDurationMinutes = file.size / (1024 * 1024 * 10); // Very rough estimate
+      const estimatedMinutes = Math.ceil(audioDurationMinutes * 0.5);
+      
+      console.log(`[Tab1Files] Starting transcription - estimated time: ~${estimatedMinutes} minutes`);
       
       const result = await clientSideTranscription.transcribe(
         file,
@@ -862,9 +868,21 @@ const Tab1Files = () => {
               {processingStep === 'transcribing' && (
                 <>
                   <div className="browser-warning">
-                    ⚠️ <strong>Your browser may report this page as unresponsive.</strong><br/>
-                    This is normal – the transcription is processing on your device.<br/>
+                    ⚠️ <strong>Your browser may report this page as unresponsive.</strong>
+                    <br />
+                    This is normal – the transcription is processing on your device.
+                    <br />
                     <strong>Please wait and click "Wait" if prompted.</strong>
+                    {processingTimeEstimate && processingTimeEstimate.audioDuration && (
+                      <>
+                        <br /><br />
+                        <strong>📊 Audio Duration: {Math.floor(processingTimeEstimate.audioDuration / 60)}:{Math.floor(processingTimeEstimate.audioDuration % 60).toString().padStart(2, '0')}</strong>
+                        <br />
+                        <strong>⏱️ Estimated Processing Time: {processingTimeEstimate.min}-{processingTimeEstimate.max} minutes</strong>
+                        <br />
+                        <em style={{color: '#10b981'}}>✓ This is the only step that will take this long.</em>
+                      </>
+                    )}
                   </div>
                   
                   {processingTimeEstimate && (
@@ -899,7 +917,18 @@ const Tab1Files = () => {
                 </div>
                 <div className={`step-item ${processingStep === 'transcribing' ? 'active' : ''}`}>
                   <span className="step-icon">{processingStep === 'transcribing' ? '⏳' : ['loading', 'reading'].includes(processingStep) ? '○' : '✓'}</span>
-                  <span className="step-text">Transcribing Audio (This may take a while)</span>
+                  <span className="step-text">
+                    Transcribing Audio
+                    {processingTimeEstimate && processingTimeEstimate.audioDuration && (
+                      <span style={{ marginLeft: '0.5rem', color: '#6b7280' }}>
+                        (Audio: {Math.floor(processingTimeEstimate.audioDuration / 60)}:{Math.floor(processingTimeEstimate.audioDuration % 60).toString().padStart(2, '0')} - 
+                        Est. {processingTimeEstimate.min}-{processingTimeEstimate.max} min)
+                      </span>
+                    )}
+                    {!processingTimeEstimate && processingStep === 'transcribing' && (
+                      <span style={{ marginLeft: '0.5rem', color: '#6b7280' }}>(Processing...)</span>
+                    )}
+                  </span>
                 </div>
                 <div className={`step-item ${processingStep === 'finalizing' ? 'active' : ''}`}>
                   <span className="step-icon">{processingStep === 'finalizing' ? '⏳' : ['loading', 'reading', 'transcribing'].includes(processingStep) ? '○' : '✓'}</span>
