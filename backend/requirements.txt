@@ -56,3 +56,4 @@ click-repl==0.3.0
 colorama==0.4.6
 tqdm==4.67.1
 more-itertools==10.6.0
+psutil==6.1.1  # Memory monitoring

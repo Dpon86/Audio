@@ -117,6 +117,22 @@ REDIS_HOST = get_redis_host()
 CELERY_BROKER_URL = f'redis://{REDIS_HOST}:6379/0'
 CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:6379/0'
 
+# Celery Configuration for Memory-Constrained Servers
+CELERY_WORKER_CONCURRENCY = 1  # Process one transcription at a time (memory-limited)
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 3  # Restart worker after 3 tasks (prevents memory leaks)
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Don't prefetch tasks (process one at a time)
+CELERY_TASK_TIME_LIMIT = 7200  # 2 hour maximum per task (hard limit)
+CELERY_TASK_SOFT_TIME_LIMIT = 6900  # 1h 55m soft limit (warning before hard limit)
+CELERY_TASK_ACKS_LATE = True  # Acknowledge tasks after completion (prevents loss on crash)
+CELERY_TASK_REJECT_ON_WORKER_LOST = True  # Requeue if worker dies
+
+# Task routing: separate queues for different workload types
+CELERY_TASK_ROUTES = {
+    'audioDiagnostic.tasks.transcription_tasks.*': {'queue': 'transcription'},
+    'audioDiagnostic.tasks.duplicate_tasks.*': {'queue': 'processing'},
+    # PDF and light tasks can use default queue
+}
+
 # Django REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [

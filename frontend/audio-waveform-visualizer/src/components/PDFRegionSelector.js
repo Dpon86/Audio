@@ -125,10 +125,55 @@ const PDFRegionSelector = ({
       
       if (response.ok) {
         const data = await response.json();
-        setPdfText(data.pdf_text || '');
-        setPageBreaks(data.page_breaks || []);
-        setSentences(data.sentences || []);
-        setTotalChars(data.total_chars || 0);
+        const fullPdfText = data.pdf_text || '';
+        const totalCharacters = data.total_chars || 0;
+        
+        // For END mode, show only last portion of PDF text for easier selection
+        if (mode === 'end' && fullPdfText.length > 0) {
+          const words = fullPdfText.trim().split(/\s+/);
+          const wordCount = 200; // Show last 200 words
+          
+          if (words.length > wordCount) {
+            // Get last 200 words
+            const lastWords = words.slice(-wordCount);
+            const displayText = lastWords.join(' ');
+            
+            // Calculate the offset where this text starts in the original
+            const offsetIndex = fullPdfText.lastIndexOf(displayText);
+            
+            setPdfText(displayText);
+            setTextOffset(offsetIndex);
+            setTotalChars(totalCharacters);
+            
+            // Filter sentences to only show those in the displayed range
+            const filteredSentences = (data.sentences || []).filter(s => 
+              s.start_char >= offsetIndex && s.start_char < totalCharacters
+            ).map(s => ({
+              ...s,
+              start_char: s.start_char - offsetIndex, // Make relative to display
+              end_char: s.end_char - offsetIndex
+            }));
+            setSentences(filteredSentences);
+            
+            // Set initial position to end of displayed text
+            setSelectedPosition(displayText.length);
+          } else {
+            // PDF is short enough to show all
+            setPdfText(fullPdfText);
+            setTextOffset(0);
+            setTotalChars(totalCharacters);
+            setSentences(data.sentences || []);
+            setSelectedPosition(fullPdfText.length);
+          }
+          
+          setPageBreaks(data.page_breaks || []);
+        } else {
+          // For START mode or if mode is not 'end', show full text
+          setPdfText(fullPdfText);
+          setPageBreaks(data.page_breaks || []);
+          setSentences(data.sentences || []);
+          setTotalChars(totalCharacters);
+        }
       } else {
         const errorData = await response.json();
         setError(errorData.error || 'Failed to load PDF text');
@@ -486,6 +531,18 @@ const PDFRegionSelector = ({
             marginTop: '0.5rem'
           }}>
             ℹ️ Showing last 200 words of transcript for easier end selection
+          </p>
+        )}
+        {type === 'pdf' && mode === 'end' && textOffset > 0 && (
+          <p style={{ 
+            background: '#f0fdf4', 
+            padding: '0.75rem', 
+            borderRadius: '6px', 
+            color: '#065f46',
+            fontSize: '0.875rem',
+            marginTop: '0.5rem'
+          }}>
+            ℹ️ Showing last 200 words of PDF for easier end selection
           </p>
         )}
       </div>

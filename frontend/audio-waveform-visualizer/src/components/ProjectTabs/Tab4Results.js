@@ -44,15 +44,37 @@ const Tab4Results = () => {
     
     // Check if assembly info exists in localStorage
     const storageKey = `duplicates_${f.id}_${projectId}`;
-    const stored = localStorage.getItem(storageKey);
-    if (!stored) return false;
     
-    try {
-      const data = JSON.parse(stored);
-      return data.assemblyInfo && data.assemblyInfo.assembledDuration > 0;
-    } catch {
-      return false;
+    // Check main duplicates storage first
+    const stored = localStorage.getItem(storageKey);
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        if (data.assemblyInfo && data.assemblyInfo.assembledDuration > 0) {
+          console.log(`[Tab4Results] Found assembled file: ${f.filename}`);
+          return true;
+        }
+      } catch (error) {
+        console.error('[Tab4Results] Error parsing duplicates storage:', error);
+      }
     }
+    
+    // Fallback: check separate assembly storage
+    const assemblyKey = `${storageKey}_assembly`;
+    const assemblyStored = localStorage.getItem(assemblyKey);
+    if (assemblyStored) {
+      try {
+        const assemblyData = JSON.parse(assemblyStored);
+        if (assemblyData.info && assemblyData.info.assembledDuration > 0) {
+          console.log(`[Tab4Results] Found assembled file (fallback): ${f.filename}`);
+          return true;
+        }
+      } catch (error) {
+        console.error('[Tab4Results] Error parsing assembly storage:', error);
+      }
+    }
+    
+    return false;
   });
   
   const processedFiles = [...serverProcessedFiles, ...clientProcessedFiles];
@@ -796,23 +818,60 @@ const Tab4Results = () => {
       {/* Client-Processed File Results */}
       {selectedAudioFile && !selectedAudioFile.processed_audio && (selectedAudioFile.client_only || selectedAudioFile.client_processed) && !pendingDeletions && !processingDeletion && (() => {
         const storageKey = `duplicates_${selectedAudioFile.id}_${projectId}`;
-        const stored = localStorage.getItem(storageKey);
-        if (!stored) return null;
         
-        try {
-          const data = JSON.parse(stored);
-          const assemblyInfo = data.assemblyInfo;
-          if (!assemblyInfo) return null;
+        // Try main storage first
+        let assemblyInfo = null;
+        
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          try {
+            const data = JSON.parse(stored);
+            assemblyInfo = data.assemblyInfo;
+          } catch (error) {
+            console.error('[Tab4Results] Error parsing duplicates storage:', error);
+          }
+        }
+        
+        // Fallback to separate assembly storage
+        if (!assemblyInfo) {
+          const assemblyKey = `${storageKey}_assembly`;
+          const assemblyStored = localStorage.getItem(assemblyKey);
+          if (assemblyStored) {
+            try {
+              const assemblyData = JSON.parse(assemblyStored);
+              assemblyInfo = assemblyData.info;
+            } catch (error) {
+              console.error('[Tab4Results] Error parsing assembly storage:', error);
+            }
+          }
+        }
+        
+        if (!assemblyInfo) return null;
+        
+        // Use values directly from assemblyInfo - it has the correct calculations
+        const originalDuration = assemblyInfo.originalDuration || 0;
+        const assembledDuration = assemblyInfo.assembledDuration || 0;
+        const removedDuration = assemblyInfo.removedDuration || 0;
+        
+        // Verify calculations are correct
+        console.log(`[Tab4Results] Assembly Info:`, {
+          originalDuration,
+          assembledDuration,
+          removedDuration,
+          removedCount: assemblyInfo.removedCount,
+          keptCount: assemblyInfo.keptCount
+        });
           
           const formatDuration = (seconds) => {
-            if (!seconds) return '0:00';
+            if (!seconds || seconds < 0) return '0:00';
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
             return `${mins}:${secs.toString().padStart(2, '0')}`;
           };
           
-          const timeSaved = (data.originalDuration || 0) - assemblyInfo.assembledDuration;
-          const percentSaved = data.originalDuration > 0 ? (timeSaved / data.originalDuration * 100) : 0;
+          // Use the pre-calculated values from assemblyInfo
+          const timeSaved = removedDuration;
+          const percentSaved = originalDuration > 0 ? (removedDuration / originalDuration * 100) : 0;
           
           return (
             <div className="results-content client-processed">
@@ -827,7 +886,7 @@ const Tab4Results = () => {
                   <div className="stat-icon">⏱️</div>
                   <div className="stat-info">
                     <div className="stat-label">Original Duration</div>
-                    <div className="stat-value">{formatDuration(data.originalDuration || 0)}</div>
+                    <div className="stat-value">{formatDuration(originalDuration)}</div>
                   </div>
                 </div>
 
@@ -835,7 +894,7 @@ const Tab4Results = () => {
                   <div className="stat-icon">✂️</div>
                   <div className="stat-info">
                     <div className="stat-label">Clean Duration</div>
-                    <div className="stat-value">{formatDuration(assemblyInfo.assembledDuration)}</div>
+                    <div className="stat-value">{formatDuration(assembledDuration)}</div>
                   </div>
                 </div>
 
@@ -877,13 +936,10 @@ const Tab4Results = () => {
               </div>
             </div>
           );
-        } catch (error) {
-          console.error('Error reading assembly info:', error);
-          return null;
-        }
       })()}
 
       {/* Empty States */}
+      {!pendingDeletions && !processingDeletion && processedFiles.length === 0 && (
         <div className="empty-state">
           <div className="empty-icon">📭</div>
           <h3>No Processed Files Yet</h3>

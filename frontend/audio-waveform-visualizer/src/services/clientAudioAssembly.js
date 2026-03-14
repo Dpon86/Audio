@@ -227,7 +227,15 @@ class ClientAudioAssembly {
       // Step 2: Identify segments to keep
       reportProgress(1, 4, 'Identifying segments to keep...');
       const segmentsToRemoveSet = new Set(segmentsToRemove);
+      console.log(`[ClientAudioAssembly] Segments to remove (Set): ${segmentsToRemoveSet.size}`);
+      console.log(`[ClientAudioAssembly] First 10 segment IDs to remove:`, Array.from(segmentsToRemoveSet).slice(0, 10));
+      
       const segmentsToKeep = segments.filter(seg => !segmentsToRemoveSet.has(seg.id));
+      
+      // Log segments that SHOULD be removed but checking if they're in the list
+      const removedSegments = segments.filter(seg => segmentsToRemoveSet.has(seg.id));
+      console.log(`[ClientAudioAssembly] Verified removal count: ${removedSegments.length}`);
+      console.log(`[ClientAudioAssembly] Sample removed segments:`, removedSegments.slice(0, 3).map(s => ({ id: s.id, text: s.text?.substring(0, 30) })));
       
       // Sort by start time
       segmentsToKeep.sort((a, b) => {

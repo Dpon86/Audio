@@ -195,6 +195,7 @@ class ClientDuplicateDetection {
       duplicate_groups: duplicateGroups,
       total_groups: duplicateGroups.length,
       total_duplicates: totalDuplicates,
+      processed_segments: processedSegments, // Include processed segments with assigned IDs
       settings: {
         minLength,
         minWords,

@@ -307,13 +307,24 @@ const Tab3Duplicates = () => {
           
           // Store in localStorage for persistence
           const storageKey = `duplicates_${selectedAudioFile.id}_${projectId}`;
-          localStorage.setItem(storageKey, JSON.stringify({
+          const detectionInfo = {
             duplicateGroups: data.duplicate_groups,
             timestamp: Date.now(),
             fileId: selectedAudioFile.id,
-            filename: selectedAudioFile.filename
-          }));
+            filename: selectedAudioFile.filename,
+            algorithm: data.algorithm || 'unknown',
+            detectionDate: new Date().toLocaleString()
+          };
+          localStorage.setItem(storageKey, JSON.stringify(detectionInfo));
           console.log(`[Tab3Duplicates] Saved server duplicates to localStorage: ${storageKey}`);
+          console.log(`[Tab3Duplicates] Algorithm used: ${detectionInfo.algorithm}`);
+          
+          // Update last run summary with algorithm from server response
+          setLastRunSummary({
+            algorithm: data.algorithm || 'unknown',
+            timestamp: Date.now(),
+            groupCount: data.duplicate_groups.length
+          });
           
           // Auto-select all for deletion except last occurrence
           // Backend marks is_duplicate=true for segments that should be deleted
@@ -628,9 +639,20 @@ const Tab3Duplicates = () => {
 
   const handleClearResults = () => {
     if (window.confirm('Clear all duplicate detection results? You will need to re-run detection.')) {
+      // Clear UI state
       setDuplicateGroups([]);
       setSelectedDeletions([]);
       setExpandedGroups(new Set());
+      setLastRunSummary(null);
+      
+      // Clear localStorage
+      if (selectedAudioFile && projectId) {
+        const storageKey = `duplicates_${selectedAudioFile.id}_${projectId}`;
+        localStorage.removeItem(storageKey);
+        localStorage.removeItem(`${storageKey}_assembly`);
+        localStorage.removeItem(`${storageKey}_selectedDeletions`);
+        console.log(`[Tab3Duplicates] Cleared all stored data for ${storageKey}`);
+      }
     }
   };
 
@@ -755,6 +777,7 @@ const Tab3Duplicates = () => {
         const storageKey = `duplicates_${selectedAudioFile.id}_${projectId}`;
         localStorage.setItem(storageKey, JSON.stringify({
           duplicateGroups: results.duplicate_groups,
+          processedSegments: results.processed_segments, // Save segments with assigned IDs
           detectionAlgorithm,
           timestamp: Date.now(),
           fileId: selectedAudioFile.id,
@@ -828,6 +851,16 @@ const Tab3Duplicates = () => {
     // Server-side detection (existing code)
     const selectedAlgorithm = algorithmOverride || detectionAlgorithm;
     const usePdfHint = selectedAlgorithm === 'windowed_retry_pdf';
+    
+    console.log(`[Tab3Duplicates] Starting detection with algorithm: ${selectedAlgorithm}`);
+    console.log(`[Tab3Duplicates] Settings:`, {
+      tfidfSimilarityThreshold,
+      windowMaxLookahead,
+      windowRatioThreshold,
+      windowStrongMatchRatio,
+      windowMinWordLength,
+      usePdfHint
+    });
 
     const requestBody = {
       algorithm: selectedAlgorithm,
@@ -859,12 +892,14 @@ const Tab3Duplicates = () => {
       
       if (response.ok) {
         const data = await response.json();
+        console.log(`[Tab3Duplicates] Server response:`, data);
+        console.log(`[Tab3Duplicates] Server confirmed algorithm: ${data.algorithm}`);
         setLastRunSummary({
           algorithm: data.algorithm || selectedAlgorithm,
           usePdfHint,
           settings: data.settings || requestBody,
         });
-        alert(`${data.message || 'Duplicate detection started'}\nAlgorithm: ${selectedAlgorithm}`);
+        alert(`${data.message || 'Duplicate detection started'}\nAlgorithm: ${data.algorithm || selectedAlgorithm}`);
         
         // Poll for completion
         const pollInterval = setInterval(async () => {
@@ -993,6 +1028,8 @@ const Tab3Duplicates = () => {
 
   const handleAssembleAudio = async () => {
     console.log('[Tab3Duplicates] handleAssembleAudio called');
+    console.log(`[Tab3Duplicates] Selected deletions count: ${selectedDeletions.length}`);
+    console.log(`[Tab3Duplicates] Sample deletion IDs:`, selectedDeletions.slice(0, 10));
     
     if (selectedDeletions.length === 0) {
       alert('No segments selected for removal. Please mark duplicates first.');
@@ -1029,18 +1066,43 @@ const Tab3Duplicates = () => {
       return;
     }
 
-    // Get all segments
+    // Get all segments - USE THE PROCESSED SEGMENTS FROM DUPLICATE DETECTION
+    // This ensures segments have the same IDs that were used in selectedDeletions
     let allSegments = [];
-    if (selectedAudioFile.transcription && selectedAudioFile.transcription.all_segments) {
-      allSegments = selectedAudioFile.transcription.all_segments;
-    } else {
-      // Try loading from localStorage
-      const storageKey = `client_transcriptions_${projectId}`;
-      const localFiles = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      const matchingFile = localFiles.find(f => f.id === selectedAudioFile.id || f.filename === selectedAudioFile.filename);
+    
+    // First, try to get processed segments from duplicate detection results (saved in localStorage)
+    const storageKey = `duplicates_${selectedAudioFile.id}_${projectId}`;
+    const duplicatesStorage = localStorage.getItem(storageKey);
+    
+    if (duplicatesStorage) {
+      try {
+        const parsed = JSON.parse(duplicatesStorage);
+        if (parsed.processedSegments && parsed.processedSegments.length > 0) {
+          allSegments = parsed.processedSegments;
+          console.log(`[Tab3Duplicates] Using ${allSegments.length} processed segments from duplicate detection (with assigned IDs)`);
+          console.log(`[Tab3Duplicates] Sample segment IDs:`, allSegments.slice(0, 5).map(s => s.id));
+        }
+      } catch (error) {
+        console.error('[Tab3Duplicates] Error parsing duplicates storage:', error);
+      }
+    }
+    
+    // Fallback: load from transcription (but this may not have matching IDs!)
+    if (allSegments.length === 0) {
+      console.warn('[Tab3Duplicates] Warning: No processed segments found, falling back to raw transcription segments');
+      console.warn('[Tab3Duplicates] This may cause ID mismatch issues with segment deletion');
       
-      if (matchingFile && matchingFile.transcription && matchingFile.transcription.all_segments) {
-        allSegments = matchingFile.transcription.all_segments;
+      if (selectedAudioFile.transcription && selectedAudioFile.transcription.all_segments) {
+        allSegments = selectedAudioFile.transcription.all_segments;
+      } else {
+        // Try loading from localStorage
+        const transcriptionStorageKey = `client_transcriptions_${projectId}`;
+        const localFiles = JSON.parse(localStorage.getItem(transcriptionStorageKey) || '[]');
+        const matchingFile = localFiles.find(f => f.id === selectedAudioFile.id || f.filename === selectedAudioFile.filename);
+        
+        if (matchingFile && matchingFile.transcription && matchingFile.transcription.all_segments) {
+          allSegments = matchingFile.transcription.all_segments;
+        }
       }
     }
 
@@ -1065,6 +1127,9 @@ const Tab3Duplicates = () => {
 
     try {
       console.log('[Tab3Duplicates] Calling clientAudioAssembly.assembleAudio');
+      console.log(`[Tab3Duplicates] Total segments: ${allSegments.length}`);
+      console.log(`[Tab3Duplicates] Selected deletions: ${selectedDeletions.length}`, selectedDeletions);
+      console.log(`[Tab3Duplicates] Segments to keep: ${allSegments.length - selectedDeletions.length}`);
       
       const result = await clientAudioAssembly.assembleAudio(
         originalFile,
@@ -1096,15 +1161,31 @@ const Tab3Duplicates = () => {
       
       // 2. Update main duplicates storage to include assemblyInfo (for Results tab detection)
       const existingDuplicates = localStorage.getItem(storageKey);
+      console.log(`[Tab3Duplicates] Existing duplicates storage:`, existingDuplicates ? 'EXISTS' : 'MISSING');
+      
       if (existingDuplicates) {
         try {
           const duplicatesData = JSON.parse(existingDuplicates);
           duplicatesData.assemblyInfo = assemblyData.info;
           localStorage.setItem(storageKey, JSON.stringify(duplicatesData));
-          console.log(`[Tab3Duplicates] Saved assembly info to duplicates storage for Results tab`);
+          console.log(`[Tab3Duplicates] ✅ Saved assembly info to duplicates storage for Results tab`);
+          console.log(`[Tab3Duplicates] Assembly info:`, assemblyData.info);
         } catch (error) {
-          console.error('[Tab3Duplicates] Error updating duplicates storage with assembly info:', error);
+          console.error('[Tab3Duplicates] ❌ Error updating duplicates storage with assembly info:', error);
         }
+      } else {
+        // Storage doesn't exist - create it with assembly info
+        console.log(`[Tab3Duplicates] Creating new duplicates storage with assembly info`);
+        const newStorage = {
+          duplicateGroups: duplicateGroups,
+          detectionAlgorithm: detectionAlgorithm,
+          timestamp: Date.now(),
+          fileId: selectedAudioFile.id,
+          filename: selectedAudioFile.filename,
+          assemblyInfo: assemblyData.info
+        };
+        localStorage.setItem(storageKey, JSON.stringify(newStorage));
+        console.log(`[Tab3Duplicates] ✅ Created duplicates storage with assembly info`);
       }
       
       console.log(`[Tab3Duplicates] Saved assembly info to localStorage`);
@@ -1612,8 +1693,19 @@ const Tab3Duplicates = () => {
           )}
 
           {lastRunSummary && (
-            <div style={{ fontSize: '0.85rem', color: '#475569' }}>
-              Last run: <strong>{lastRunSummary.algorithm}</strong>
+            <div style={{ 
+              fontSize: '0.9rem', 
+              color: '#1e40af',
+              background: '#eff6ff',
+              padding: '0.75rem',
+              borderRadius: '6px',
+              border: '1px solid #bfdbfe',
+              marginBottom: '1rem'
+            }}>
+              <strong>🔍 Algorithm Used:</strong> {lastRunSummary.algorithm}
+              {lastRunSummary.groupCount !== undefined && (
+                <> • <strong>{lastRunSummary.groupCount}</strong> duplicate groups found</>
+              )}
             </div>
           )}
         </div>
@@ -1759,8 +1851,7 @@ const Tab3Duplicates = () => {
           </div>
 
           <div className="duplicate-groups-list">
-            {[...duplicateGroups].reverse().map((group, reversedIndex) => {
-              const groupIndex = duplicateGroups.length - 1 - reversedIndex; // Original index
+            {duplicateGroups.map((group, groupIndex) => {
               const isExpanded = expandedGroups.has(group.group_id);
               const segments = group.segments || group.occurrences || [];
               const isSelected = selectedGroupId === group.group_id;
@@ -1782,7 +1873,7 @@ const Tab3Duplicates = () => {
                     }}
                   >
                     <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
-                    <span className="group-title">Group {duplicateGroups.length - groupIndex}</span>
+                    <span className="group-title">Group {groupIndex + 1}</span>
                     <span className="group-text-inline">"{group.duplicate_text?.substring(0, 60) || (segments[0]?.text?.substring(0, 60)) || 'No text'}{(group.duplicate_text?.length > 60 || segments[0]?.text?.length > 60) ? '...' : ''}"</span>
                     <span className="group-meta-inline">
                       📊 {group.occurrence_count || segments.length} · ⏱️ {(group.total_duration_seconds || segments.reduce((sum, s) => sum + (s.end_time - s.start_time), 0)).toFixed(1)}s

@@ -2,6 +2,12 @@
 Transcription Tasks for audioDiagnostic app.
 """
 from ._base import *
+from .transcription_utils import (
+    TimestampAligner, 
+    TranscriptionPostProcessor, 
+    MemoryManager,
+    calculate_transcription_quality_metrics
+)
 
 @shared_task(bind=True)
 def transcribe_all_project_audio_task(self, project_id):
@@ -39,31 +45,61 @@ def transcribe_all_project_audio_task(self, project_id):
         # Ensure FFmpeg is available for Whisper
         ensure_ffmpeg_in_path()
         
+        # Initialize utilities
+        aligner = TimestampAligner()
+        post_processor = TranscriptionPostProcessor()
+        MemoryManager.log_memory_usage("Before model load")
+        
         # Load Whisper model once
         model = whisper.load_model("base")
+        MemoryManager.log_memory_usage("After model load")
         
         total_files = audio_files.count()
         
         # Step 1-4: Transcribe each audio file with word timestamps
         for i, audio_file in enumerate(audio_files):
             logger.info(f"Transcribing audio file {audio_file.id}: {audio_file.title}")
+            MemoryManager.log_memory_usage(f"Before transcription {i+1}")
             
-            audio_file.status = 'transcribing'
-            audio_file.save()
+            result = model.transcribe(audio_path, word_timestamps=True)
             
+            MemoryManager.log_memory_usage(f"After transcription {i+1}")
+            
+            # Get audio duration
+            audio_duration = result.get('duration', 0)
+            
+            # Post-process transcript text
+            transcript_text = post_processor.process(result['text'])
+            
+            # Align timestamps for better accuracy
+            aligned_segments = aligner.align_timestamps(
+                result['segments'], 
+                audio_duration
+            )
+            
+            # Calculate quality metrics
+            quality_metrics = calculate_transcription_quality_metrics(aligned_segments)
+            logger.info(f"Transcription quality: {quality_metrics['estimated_accuracy']} confidence, "
+                       f"{quality_metrics['low_confidence_count']} low-confidence segments")
+            
+            # Store transcript text (post-processed)
             # Transcribe with word timestamps
             audio_path = audio_file.file.path
             result = model.transcribe(audio_path, word_timestamps=True)
             
-            # Store transcript text
-            transcript_text = result['text']
-            audio_file.transcript_text = transcript_text
-            audio_file.transcript_source = 'original'
-            audio_file.original_duration = result.get('duration', 0)
-            audio_file.error_message = ''  # Clear any previous errors
-            
-            # Create or update Transcription object (required for frontend)
-            from audioDiagnostic.models import Transcription
+            # Store transcript text (using aligned segments)
+            for seg_idx, segment in enumerate(aligned_segments):
+                # Calculate confidence (Whisper's avg_logprob mapped to 0-1 scale)
+                logprob = segment.get('avg_logprob', -2.5)
+                confidence = max(0.0, min(1.0, (logprob + 4.0) / 3.0))
+                
+                seg_obj = TranscriptionSegment.objects.create(
+                    audio_file=audio_file,
+                    transcription=transcription,
+                    text=segment['text'].strip(),
+                    start_time=segment['start'],
+                    end_time=segment['end'],
+                    confidence_score=confidence,  # Normalized 0-1 confidence
             transcription, created = Transcription.objects.get_or_create(
                 audio_file=audio_file,
                 defaults={
@@ -92,7 +128,12 @@ def transcribe_all_project_audio_task(self, project_id):
                     confidence_score=segment.get('avg_logprob', 0.0),
                     segment_index=seg_idx
                 )
-                
+              Clean up memory after each file
+            del result
+            del aligned_segments
+            MemoryManager.cleanup()
+            
+            #   
                 # Save individual words with timestamps
                 if 'words' in segment:
                     for word_idx, word_data in enumerate(segment['words']):
@@ -115,6 +156,11 @@ def transcribe_all_project_audio_task(self, project_id):
             
             audio_file.status = 'transcribed'
             audio_file.save()
+        # Final cleanup
+        del model
+        MemoryManager.cleanup()
+        MemoryManager.log_memory_usage("After completion")
+        
             
             # Update progress
             progress = 5 + int((i + 1) / total_files * 85)
@@ -180,6 +226,11 @@ def transcribe_audio_file_task(self, audio_file_id):
         
         r.set(f"progress:{task_id}", 10)
         
+        # Initialize utilities
+        aligner = TimestampAligner()
+        post_processor = TranscriptionPostProcessor()
+        MemoryManager.log_memory_usage("Before model load")
+        
         # Ensure FFmpeg is available for Whisper
         ensure_ffmpeg_in_path()
         
@@ -187,13 +238,33 @@ def transcribe_audio_file_task(self, audio_file_id):
         logger.info(f"Starting transcription for audio file {audio_file_id}")
         model = whisper.load_model("base")
         
+        MemoryManager.log_memory_usage("After model load")
+        
         audio_path = audio_file.file.path
         result = model.transcribe(audio_path, word_timestamps=True)
         
+        MemoryManager.log_memory_usage("After transcription")
+        
         r.set(f"progress:{task_id}", 60)
         
-        # Save transcription results
-        transcript_text = result['text']
+        # Get audio duration
+        audio_duration = result.get('duration', 0)
+        
+        # Post-process transcript text
+        transcript_text = post_processor.process(result['text'])
+        
+        # Align timestamps for better accuracy
+        aligned_segments = aligner.align_timestamps(
+            result['segments'], 
+            audio_duration
+        )
+        
+        # Calculate quality metrics
+        quality_metrics = calculate_transcription_quality_metrics(aligned_segments)
+        logger.info(f"Transcription quality: {quality_metrics['estimated_accuracy']} confidence, "
+                   f"{quality_metrics['low_confidence_count']} low-confidence segments")
+        
+        # Save transcription results (post-processed)
         audio_file.transcript_text = transcript_text
         audio_file.transcript_source = 'original'
         
@@ -218,15 +289,19 @@ def transcribe_audio_file_task(self, audio_file_id):
         
         r.set(f"progress:{task_id}", 80)
         
-        # Save segments (without duplicate detection at this stage)
-        for segment_index, segment in enumerate(result['segments']):
+        # Save segments (without duplicate detection at this stage) using aligned segments
+        for segment_index, segment in enumerate(aligned_segments):
+            # Calculate confidence (Whisper's avg_logprob mapped to 0-1 scale)
+            logprob = segment.get('avg_logprob', -2.5)
+            confidence = max(0.0, min(1.0, (logprob + 4.0) / 3.0))
+            
             seg_obj = TranscriptionSegment.objects.create(
                 audio_file=audio_file,
                 transcription=transcription,
                 text=segment['text'].strip(),
                 start_time=segment['start'],
                 end_time=segment['end'],
-                confidence_score=segment.get('avg_logprob', 0.0),
+                confidence_score=confidence,  # Normalized 0-1 confidence
                 is_duplicate=False,  # Will be determined later in processing step
                 segment_index=segment_index
             )
@@ -254,14 +329,22 @@ def transcribe_audio_file_task(self, audio_file_id):
         r.set(f"progress:{task_id}", 100)
         
         # Update audio file status
-        audio_file.status = 'transcribed'
-        audio_file.error_message = ''  # Clear any previous errors
-        audio_file.save()
+        auClean up memory
+        del model
+        del result
+        del aligned_segments
+        MemoryManager.cleanup()
+        MemoryManager.log_memory_usage("After completion")
         
         # Unregister task (will trigger shutdown timer if no other tasks)
         docker_celery_manager.unregister_task(task_id)
         
         return {
+            'status': 'completed',
+            'message': 'Audio transcription completed successfully',
+            'transcript_text': transcript_text,
+            'segments_count': len(aligned_segments),
+            'quality_metrics': quality_metrics,
             'status': 'completed',
             'message': 'Audio transcription completed successfully',
             'transcript_text': transcript_text,

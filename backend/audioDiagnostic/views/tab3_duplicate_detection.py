@@ -151,6 +151,9 @@ class SingleFileDuplicatesReviewView(APIView):
                 transcription=audio_file.transcription
             ).order_by('start_time')
             
+            # Get first occurrence time for sorting
+            first_occurrence_time = segments.first().start_time if segments.exists() else 0
+            
             # Identify last occurrence (recommended to keep)
             last_segment = segments.last()
             
@@ -174,8 +177,16 @@ class SingleFileDuplicatesReviewView(APIView):
                 'occurrence_count': group.occurrence_count,
                 'total_duration_seconds': group.total_duration_seconds,
                 'segments': segments_data,  # Changed from 'occurrences' to 'segments'
-                'occurrences': segments_data  # Keep both for backwards compatibility
+                'occurrences': segments_data,  # Keep both for backwards compatibility
+                'first_occurrence_time': first_occurrence_time  # For sorting
             })
+        
+        # Sort groups by first occurrence time (chronological order)
+        groups_data.sort(key=lambda g: g['first_occurrence_time'])
+        
+        # Reassign group IDs to match chronological order
+        for idx, group_data in enumerate(groups_data):
+            group_data['group_id'] = f"group_{idx}"
         
         return Response({
             'success': True,
