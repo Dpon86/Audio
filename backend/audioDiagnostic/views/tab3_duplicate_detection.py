@@ -26,8 +26,11 @@ class SingleFileDetectDuplicatesView(APIView):
         project = get_object_or_404(AudioProject, id=project_id, user=request.user)
         audio_file = get_object_or_404(AudioFile, id=audio_file_id, project=project)
 
-        algorithm = request.data.get('algorithm', 'tfidf_cosine')
-        raw_pdf_hint = request.data.get('use_pdf_hint', False)
+        # Default to windowed_retry_pdf for best audiobook results
+        algorithm = request.data.get('algorithm', 'windowed_retry_pdf')
+        # Enable PDF hints by default for windowed_retry algorithms
+        default_pdf_hint = algorithm in ['windowed_retry_pdf']
+        raw_pdf_hint = request.data.get('use_pdf_hint', default_pdf_hint)
         if isinstance(raw_pdf_hint, bool):
             use_pdf_hint = raw_pdf_hint
         else:

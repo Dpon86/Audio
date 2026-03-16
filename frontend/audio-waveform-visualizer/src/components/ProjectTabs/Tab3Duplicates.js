@@ -29,7 +29,7 @@ const Tab3Duplicates = () => {
   
   const [detecting, setDetecting] = useState(false);
   const [detectionProgress, setDetectionProgress] = useState({ current: 0, total: 0, status: '' });
-  const [detectionAlgorithm, setDetectionAlgorithm] = useState('windowed_retry');
+  const [detectionAlgorithm, setDetectionAlgorithm] = useState('windowed_retry_pdf');
   const [showAlgorithmSettings, setShowAlgorithmSettings] = useState(true);
   const [lastRunSummary, setLastRunSummary] = useState(null);
 

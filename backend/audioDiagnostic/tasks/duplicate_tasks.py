@@ -1021,12 +1021,13 @@ def detect_duplicates_single_file_task(
         from sklearn.feature_extraction.text import TfidfVectorizer
         from sklearn.metrics.pairwise import cosine_similarity
 
-        # Default/tuned parameters (overridable via API)
+        # Default/tuned parameters for audiobook processing (overridable via API)
         tfidf_similarity_threshold = 0.85 if tfidf_similarity_threshold is None else float(tfidf_similarity_threshold)
-        window_max_lookahead = 90 if window_max_lookahead is None else int(window_max_lookahead)
-        window_ratio_threshold = 0.76 if window_ratio_threshold is None else float(window_ratio_threshold)
-        window_strong_match_ratio = 0.84 if window_strong_match_ratio is None else float(window_strong_match_ratio)
-        window_min_word_length = 3 if window_min_word_length is None else int(window_min_word_length)
+        # Optimized for audiobook narrator retries:
+        window_max_lookahead = 150 if window_max_lookahead is None else int(window_max_lookahead)  # Narrator might re-record further ahead
+        window_ratio_threshold = 0.75 if window_ratio_threshold is None else float(window_ratio_threshold)  # Slightly lower to catch more variations
+        window_strong_match_ratio = 0.90 if window_strong_match_ratio is None else float(window_strong_match_ratio)  # Slightly lower for narrator variations
+        window_min_word_length = 2 if window_min_word_length is None else int(window_min_word_length)  # Skip very short words (a, I, to)
 
         def tokenize_words(text, min_len=1):
             return [word for word in normalize(text).split() if word and len(word) >= min_len]
@@ -1095,11 +1096,23 @@ def detect_duplicates_single_file_task(
                 for idx, words in enumerate(word_lists):
                     pdf_anchors[idx] = estimate_pdf_anchor(words, normalized_pdf_text)
 
-            # Build similarity graph
+            # Build similarity graph with progress updates
             adjacency = defaultdict(set)
 
             total_segments = len(segments)
+            last_progress_update = 0
+            
             for i in range(total_segments):
+                # Update progress every 50 segments
+                if i - last_progress_update >= 50:
+                    progress = 40 + int((i / total_segments) * 20)
+                    r.set(f"progress:{task_id}", progress)
+                    self.update_state(state='PROGRESS', meta={
+                        'progress': progress,
+                        'message': f'Analyzing segment {i}/{total_segments}...'
+                    })
+                    last_progress_update = i
+                
                 words_i = word_lists[i]
                 if len(words_i) < 2:
                     continue

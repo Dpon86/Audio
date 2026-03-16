@@ -18,19 +18,16 @@ class ClientDuplicateDetection {
 
   /**
    * Normalize text for comparison
-   * Removes punctuation, extra whitespace, and converts to lowercase
+   * Matches server-side normalization in backend/audioDiagnostic/tasks/utils.py
    */
   normalizeText(text) {
     if (!text) return '';
     
-    // Remove punctuation and special characters
-    let normalized = text.replace(/[^\w\s]/g, ' ');
+    // Remove [number] or [-1] prefixes (matches server-side normalize function)
+    let normalized = text.replace(/^\[\-?\d+\]\s*/, '');
     
-    // Convert to lowercase
-    normalized = normalized.toLowerCase();
-    
-    // Collapse multiple spaces into one
-    normalized = normalized.replace(/\s+/g, ' ').trim();
+    // Convert to lowercase and collapse whitespace (keep punctuation like server)
+    normalized = normalized.trim().toLowerCase().replace(/\s+/g, ' ');
     
     return normalized;
   }
