@@ -1056,7 +1056,7 @@ const Tab3Duplicates = () => {
       while (!complete && attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        const statusResponse = await fetch(`${API_BASE_URL}/api/celery-task-status/${taskId}/`, {
+        const statusResponse = await fetch(`${API_BASE_URL}/api/tasks/${taskId}/status/`, {
           headers: {
             'Authorization': `Token ${token}`
           }
@@ -1074,13 +1074,13 @@ const Tab3Duplicates = () => {
             });
           }
 
-          if (status.status === 'SUCCESS') {
+          if (status.status === 'completed') {
             complete = true;
             alert('Server assembly complete! Check the Results tab for your processed audio.');
             setIsAssemblingAudio(false);
             // Optionally navigate to Tab 4
             // setActiveTab?.('results');
-          } else if (status.status === 'FAILURE') {
+          } else if (status.status === 'failed') {
             throw new Error(status.error || 'Task failed');
           }
         }
