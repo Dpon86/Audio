@@ -340,6 +340,8 @@ def process_confirmed_deletions_task(self, project_id, confirmed_deletions, use_
     # Register this task
     docker_celery_manager.register_task(task_id)
     
+    project = None  # Initialize to avoid UnboundLocalError in exception handler
+    
     try:
         from audioDiagnostic.models import AudioProject, AudioFile, TranscriptionSegment
         
@@ -481,9 +483,12 @@ def process_confirmed_deletions_task(self, project_id, confirmed_deletions, use_
         
     except Exception as e:
         logger.error(f"Deletion processing failed: {str(e)}")
-        project.status = 'failed'
-        project.error_message = str(e)
-        project.save()
+        
+        # Only update project if it was successfully retrieved
+        if project is not None:
+            project.status = 'failed'
+            project.error_message = str(e)
+            project.save()
         
         r.set(f"progress:{task_id}", -1)
         raise e
