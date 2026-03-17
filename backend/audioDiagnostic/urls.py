@@ -18,7 +18,7 @@ from .views import (
     # PDF Matching
     ProjectMatchPDFView, ProjectValidatePDFView, ProjectValidationProgressView,
     # Infrastructure
-    InfrastructureStatusView, TaskStatusView,
+    InfrastructureStatusView, TaskStatusView, SystemVersionView,
     # Client Storage
     ClientTranscriptionListCreateView, ClientTranscriptionDetailView,
     DuplicateAnalysisListCreateView, DuplicateAnalysisDetailView,
@@ -174,6 +174,7 @@ urlpatterns = [
     
     # Infrastructure Management
     path('infrastructure/status/', InfrastructureStatusView.as_view(), name='infrastructure-status'),
+    path('api/system-version/', SystemVersionView.as_view(), name='system-version'),
     
     # Quick Fix
     path('api/projects/<int:project_id>/fix-transcriptions/', FixMissingTranscriptionsView.as_view(), name='fix-transcriptions'),

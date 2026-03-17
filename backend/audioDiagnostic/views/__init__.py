@@ -55,7 +55,8 @@ from .processing_views import (
 # Infrastructure and task status
 from .infrastructure_views import (
     InfrastructureStatusView,
-    TaskStatusView
+    TaskStatusView,
+    SystemVersionView
 )
 
 # Client storage (client-side transcriptions and duplicate analyses)
@@ -118,6 +119,7 @@ __all__ = [
     # Infrastructure views
     'InfrastructureStatusView',
     'TaskStatusView',
+    'SystemVersionView',
     
     # Client storage views
     'ClientTranscriptionListCreateView',

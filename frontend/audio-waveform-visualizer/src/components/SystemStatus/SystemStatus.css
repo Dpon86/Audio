@@ -1,0 +1,156 @@
+.system-status {
+  margin: 20px auto;
+  max-width: 800px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Compact view for login page */
+.system-status.compact {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 600px;
+}
+
+.system-status.compact.degraded {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.system-status.compact .status-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.system-status.compact .status-icon {
+  font-size: 16px;
+}
+
+.system-status.compact .status-details-compact {
+  display: flex;
+  gap: 20px;
+  font-size: 12px;
+  opacity: 0.9;
+  flex-wrap: wrap;
+}
+
+.system-status.compact .status-item {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Detailed view */
+.system-status.detailed {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.system-status.detailed h3 {
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 24px;
+}
+
+.system-status.detailed h4 {
+  margin: 15px 0 10px 0;
+  color: #555;
+  font-size: 16px;
+  font-weight: 600;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 5px;
+}
+
+.status-section {
+  margin-bottom: 20px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.status-row:last-child {
+  border-bottom: none;
+}
+
+.status-row code {
+  background: #f5f5f5;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.status-online {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.status-offline {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.status-badge.status-online {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.status-offline {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-footer {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e0e0e0;
+  text-align: center;
+  color: #999;
+}
+
+.status-loading,
+.status-error {
+  text-align: center;
+  padding: 10px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.status-error {
+  color: #ef4444;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .system-status.compact .status-details-compact {
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .status-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}

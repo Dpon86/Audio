@@ -139,3 +139,118 @@ class TaskStatusView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class SystemVersionView(APIView):
+    """
+    GET: Get system version information (no auth required for front page display)
+    Returns: git commit, build info, service status
+    """
+    authentication_classes = []
+    permission_classes = []
+    
+    def get(self, request):
+        import subprocess
+        import os
+        from django.conf import settings
+        from audioDiagnostic.utils import get_redis_connection
+        from celery import current_app
+        
+        version_info = {
+            'backend': {
+                'git_commit': 'unknown',
+                'git_branch': 'unknown',
+                'last_updated': 'unknown',
+                'status': 'unknown'
+            },
+            'frontend': {
+                'build_file': 'unknown',
+                'status': 'unknown'
+            },
+            'services': {
+                'celery': 'offline',
+                'redis': 'offline',
+                'docker': 'offline'
+            },
+            'environment': os.getenv('ENVIRONMENT', 'production')
+        }
+        
+        # Get backend git info
+        try:
+            os.chdir(settings.BASE_DIR)
+            
+            # Get current commit hash
+            git_commit = subprocess.check_output(
+                ['git', 'rev-parse', '--short', 'HEAD'],
+                stderr=subprocess.DEVNULL
+            ).decode('utf-8').strip()
+            version_info['backend']['git_commit'] = git_commit
+            
+            # Get current branch
+            git_branch = subprocess.check_output(
+                ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                stderr=subprocess.DEVNULL
+            ).decode('utf-8').strip()
+            version_info['backend']['git_branch'] = git_branch
+            
+            # Get last commit date
+            last_updated = subprocess.check_output(
+                ['git', 'log', '-1', '--format=%cd', '--date=short'],
+                stderr=subprocess.DEVNULL
+            ).decode('utf-8').strip()
+            version_info['backend']['last_updated'] = last_updated
+            
+            version_info['backend']['status'] = 'online'
+            
+        except Exception as e:
+            logger.warning(f"Could not get git info: {str(e)}")
+        
+        # Check Redis status
+        try:
+            r = get_redis_connection()
+            r.ping()
+            version_info['services']['redis'] = 'online'
+        except Exception:
+            version_info['services']['redis'] = 'offline'
+        
+        # Check Celery status
+        try:
+            inspect = current_app.control.inspect()
+            stats = inspect.stats()
+            if stats is not None and len(stats) > 0:
+                version_info['services']['celery'] = 'online'
+                # Get worker count
+                version_info['services']['celery_workers'] = len(stats)
+            else:
+                version_info['services']['celery'] = 'offline'
+        except Exception:
+            version_info['services']['celery'] = 'offline'
+        
+        # Check Docker (simplified - just check if we can connect to services)
+        if version_info['services']['celery'] == 'online' or version_info['services']['redis'] == 'online':
+            version_info['services']['docker'] = 'online'
+        else:
+            version_info['services']['docker'] = 'offline'
+        
+        # Frontend build info - read from static files if available
+        try:
+            # Try to find main.*.js file in static directory
+            static_dir = os.path.join(settings.BASE_DIR.parent, 'frontend', 'audio-waveform-visualizer', 'build', 'static', 'js')
+            if os.path.exists(static_dir):
+                js_files = [f for f in os.listdir(static_dir) if f.startswith('main.') and f.endswith('.js')]
+                if js_files:
+                    version_info['frontend']['build_file'] = js_files[0]
+                    version_info['frontend']['status'] = 'deployed'
+        except Exception as e:
+            logger.warning(f"Could not get frontend build info: {str(e)}")
+        
+        # Overall system status
+        all_online = all([
+            version_info['backend']['status'] == 'online',
+            version_info['services']['celery'] == 'online',
+            version_info['services']['redis'] == 'online'
+        ])
+        
+        version_info['overall_status'] = 'all_systems_operational' if all_online else 'some_services_degraded'
+        
+        return Response(version_info)
+
+
