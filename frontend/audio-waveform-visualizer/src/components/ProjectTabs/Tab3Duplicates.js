@@ -1008,6 +1008,97 @@ const Tab3Duplicates = () => {
     }
   };
 
+  // Server-side assembly - sends deletion request to backend
+  const handleServerAssembly = async () => {
+    console.log('[Tab3Duplicates] handleServerAssembly called');
+    console.log(`[Tab3Duplicates] Sending ${selectedDeletions.length} segment IDs to server`);
+    
+    const confirmed = window.confirm(
+      `Server-Side Assembly\n\n` +
+      `This will send your ${selectedDeletions.length} selected deletions to the server for processing.\n` +
+      `The server will generate a clean audio file without the duplicates.\n\n` +
+      `This may take a few minutes depending on file size.\n\n` +
+      `Continue?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsAssemblingAudio(true);
+      setAssemblyProgress({ current: 0, total: 100, status: 'Sending to server...' });
+
+      // Format deletions for server API
+      const confirmed_deletions = selectedDeletions.map(id => ({ segment_id: id }));
+
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/confirm-deletions/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify({ confirmed_deletions })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Server assembly failed');
+      }
+
+      const result = await response.json();
+      console.log('[Tab3Duplicates] Server assembly started:', result);
+
+      // Poll for task completion
+      const taskId = result.task_id;
+      let complete = false;
+      let attempts = 0;
+      const maxAttempts = 120; // 2 minutes
+
+      while (!complete && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const statusResponse = await fetch(`${API_BASE_URL}/api/celery-task-status/${taskId}/`, {
+          headers: {
+            'Authorization': `Token ${token}`
+          }
+        });
+
+        if (statusResponse.ok) {
+          const status = await statusResponse.json();
+          console.log(`[Tab3Duplicates] Task status:`, status);
+
+          if (status.progress) {
+            setAssemblyProgress({ 
+              current: status.progress, 
+              total: 100, 
+              status: status.message || 'Processing...' 
+            });
+          }
+
+          if (status.status === 'SUCCESS') {
+            complete = true;
+            alert('Server assembly complete! Check the Results tab for your processed audio.');
+            setIsAssemblingAudio(false);
+            // Optionally navigate to Tab 4
+            // setActiveTab?.('results');
+          } else if (status.status === 'FAILURE') {
+            throw new Error(status.error || 'Task failed');
+          }
+        }
+
+        attempts++;
+      }
+
+      if (!complete) {
+        throw new Error('Task timed out. Check the Results tab later.');
+      }
+
+    } catch (error) {
+      console.error('[Tab3Duplicates] Server assembly error:', error);
+      alert(`Server assembly failed: ${error.message}`);
+      setIsAssemblingAudio(false);
+    }
+  };
+
   const handleNavigateToResults = () => {
     console.log('handleNavigateToResults called');
     console.log('Current tab:', activeTab);
@@ -1036,14 +1127,33 @@ const Tab3Duplicates = () => {
       return;
     }
 
-    // Check if this is a client-only file
+    // Check if this is a client-only file OR prefer server-side assembly
     const isClientOnly = selectedAudioFile.client_only || selectedAudioFile.client_processed;
-    
-    if (!isClientOnly) {
-      alert('Audio assembly is currently only supported for client-processed files.\n\nThis file was processed on the server. Please use the server-side assembly feature instead.');
+    const useServerAssembly = !isClientOnly || window.confirm(
+      `Choose assembly method:\n\n` +
+      `CLIENT-SIDE (in browser):\n` +
+      `✓ Faster for small files\n` +
+      `✗ May have ID matching issues\n\n` +
+      `SERVER-SIDE (on server):\n` +
+      `✓ More reliable\n` +
+      `✓ Works with any file size\n` +
+      `✗ Requires server processing\n\n` +
+      `Click OK for SERVER-SIDE, Cancel for CLIENT-SIDE`
+    );
+
+    if (!isClientOnly && !useServerAssembly) {
+      alert('This file was processed on the server and must use server-side assembly.');
+      handleServerAssembly();
       return;
     }
 
+    if (useServerAssembly) {
+      handleServerAssembly();
+      return;
+    }
+
+    // === CLIENT-SIDE ASSEMBLY (original code) ===
+    
     // Get the original audio file
     let originalFile = selectedAudioFile.local_file;
     
@@ -1081,6 +1191,20 @@ const Tab3Duplicates = () => {
           allSegments = parsed.processedSegments;
           console.log(`[Tab3Duplicates] Using ${allSegments.length} processed segments from duplicate detection (with assigned IDs)`);
           console.log(`[Tab3Duplicates] Sample segment IDs:`, allSegments.slice(0, 5).map(s => s.id));
+        } else if (parsed.duplicate_groups && parsed.duplicate_groups.length > 0) {
+          // Fallback: Extract all segments from duplicate groups
+          console.warn('[Tab3Duplicates] No processedSegments found, extracting from duplicate groups');
+          const segmentMap = new Map();
+          parsed.duplicate_groups.forEach(group => {
+            const segments = group.segments || group.occurrences || [];
+            segments.forEach(seg => {
+              if (seg.id && !segmentMap.has(seg.id)) {
+                segmentMap.set(seg.id, seg);
+              }
+            });
+          });
+          allSegments = Array.from(segmentMap.values()).sort((a, b) => a.start_time - b.start_time);
+          console.log(`[Tab3Duplicates] Extracted ${allSegments.length} segments from duplicate groups`);
         }
       } catch (error) {
         console.error('[Tab3Duplicates] Error parsing duplicates storage:', error);
@@ -1128,8 +1252,20 @@ const Tab3Duplicates = () => {
     try {
       console.log('[Tab3Duplicates] Calling clientAudioAssembly.assembleAudio');
       console.log(`[Tab3Duplicates] Total segments: ${allSegments.length}`);
-      console.log(`[Tab3Duplicates] Selected deletions: ${selectedDeletions.length}`, selectedDeletions);
+      console.log(`[Tab3Duplicates] Sample segment IDs from allSegments:`, allSegments.slice(0, 10).map(s => s.id));
+      console.log(`[Tab3Duplicates] Selected deletions: ${selectedDeletions.length}`, selectedDeletions.slice(0, 10));
       console.log(`[Tab3Duplicates] Segments to keep: ${allSegments.length - selectedDeletions.length}`);
+      
+      // CRITICAL: Verify IDs match
+      const allSegmentIds = new Set(allSegments.map(s => s.id));
+      const matchingIds = selectedDeletions.filter(id => allSegmentIds.has(id));
+      const mismatchedIds = selectedDeletions.filter(id => !allSegmentIds.has(id));
+      
+      console.log(`[Tab3Duplicates] ⚠️ ID Match Check: ${matchingIds.length}/${selectedDeletions.length} IDs match`);
+      if (mismatchedIds.length > 0) {
+        console.error(`[Tab3Duplicates] ❌ ${mismatchedIds.length} segment IDs in selectedDeletions don't exist in allSegments!`);
+        console.error(`[Tab3Duplicates] Mismatched IDs (first 10):`, mismatchedIds.slice(0, 10));
+      }
       
       const result = await clientAudioAssembly.assembleAudio(
         originalFile,
