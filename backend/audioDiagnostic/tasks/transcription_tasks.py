@@ -61,6 +61,8 @@ def transcribe_all_project_audio_task(self, project_id):
             logger.info(f"Transcribing audio file {audio_file.id}: {audio_file.title}")
             MemoryManager.log_memory_usage(f"Before transcription {i+1}")
             
+            # Transcribe with word timestamps
+            audio_path = audio_file.file.path
             result = model.transcribe(audio_path, word_timestamps=True)
             
             MemoryManager.log_memory_usage(f"After transcription {i+1}")
@@ -82,24 +84,7 @@ def transcribe_all_project_audio_task(self, project_id):
             logger.info(f"Transcription quality: {quality_metrics['estimated_accuracy']} confidence, "
                        f"{quality_metrics['low_confidence_count']} low-confidence segments")
             
-            # Store transcript text (post-processed)
-            # Transcribe with word timestamps
-            audio_path = audio_file.file.path
-            result = model.transcribe(audio_path, word_timestamps=True)
-            
-            # Store transcript text (using aligned segments)
-            for seg_idx, segment in enumerate(aligned_segments):
-                # Calculate confidence (Whisper's avg_logprob mapped to 0-1 scale)
-                logprob = segment.get('avg_logprob', -2.5)
-                confidence = max(0.0, min(1.0, (logprob + 4.0) / 3.0))
-                
-                seg_obj = TranscriptionSegment.objects.create(
-                    audio_file=audio_file,
-                    transcription=transcription,
-                    text=segment['text'].strip(),
-                    start_time=segment['start'],
-                    end_time=segment['end'],
-                    confidence_score=confidence,  # Normalized 0-1 confidence
+            # Create or get transcription object
             transcription, created = Transcription.objects.get_or_create(
                 audio_file=audio_file,
                 defaults={
@@ -128,12 +113,7 @@ def transcribe_all_project_audio_task(self, project_id):
                     confidence_score=segment.get('avg_logprob', 0.0),
                     segment_index=seg_idx
                 )
-              Clean up memory after each file
-            del result
-            del aligned_segments
-            MemoryManager.cleanup()
-            
-            #   
+                
                 # Save individual words with timestamps
                 if 'words' in segment:
                     for word_idx, word_data in enumerate(segment['words']):
@@ -147,6 +127,10 @@ def transcribe_all_project_audio_task(self, project_id):
                             word_index=word_idx
                         )
             
+            # Clean up memory after each file
+            del result
+            MemoryManager.cleanup()
+            
             # Calculate average confidence
             segments = TranscriptionSegment.objects.filter(audio_file=audio_file)
             if segments.exists():
@@ -156,15 +140,15 @@ def transcribe_all_project_audio_task(self, project_id):
             
             audio_file.status = 'transcribed'
             audio_file.save()
-        # Final cleanup
-        del model
-        MemoryManager.cleanup()
-        MemoryManager.log_memory_usage("After completion")
-        
             
             # Update progress
             progress = 5 + int((i + 1) / total_files * 85)
             r.set(f"progress:{task_id}", progress)
+        
+        # Final cleanup
+        del model
+        MemoryManager.cleanup()
+        MemoryManager.log_memory_usage("After completion")
         
         # All audio files transcribed
         project.status = 'transcribed'
@@ -329,7 +313,10 @@ def transcribe_audio_file_task(self, audio_file_id):
         r.set(f"progress:{task_id}", 100)
         
         # Update audio file status
-        auClean up memory
+        audio_file.status = 'transcribed'
+        audio_file.save()
+        
+        # Clean up memory
         del model
         del result
         del aligned_segments
@@ -344,11 +331,7 @@ def transcribe_audio_file_task(self, audio_file_id):
             'message': 'Audio transcription completed successfully',
             'transcript_text': transcript_text,
             'segments_count': len(aligned_segments),
-            'quality_metrics': quality_metrics,
-            'status': 'completed',
-            'message': 'Audio transcription completed successfully',
-            'transcript_text': transcript_text,
-            'segments_count': len(result['segments'])
+            'quality_metrics': quality_metrics
         }
         
     except Exception as e:
