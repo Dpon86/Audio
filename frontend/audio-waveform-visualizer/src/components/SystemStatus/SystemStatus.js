@@ -23,30 +23,23 @@ const SystemStatus = ({ showDetailed = false }) => {
         setVersionInfo(data);
         setError(null);
       } else {
-        throw new Error('Failed to fetch version info');
+        // Backend endpoint not available yet - hide component silently
+        setError('not_available');
       }
     } catch (err) {
-      console.error('Error fetching version info:', err);
-      setError(err.message);
+      // Network error or backend not deployed - hide component silently
+      setError('not_available');
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
-    return (
-      <div className="system-status compact">
-        <div className="status-loading">Loading system status...</div>
-      </div>
-    );
+    return null; // Don't show anything while loading
   }
 
   if (error || !versionInfo) {
-    return (
-      <div className="system-status compact">
-        <div className="status-error">⚠️ System status unavailable</div>
-      </div>
-    );
+    return null; // Hide component if backend endpoint not available
   }
 
   const getStatusIcon = (status) => {
