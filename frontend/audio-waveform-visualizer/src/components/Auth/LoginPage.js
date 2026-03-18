@@ -59,8 +59,6 @@ const LoginPage = () => {
 
     return (
         <div className="auth-container">
-            <SystemStatus showDetailed={false} />
-            
             <div className="auth-card">
                 <div className="auth-header">
                     <h2>Welcome Back</h2>
@@ -115,6 +113,8 @@ const LoginPage = () => {
                     </p>
                 </div>
             </div>
+            
+            <SystemStatus showDetailed={false} />
         </div>
     );
 };

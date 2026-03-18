@@ -23,12 +23,12 @@ const SystemStatus = ({ showDetailed = false }) => {
         setVersionInfo(data);
         setError(null);
       } else {
-        // Backend endpoint not available yet - hide component silently
-        setError('not_available');
+        // Backend endpoint not available - show frontend-only info
+        setError('backend_unavailable');
       }
     } catch (err) {
-      // Network error or backend not deployed - hide component silently
-      setError('not_available');
+      // Network error or backend not deployed - show frontend-only info
+      setError('backend_unavailable');
     } finally {
       setLoading(false);
     }
@@ -38,8 +38,39 @@ const SystemStatus = ({ showDetailed = false }) => {
     return null; // Don't show anything while loading
   }
 
-  if (error || !versionInfo) {
-    return null; // Hide component if backend endpoint not available
+  // Get frontend build version from loaded script
+  const getFrontendVersion = () => {
+    const scripts = document.getElementsByTagName('script');
+    for (let script of scripts) {
+      const src = script.src;
+      const match = src.match(/main\.([a-f0-9]+)\.js/);
+      if (match) {
+        return match[1];
+      }
+    }
+    return 'unknown';
+  };
+
+  // Show minimal info if backend unavailable
+  if (error === 'backend_unavailable' && !versionInfo) {
+    const frontendVersion = getFrontendVersion();
+    
+    return (
+      <div className="system-status compact minimal">
+        <div className="status-details-compact">
+          <span className="status-item">
+            Frontend: <span className="status-online">{frontendVersion}</span>
+          </span>
+          <span className="status-item">
+            Backend: <span className="status-offline">checking...</span>
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!versionInfo) {
+    return null; // Hide if no data at all
   }
 
   const getStatusIcon = (status) => {
@@ -59,31 +90,38 @@ const SystemStatus = ({ showDetailed = false }) => {
   if (!showDetailed) {
     // Compact view for login page
     const allOnline = versionInfo.overall_status === 'all_systems_operational';
+    const frontendHash = versionInfo.frontend.build_file !== 'unknown' 
+      ? versionInfo.frontend.build_file.replace('main.', '').replace('.js', '')
+      : 'unknown';
     
     return (
       <div className={`system-status compact ${allOnline ? 'all-ok' : 'degraded'}`}>
         <div className="status-header">
           <span className="status-icon">{getStatusIcon(versionInfo.overall_status)}</span>
           <span className="status-text">
-            {allOnline ? 'All Systems Operational' : 'Some Services Degraded'}
+            {allOnline ? 'All Systems Operational' : 'System Status'}
           </span>
         </div>
         <div className="status-details-compact">
           <span className="status-item">
-            Backend: <span className={getStatusColor(versionInfo.backend.status)}>
-              {versionInfo.backend.git_commit}
+            <strong>Backend:</strong> <span className={getStatusColor(versionInfo.backend.status)}>
+              {versionInfo.backend.git_commit} ({versionInfo.backend.last_updated})
             </span>
           </span>
           <span className="status-item">
-            Frontend: <span className={getStatusColor(versionInfo.frontend.status)}>
-              {versionInfo.frontend.build_file !== 'unknown' 
-                ? versionInfo.frontend.build_file.replace('main.', '').replace('.js', '')
-                : 'unknown'}
+            <strong>Frontend:</strong> <span className="status-online">
+              {frontendHash}
             </span>
           </span>
           <span className="status-item">
-            Celery: <span className={getStatusColor(versionInfo.services.celery)}>
+            <strong>Celery:</strong> <span className={getStatusColor(versionInfo.services.celery)}>
               {versionInfo.services.celery}
+              {versionInfo.services.celery_workers ? ` (${versionInfo.services.celery_workers} workers)` : ''}
+            </span>
+          </span>
+          <span className="status-item">
+            <strong>Redis:</strong> <span className={getStatusColor(versionInfo.services.redis)}>
+              {versionInfo.services.redis}
             </span>
           </span>
         </div>

@@ -12,6 +12,12 @@
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   max-width: 600px;
+  margin-top: 20px;
+}
+
+.system-status.compact.minimal {
+  background: linear-gradient(135deg, #a8a8a8 0%, #7b7b7b 100%);
+  padding: 10px 20px;
 }
 
 .system-status.compact.degraded {
@@ -32,17 +38,23 @@
 }
 
 .system-status.compact .status-details-compact {
-  display: flex;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
   font-size: 12px;
-  opacity: 0.9;
-  flex-wrap: wrap;
+  opacity: 0.95;
+  margin-top: 8px;
 }
 
 .system-status.compact .status-item {
   display: flex;
   gap: 6px;
   align-items: center;
+}
+
+.system-status.compact .status-item strong {
+  font-weight: 600;
+  min-width: 70px;
 }
 
 /* Detailed view */
