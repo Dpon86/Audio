@@ -57,13 +57,27 @@ const SystemStatus = ({ showDetailed = false }) => {
     
     return (
       <div className="system-status compact minimal">
+        <div className="status-header">
+          <span className="status-icon">⚠️</span>
+          <span className="status-text">System Status - Backend Unavailable</span>
+        </div>
         <div className="status-details-compact">
-          <span className="status-item">
-            Frontend: <span className="status-online">{frontendVersion}</span>
-          </span>
-          <span className="status-item">
-            Backend: <span className="status-offline">checking...</span>
-          </span>
+          <div className="status-item">
+            <strong>Frontend Build:</strong>
+            <span className="status-value status-online">{frontendVersion}</span>
+          </div>
+          <div className="status-item">
+            <strong>Backend API:</strong>
+            <span className="status-value status-offline">Offline</span>
+          </div>
+          <div className="status-item">
+            <strong>Celery Workers:</strong>
+            <span className="status-value status-offline">Unknown</span>
+          </div>
+          <div className="status-item">
+            <strong>Redis Cache:</strong>
+            <span className="status-value status-offline">Unknown</span>
+          </div>
         </div>
       </div>
     );
@@ -99,31 +113,35 @@ const SystemStatus = ({ showDetailed = false }) => {
         <div className="status-header">
           <span className="status-icon">{getStatusIcon(versionInfo.overall_status)}</span>
           <span className="status-text">
-            {allOnline ? 'All Systems Operational' : 'System Status'}
+            {allOnline ? 'All Systems Operational' : 'Some Services Degraded'}
           </span>
         </div>
         <div className="status-details-compact">
-          <span className="status-item">
-            <strong>Backend:</strong> <span className={getStatusColor(versionInfo.backend.status)}>
+          <div className="status-item">
+            <strong>Backend Version:</strong>
+            <span className={`status-value ${getStatusColor(versionInfo.backend.status)}`}>
               {versionInfo.backend.git_commit} ({versionInfo.backend.last_updated})
             </span>
-          </span>
-          <span className="status-item">
-            <strong>Frontend:</strong> <span className="status-online">
+          </div>
+          <div className="status-item">
+            <strong>Frontend Build:</strong>
+            <span className="status-value status-online">
               {frontendHash}
             </span>
-          </span>
-          <span className="status-item">
-            <strong>Celery:</strong> <span className={getStatusColor(versionInfo.services.celery)}>
+          </div>
+          <div className="status-item">
+            <strong>Celery Workers:</strong>
+            <span className={`status-value ${getStatusColor(versionInfo.services.celery)}`}>
               {versionInfo.services.celery}
               {versionInfo.services.celery_workers ? ` (${versionInfo.services.celery_workers} workers)` : ''}
             </span>
-          </span>
-          <span className="status-item">
-            <strong>Redis:</strong> <span className={getStatusColor(versionInfo.services.redis)}>
+          </div>
+          <div className="status-item">
+            <strong>Redis Cache:</strong>
+            <span className={`status-value ${getStatusColor(versionInfo.services.redis)}`}>
               {versionInfo.services.redis}
             </span>
-          </span>
+          </div>
         </div>
       </div>
     );
