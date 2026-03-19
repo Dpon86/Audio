@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../config/api';
 import clientSideTranscription from '../../services/clientSideTranscription';
 import clientAudioStorage from '../../services/clientAudioStorage';
+import { uploadWithTranscription } from '../../services/uploadWithTranscription';
 import './Tab1Files.css';
 
 /**
@@ -369,9 +370,44 @@ const Tab1Files = () => {
       setProcessingStep('finalizing');
       setUploadProgress(70);
 
+      // *** NEW: Upload audio file + transcription to server ***
+      // This enables server-side assembly after client-side transcription
+      setProcessingStep('uploading');
+      console.log('[Tab1Files] Uploading audio + transcription to server...');
+      
+      let serverAudioFileId = null;
+      let uploadSuccess = false;
+      
+      try {
+        const uploadResult = await uploadWithTranscription(
+          file,
+          result,  // transcriptionResult with all_segments
+          projectId,
+          token,
+          {
+            title: file.name.replace(/\.[^/.]+$/, ''),  // Remove extension
+            orderIndex: audioFiles?.length || 0,
+            onProgress: (percent) => {
+              // Upload progress: 70% to 90%
+              setUploadProgress(70 + Math.round(percent * 0.2));
+            }
+          }
+        );
+        
+        serverAudioFileId = uploadResult.audio_file_id;
+        uploadSuccess = true;
+        console.log('[Tab1Files] Upload successful! Server audio_file_id:', serverAudioFileId);
+        
+      } catch (uploadError) {
+        console.error('[Tab1Files] Upload failed:', uploadError);
+        // Don't fail the whole process - we can still use client-side data
+        uploadSuccess = false;
+      }
+
+      setUploadProgress(90);
+
       // For client-side processing, store locally and display in UI
-      // No need to upload to server - keep everything client-side
-      console.log('[Tab1Files] Client-side transcription complete, storing locally');
+      console.log('[Tab1Files] Storing transcription locally');
       
       // Create a unique ID for this file
       const fileId = `local-${Date.now()}`;
@@ -386,7 +422,8 @@ const Tab1Files = () => {
         },
         duration_seconds: result.all_segments && result.all_segments.length > 0 
           ? result.all_segments[result.all_segments.length - 1].end 
-          : 0
+          : 0,
+        server_audio_file_id: serverAudioFileId  // *** NEW: Link to server file ***
       });
       
       console.log(`[Tab1Files] Stored audio file in IndexedDB: ${fileId}`);
@@ -407,8 +444,10 @@ const Tab1Files = () => {
           word_count: result.text.split(/\s+/).filter(w => w.length > 0).length,
           client_processed: true
         },
-        client_only: true, // Flag to indicate this is client-side only
-        has_local_audio: true // Flag to indicate audio is in IndexedDB
+        client_only: !uploadSuccess,  // Only client if upload failed
+        has_local_audio: true,
+        server_audio_file_id: serverAudioFileId,  // *** NEW: Server file ID ***
+        server_upload_complete: uploadSuccess  // *** NEW: Upload status ***
       };
 
       // Store metadata in localStorage for quick access
@@ -420,11 +459,14 @@ const Tab1Files = () => {
         title: localFile.title,
         transcription: localFile.transcription,
         timestamp: Date.now(),
-        has_local_audio: true
+        has_local_audio: true,
+        server_audio_file_id: serverAudioFileId,  // *** NEW ***
+        server_upload_complete: uploadSuccess  // *** NEW ***
       });
       localStorage.setItem(storageKey, JSON.stringify(existing));
 
-      // Save to server for cross-device persistence
+      // Save transcription metadata to server for cross-device persistence
+      // This is separate from the audio file upload above
       const serverSave = await saveTranscriptionToServer(
         fileId,
         file.name,
@@ -437,7 +479,7 @@ const Tab1Files = () => {
       if (serverSave.success) {
         localFile.server_synced = true;
         localFile.server_id = serverSave.data?.id;
-        console.log('[Tab1Files] Transcription synced to server');
+        console.log('[Tab1Files] Transcription metadata synced to server');
       } else {
         localFile.server_synced = false;
         console.log('[Tab1Files] Transcription saved locally only (server unavailable)');
@@ -457,9 +499,31 @@ const Tab1Files = () => {
       const segments = result.all_segments?.length || 0;
       const words = localFile.transcription.word_count;
       
+      // *** NEW: Different messaging based on upload status ***
+      let uploadStatusMsg;
+      let additionalInfo;
+      
+      if (uploadSuccess) {
+        uploadStatusMsg = `✅ Upload Complete: Audio + transcription uploaded to server`;
+        additionalInfo = `🔧 Server-Side Features Available:\n` +
+                        `   • Server-side assembly (removes duplicates server-side)\n` +
+                        `   • Cross-device access\n` +
+                        `   • Persistent storage\n\n` +
+                        `Your audio was transcribed on your device (no server load),\n` +
+                        `then uploaded with transcription data for server-side assembly.`;
+      } else {
+        uploadStatusMsg = `⚠️ Upload Failed: Local-only processing`;
+        additionalInfo = `📱 Your transcription is saved locally but:\n` +
+                        `   • Server-side assembly NOT available\n` +
+                        `   • Limited to this device only\n` +
+                        `   • Will try to upload again later\n\n` +
+                        `To enable server-side features, check your connection\n` +
+                        `and try re-processing this file.`;
+      }
+      
       const syncStatus = localFile.server_synced 
-        ? `☁️ Synced to Server: Available on all your devices`
-        : `📱 Saved Locally Only: Server unavailable, will sync when available`;
+        ? `☁️ Metadata Synced: Transcription available on all devices`
+        : `📱 Local Metadata: Server unavailable for sync`;
       
       alert(
         `✅ Transcription Complete!\n\n` +
@@ -467,12 +531,9 @@ const Tab1Files = () => {
         `⏱️ Duration: ${duration}\n` +
         `💬 Words: ${words.toLocaleString()}\n` +
         `📝 Segments: ${segments}\n\n` +
-        `🖥️ Processing Method: Client-Side (Your Device)\n` +
-        `💾 ${syncStatus}\n\n` +
-        `Your audio file never left your device. ` +
-        (localFile.server_synced 
-          ? `Transcription saved to server for cross-device access.`
-          : `Transcription saved locally. Will sync to server when connection available.`)
+        `${uploadStatusMsg}\n` +
+        `${syncStatus}\n\n` +
+        `${additionalInfo}`
       );
 
       setUploading(false);
@@ -933,6 +994,13 @@ const Tab1Files = () => {
                 <div className={`step-item ${processingStep === 'finalizing' ? 'active' : ''}`}>
                   <span className="step-icon">{processingStep === 'finalizing' ? '⏳' : ['loading', 'reading', 'transcribing'].includes(processingStep) ? '○' : '✓'}</span>
                   <span className="step-text">Finalizing Results</span>
+                </div>
+                <div className={`step-item ${processingStep === 'uploading' ? 'active' : ''}`}>
+                  <span className="step-icon">{processingStep === 'uploading' ? '⏳' : ['loading', 'reading', 'transcribing', 'finalizing'].includes(processingStep) ? '○' : '✓'}</span>
+                  <span className="step-text">Uploading to Server</span>
+                  {processingStep === 'uploading' && (
+                    <span style={{ marginLeft: '0.5rem', color: '#6b7280' }}>(Enables server-side assembly)</span>
+                  )}
                 </div>
               </div>
               
