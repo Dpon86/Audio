@@ -4,7 +4,7 @@ from .views import (
     ProjectListCreateView, ProjectDetailView, ProjectTranscriptView,
     ProjectStatusView, ProjectDownloadView,
     # Uploads
-    ProjectUploadPDFView, ProjectUploadAudioView,
+    ProjectUploadPDFView, ProjectUploadAudioView, BulkUploadWithTranscriptionView,
     # Transcription
     ProjectTranscribeView, AudioFileListView, AudioFileDetailView,
     AudioFileTranscribeView, AudioFileRestartView,
@@ -86,6 +86,7 @@ urlpatterns = [
     path('projects/<int:project_id>/', ProjectDetailView.as_view(), name='project-detail'),
     path('projects/<int:project_id>/upload-pdf/', ProjectUploadPDFView.as_view(), name='project-upload-pdf'),
     path('projects/<int:project_id>/upload-audio/', ProjectUploadAudioView.as_view(), name='project-upload-audio'),
+    path('projects/<int:project_id>/upload-with-transcription/', BulkUploadWithTranscriptionView.as_view(), name='project-upload-with-transcription'),
     path('projects/<int:project_id>/transcribe/', ProjectTranscribeView.as_view(), name='project-transcribe'),
     path('projects/<int:project_id>/process/', ProjectProcessView.as_view(), name='project-process'),
     path('projects/<int:project_id>/status/', ProjectStatusView.as_view(), name='project-status'),

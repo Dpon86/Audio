@@ -15,7 +15,8 @@ from .project_views import (
 # Upload operations (PDF and Audio)
 from .upload_views import (
     ProjectUploadPDFView,
-    ProjectUploadAudioView
+    ProjectUploadAudioView,
+    BulkUploadWithTranscriptionView
 )
 
 # Transcription operations
