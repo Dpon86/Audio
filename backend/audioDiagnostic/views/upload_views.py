@@ -227,6 +227,19 @@ class BulkUploadWithTranscriptionView(APIView):
             audio_obj.transcript_text = ' '.join(transcript_text)
             audio_obj.save()
             
+            # Create Transcription record for duplicate detection compatibility
+            # This is required by Tab 3 duplicate detection which checks hasattr(audio_file, 'transcription')
+            avg_confidence = sum(float(seg.get('confidence', 0.0)) for seg in segments) / len(segments) if segments else 0.0
+            word_count = sum(len(seg['text'].split()) for seg in segments)
+            
+            from ..models import Transcription
+            Transcription.objects.create(
+                audio_file=audio_obj,
+                full_text=audio_obj.transcript_text,
+                word_count=word_count,
+                confidence_score=avg_confidence
+            )
+            
             # Update project status if appropriate
             if project.status == 'setup':
                 project.status = 'transcribing'
