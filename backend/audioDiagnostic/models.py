@@ -458,3 +458,219 @@ class DuplicateAnalysis(models.Model):
             deletion_count = len(self.selected_deletions) if isinstance(self.selected_deletions, list) else 0
             return (deletion_count / self.total_segments) * 100
         return 0
+
+
+# AI-Powered Duplicate Detection Models
+
+class AIDuplicateDetectionResult(models.Model):
+    """
+    Stores results from AI-powered duplicate detection
+    """
+    audio_file = models.ForeignKey(AudioFile, on_delete=models.CASCADE, related_name='ai_duplicate_results')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ai_duplicate_results')
+    
+    # AI Provider information
+    ai_provider = models.CharField(max_length=50, default='anthropic')  # 'anthropic' or 'openai'
+    ai_model = models.CharField(max_length=100)  # e.g., 'claude-3-5-sonnet-20241022'
+    
+    # Processing metadata
+    processing_date = models.DateTimeField(auto_now_add=True)
+    processing_time_seconds = models.FloatField()  # How long detection took
+    
+    # Cost tracking
+    input_tokens = models.IntegerField()
+    output_tokens = models.IntegerField()
+    total_tokens = models.IntegerField()
+    api_cost_usd = models.DecimalField(max_digits=10, decimal_places=4)
+    
+    # Results
+    duplicate_groups = models.JSONField()  # Array of duplicate groups from AI
+    duplicate_count = models.IntegerField(default=0)  # Number of duplicate groups found
+    occurrences_to_delete = models.IntegerField(default=0)  # Total occurrences marked for deletion
+    estimated_time_saved_seconds = models.FloatField(default=0)  # Time that will be saved
+    
+    # Confidence and quality
+    average_confidence = models.FloatField()  # Average confidence across all detections
+    high_confidence_count = models.IntegerField(default=0)  # Count with confidence > 0.9
+    
+    # Settings used
+    detection_settings = models.JSONField()  # min_words, similarity_threshold, keep_occurrence, etc.
+    
+    # Paragraph expansion (if performed)
+    paragraph_expansion_performed = models.BooleanField(default=False)
+    expanded_groups = models.JSONField(null=True, blank=True)  # Results after paragraph expansion
+    
+    # User actions
+    user_confirmed = models.BooleanField(default=False)  # User has reviewed and confirmed
+    user_modified = models.BooleanField(default=False)  # User made manual adjustments
+    user_modifications = models.JSONField(null=True, blank=True)  # Record of changes
+    
+    class Meta:
+        ordering = ['-processing_date']
+        indexes = [
+            models.Index(fields=['audio_file', '-processing_date']),
+            models.Index(fields=['user', '-processing_date']),
+            models.Index(fields=['ai_provider', 'ai_model']),
+        ]
+    
+    def __str__(self):
+        return f"AI Detection for {self.audio_file.filename} ({self.duplicate_count} groups, ${self.api_cost_usd})"
+
+
+class AIPDFComparisonResult(models.Model):
+    """
+    Stores results from AI-powered PDF comparison
+    """
+    audio_file = models.ForeignKey(AudioFile, on_delete=models.CASCADE, related_name='ai_pdf_comparisons')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ai_pdf_comparisons')
+    project = models.ForeignKey(AudioProject, on_delete=models.CASCADE, related_name='ai_pdf_comparisons')
+    
+    # AI Provider information
+    ai_provider = models.CharField(max_length=50, default='anthropic')
+    ai_model = models.CharField(max_length=100)
+    
+    # Processing metadata
+    processing_date = models.DateTimeField(auto_now_add=True)
+    processing_time_seconds = models.FloatField()
+    
+    # Cost tracking
+    input_tokens = models.IntegerField()
+    output_tokens = models.IntegerField()
+    total_tokens = models.IntegerField()
+    api_cost_usd = models.DecimalField(max_digits=10, decimal_places=4)
+    
+    # Results
+    alignment_result = models.JSONField()  # Alignment statistics
+    discrepancies = models.JSONField()  # Array of found discrepancies
+    
+    # Summary statistics
+    coverage_percentage = models.FloatField()  # How much of PDF is in audio
+    total_discrepancies = models.IntegerField(default=0)
+    missing_in_audio_count = models.IntegerField(default=0)  # PDF content not in audio
+    extra_in_audio_count = models.IntegerField(default=0)  # Audio content not in PDF
+    paraphrased_count = models.IntegerField(default=0)  # Semantic match but different wording
+    
+    # Severity breakdown
+    high_severity_count = models.IntegerField(default=0)
+    medium_severity_count = models.IntegerField(default=0)
+    low_severity_count = models.IntegerField(default=0)
+    
+    # Quality assessment
+    overall_quality = models.CharField(
+        max_length=20,
+        choices=[
+            ('excellent', 'Excellent'),
+            ('good', 'Good'),
+            ('fair', 'Fair'),
+            ('poor', 'Poor'),
+        ],
+        default='good'
+    )
+    confidence_score = models.FloatField()  # Overall confidence in comparison
+    
+    # Annotated transcript
+    clean_transcript_marked = models.TextField()  # Transcript with markers for discrepancies
+    
+    # User actions
+    reviewed = models.BooleanField(default=False)
+    review_notes = models.TextField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-processing_date']
+        indexes = [
+            models.Index(fields=['audio_file', '-processing_date']),
+            models.Index(fields=['project', '-processing_date']),
+            models.Index(fields=['user', '-processing_date']),
+        ]
+    
+    def __str__(self):
+        return f"AI PDF Comparison for {self.audio_file.filename} ({self.coverage_percentage:.1f}% coverage, ${self.api_cost_usd})"
+
+
+class AIProcessingLog(models.Model):
+    """
+    Tracks all AI API calls for cost monitoring and auditing
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ai_processing_logs')
+    audio_file = models.ForeignKey(AudioFile, on_delete=models.CASCADE, null=True, blank=True, related_name='ai_logs')
+    project = models.ForeignKey(AudioProject, on_delete=models.CASCADE, null=True, blank=True, related_name='ai_logs')
+    
+    # AI Provider
+    ai_provider = models.CharField(max_length=50)  # 'anthropic', 'openai'
+    ai_model = models.CharField(max_length=100)
+    
+    # Task type
+    task_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('duplicate_detection', 'Duplicate Detection'),
+            ('paragraph_expansion', 'Paragraph Expansion'),
+            ('pdf_comparison', 'PDF Comparison'),
+            ('other', 'Other'),
+        ]
+    )
+    
+    # Request details
+    timestamp = models.DateTimeField(auto_now_add=True)
+    request_data_preview = models.TextField(null=True, blank=True)  # First 1000 chars of request
+    data_sent_bytes = models.IntegerField(default=0)  # Approximate size of data sent
+    
+    # Response details  
+    input_tokens = models.IntegerField()
+    output_tokens = models.IntegerField()
+    total_tokens = models.IntegerField()
+    processing_time_seconds = models.FloatField()
+    
+    # Cost
+    cost_usd = models.DecimalField(max_digits=10, decimal_places=4)
+    
+    # Status
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('success', 'Success'),
+            ('failure', 'Failure'),
+            ('timeout', 'Timeout'),
+            ('rate_limited', 'Rate Limited'),
+        ],
+        default='success'
+    )
+    error_message = models.TextField(null=True, blank=True)
+    
+    # Privacy and security
+    user_consented = models.BooleanField(default=True)  # User agreed to send data to AI
+    data_sanitized = models.BooleanField(default=True)  # PII removed before sending
+    
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['user', '-timestamp']),
+            models.Index(fields=['audio_file', '-timestamp']),
+            models.Index(fields=['task_type', '-timestamp']),
+            models.Index(fields=['status']),
+        ]
+    
+    def __str__(self):
+        return f"{self.task_type} by {self.user.username} - ${self.cost_usd} ({self.status})"
+    
+    @classmethod
+    def get_user_monthly_cost(cls, user, year=None, month=None):
+        """Calculate total AI cost for user in given month"""
+        from django.db.models import Sum
+        from datetime import datetime
+        
+        if not year or not month:
+            now = datetime.now()
+            year = now.year
+            month = now.month
+        
+        logs = cls.objects.filter(
+            user=user,
+            timestamp__year=year,
+            timestamp__month=month,
+            status='success'
+        )
+        
+        result = logs.aggregate(total=Sum('cost_usd'))
+        return float(result['total'] or 0)
+
