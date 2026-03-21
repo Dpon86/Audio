@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, getApiUrl, resolveMediaUrl } from '../config/api';
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { getApiUrl } from "../config/api";
 import DebugPanel from "../components/DebugPanel";
 import WaveSurfer from "wavesurfer.js";
 import "../static/CSS/ProjectDetailPage.css";
@@ -240,7 +239,7 @@ const AudioFilesList = ({ projectId, onUpdate, token }) => {
             )}
             {audioFile.status === 'completed' && audioFile.processed_audio_url && (
               <a 
-                href={audioFile.processed_audio_url}
+                href={resolveMediaUrl(audioFile.processed_audio_url)}
                 download
                 className="download-btn"
               >
@@ -1121,7 +1120,7 @@ const ProjectDetailPage = () => {
     }
     
     try {
-      const audioUrl = `${API_BASE_URL}${project.final_processed_audio}`;
+      const audioUrl = resolveMediaUrl(project.final_processed_audio);
       const response = await fetch(audioUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -1156,7 +1155,7 @@ const ProjectDetailPage = () => {
         });
 
         // Load audio file
-        const audioUrl = `${API_BASE_URL}${project.final_processed_audio}`;
+        const audioUrl = resolveMediaUrl(project.final_processed_audio);
         ws.load(audioUrl);
         
         ws.on('ready', () => {
@@ -3004,7 +3003,7 @@ const MiniWaveform = ({ audioUrl, startTime, endTime, segmentId }) => {
     
     try {
       // Ensure full URL
-      const fullAudioUrl = audioUrl.startsWith('http') ? audioUrl : `${API_BASE_URL}${audioUrl}`;
+      const fullAudioUrl = resolveMediaUrl(audioUrl);
 
       // Create WaveSurfer instance
       wavesurfer = WaveSurfer.create({

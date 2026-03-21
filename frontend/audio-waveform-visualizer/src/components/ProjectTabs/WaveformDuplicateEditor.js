@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { API_BASE_URL } from '../../config/api';
+import { resolveMediaUrl } from '../../config/api';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import './WaveformDuplicateEditor.css';
@@ -154,9 +154,7 @@ const WaveformDuplicateEditor = ({
           audioUrl = URL.createObjectURL(audioFile);
           console.log('Loading audio from File object (blob URL):', audioUrl);
         } else {
-          // Use absolute URLs as-is; otherwise prefix with API_BASE_URL.
-          const isAbsoluteUrl = typeof audioFile === 'string' && /^https?:\/\//i.test(audioFile);
-          audioUrl = isAbsoluteUrl ? audioFile : `${API_BASE_URL}${audioFile}`;
+          audioUrl = resolveMediaUrl(audioFile);
           console.log('Loading audio from server URL:', audioUrl);
         }
         

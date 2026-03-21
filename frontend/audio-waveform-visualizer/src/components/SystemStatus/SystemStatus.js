@@ -106,7 +106,7 @@ const SystemStatus = ({ showDetailed = false }) => {
     const allOnline = versionInfo.overall_status === 'all_systems_operational';
     const frontendHash = versionInfo.frontend.build_file !== 'unknown' 
       ? versionInfo.frontend.build_file.replace('main.', '').replace('.js', '')
-      : 'unknown';
+      : getFrontendVersion();
     
     return (
       <div className={`system-status compact ${allOnline ? 'all-ok' : 'degraded'}`}>

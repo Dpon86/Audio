@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { API_BASE_URL } from '../../config/api';
+import { API_BASE_URL, resolveMediaUrl } from '../../config/api';
 import { useProjectTab } from '../../contexts/ProjectTabContext';
 import { useAuth } from '../../contexts/AuthContext';
 import WaveSurfer from 'wavesurfer.js';
@@ -414,9 +414,9 @@ const Tab3Duplicates = () => {
         blobUrl = URL.createObjectURL(selectedAudioFile.local_file);
         audioUrl = blobUrl;
       } else {
-        // Server file - use server URL
+        // Server file - normalize any malformed absolute/protocol-relative URL
         console.log('[Tab3Duplicates] Loading waveform from server');
-        audioUrl = `${API_BASE_URL}${selectedAudioFile.file || selectedAudioFile.audio_file}`;
+        audioUrl = resolveMediaUrl(selectedAudioFile.file || selectedAudioFile.audio_file);
       }
       
       ws.load(audioUrl);

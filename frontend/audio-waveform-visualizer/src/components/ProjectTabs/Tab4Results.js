@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { API_BASE_URL } from '../../config/api';
+import { API_BASE_URL, resolveMediaUrl } from '../../config/api';
 import { useProjectTab } from '../../contexts/ProjectTabContext';
 import { useAuth } from '../../contexts/AuthContext';
 import WaveSurfer from 'wavesurfer.js';
@@ -331,7 +331,7 @@ const Tab4Results = () => {
         normalize: true,
       });
 
-      const audioUrl = `${API_BASE_URL}${selectedAudioFile.processed_audio}`;
+      const audioUrl = resolveMediaUrl(selectedAudioFile.processed_audio);
       
       // Load audio with error handling
       ws.load(audioUrl).catch((error) => {
@@ -413,8 +413,7 @@ const Tab4Results = () => {
     if (!selectedAudioFile || !selectedAudioFile.processed_audio) return;
     
     try {
-      const isAbsoluteUrl = /^https?:\/\//i.test(selectedAudioFile.processed_audio);
-      const audioUrl = isAbsoluteUrl ? selectedAudioFile.processed_audio : `${API_BASE_URL}${selectedAudioFile.processed_audio}`;
+      const audioUrl = resolveMediaUrl(selectedAudioFile.processed_audio);
       const response = await fetch(audioUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);

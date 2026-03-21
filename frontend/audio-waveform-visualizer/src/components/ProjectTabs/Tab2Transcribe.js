@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { API_BASE_URL } from '../../config/api';
+import { resolveMediaUrl } from '../../config/api';
 import { useProjectTab } from '../../contexts/ProjectTabContext';
 import { useAuth } from '../../contexts/AuthContext';
 import clientSideTranscription from '../../services/clientSideTranscription';
@@ -73,9 +73,7 @@ const Tab2Transcribe = () => {
 
     try {
       // Fetch the audio file from server
-      const audioFileUrl = selectedAudioFile.file.startsWith('http') 
-        ? selectedAudioFile.file 
-        : `${API_BASE_URL}${selectedAudioFile.file}`;
+      const audioFileUrl = resolveMediaUrl(selectedAudioFile.file);
       
       const audioFile = await fetchAudioFile(audioFileUrl);
       

@@ -13,6 +13,37 @@ export const API_BASE_URL = isProduction
   : (process.env.REACT_APP_API_URL || 'http://localhost:8000'); // Use env var or default in dev
 
 /**
+ * Normalize media URLs from the backend for browser use.
+ * In production, rewrite localhost/127.0.0.1/port-only media URLs back to the current origin.
+ * This protects the frontend from malformed absolute or protocol-relative URLs.
+ * @param {string} mediaPath
+ * @returns {string}
+ */
+export const resolveMediaUrl = (mediaPath) => {
+  if (!mediaPath || typeof mediaPath !== 'string') {
+    return mediaPath;
+  }
+
+  if (mediaPath.startsWith('blob:') || mediaPath.startsWith('data:')) {
+    return mediaPath;
+  }
+
+  try {
+    const resolvedUrl = new URL(mediaPath, API_BASE_URL);
+    const isLocalBackendHost = ['localhost', '127.0.0.1', '0.0.0.0'].includes(resolvedUrl.hostname);
+
+    if (isProduction && isLocalBackendHost) {
+      return `${window.location.origin}${resolvedUrl.pathname}${resolvedUrl.search}${resolvedUrl.hash}`;
+    }
+
+    return resolvedUrl.toString();
+  } catch (error) {
+    const normalizedPath = mediaPath.startsWith('/') ? mediaPath : `/${mediaPath}`;
+    return `${API_BASE_URL}${normalizedPath}`;
+  }
+};
+
+/**
  * Get the full API URL for a given endpoint
  * @param {string} endpoint - API endpoint path (should start with /)
  * @returns {string} Full API URL
@@ -70,5 +101,6 @@ export const apiFetch = async (endpoint, options = {}) => {
 export default {
   getApiUrl,
   getBaseUrl,
+  resolveMediaUrl,
   apiFetch,
 };
