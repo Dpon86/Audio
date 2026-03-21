@@ -71,6 +71,14 @@ from .views.tab5_pdf_comparison import (
     AudiobookAnalysisResultView,
     AudiobookReportSummaryView,
 )
+from .views.ai_detection_views import (
+    ai_detect_duplicates_view,
+    ai_task_status_view,
+    ai_compare_pdf_view,
+    ai_estimate_cost_view,
+    ai_detection_results_view,
+    ai_user_cost_view,
+)
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import HttpResponse
@@ -172,6 +180,14 @@ urlpatterns = [
     path('api/audiobook-analysis/<str:task_id>/progress/', AudiobookAnalysisProgressView.as_view(), name='audiobook-analysis-progress'),
     path('api/audiobook-analysis/<str:task_id>/result/', AudiobookAnalysisResultView.as_view(), name='audiobook-analysis-result'),
     path('api/projects/<int:project_id>/audiobook-report-summary/', AudiobookReportSummaryView.as_view(), name='audiobook-report-summary'),
+    
+    # AI-Powered Duplicate Detection (Phase 2)
+    path('api/ai-detection/detect/', ai_detect_duplicates_view, name='ai-detect-duplicates'),
+    path('api/ai-detection/status/<str:task_id>/', ai_task_status_view, name='ai-task-status'),
+    path('api/ai-detection/compare-pdf/', ai_compare_pdf_view, name='ai-compare-pdf'),
+    path('api/ai-detection/estimate-cost/', ai_estimate_cost_view, name='ai-estimate-cost'),
+    path('api/ai-detection/results/<int:audio_file_id>/', ai_detection_results_view, name='ai-detection-results'),
+    path('api/ai-detection/user-cost/', ai_user_cost_view, name='ai-user-cost'),
     
     # Infrastructure Management
     path('infrastructure/status/', InfrastructureStatusView.as_view(), name='infrastructure-status'),
