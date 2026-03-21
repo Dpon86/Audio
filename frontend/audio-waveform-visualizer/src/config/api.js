@@ -1,10 +1,16 @@
 /**
  * API Configuration
  * Centralized API URL management for all API calls
+ * Auto-detects production vs development environment
  */
 
-// Get API URL from environment variable or default to localhost
-export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+// In production (served from domain), use same origin as frontend
+// In development (localhost), use explicit backend URL
+const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+
+export const API_BASE_URL = isProduction 
+  ? window.location.origin  // Use same domain as frontend in production
+  : (process.env.REACT_APP_API_URL || 'http://localhost:8000'); // Use env var or default in dev
 
 /**
  * Get the full API URL for a given endpoint

@@ -13,6 +13,9 @@ openai>=1.0.0
 pydub==0.25.1
 ffmpeg-python==0.2.0
 
+# AI APIs for duplicate detection
+anthropic==0.39.0
+
 # Data processing and ML
 numpy==2.2.6
 torch==2.7.0

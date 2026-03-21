@@ -488,6 +488,169 @@ class DuplicateAnalysisSerializer(serializers.ModelSerializer):
             if not isinstance(group, dict):
                 raise serializers.ValidationError(f"Duplicate group {i} must be an object")
             
+            # Check expected fields
+            expected_fields = ['group_id']
+            for field in expected_fields:
+                if field not in group:
+                    raise serializers.ValidationError(f"Duplicate group {i} missing field: {field}")
+        
+        return value
+
+
+# ============================================================================
+# AI-POWERED DUPLICATE DETECTION SERIALIZERS
+# ============================================================================
+
+class AIDuplicateDetectionResultSerializer(serializers.ModelSerializer):
+    """Serializer for AI duplicate detection results"""
+    
+    audio_file_title = serializers.CharField(source='audio_file.title', read_only=True)
+    user_username = serializers.CharField(source='user.username', read_only=True)
+    
+    class Meta:
+        model = AIDuplicateDetectionResult
+        fields = [
+            'id', 'audio_file', 'audio_file_title', 'user', 'user_username',
+            'ai_provider', 'ai_model', 'processing_date', 'processing_time_seconds',
+            'input_tokens', 'output_tokens', 'total_tokens', 'api_cost_usd',
+            'duplicate_groups', 'duplicate_count', 'occurrences_to_delete',
+            'estimated_time_saved_seconds', 'average_confidence', 'high_confidence_count',
+            'detection_settings', 'paragraph_expansion_performed', 'expanded_groups',
+            'user_confirmed', 'user_modified', 'user_modifications'
+        ]
+        read_only_fields = [
+            'id', 'audio_file_title', 'user_username', 'processing_date',
+            'processing_time_seconds', 'input_tokens', 'output_tokens', 'total_tokens',
+            'api_cost_usd', 'duplicate_count', 'occurrences_to_delete',
+            'estimated_time_saved_seconds', 'average_confidence', 'high_confidence_count',
+            'paragraph_expansion_performed'
+        ]
+    
+    def validate_duplicate_groups(self, value):
+        """Validate duplicate groups JSON structure"""
+        if not isinstance(value, list):
+            raise serializers.ValidationError("duplicate_groups must be an array")
+        return value
+    
+    def validate_detection_settings(self, value):
+        """Validate detection settings JSON structure"""
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("detection_settings must be an object")
+        return value
+
+
+class AIPDFComparisonResultSerializer(serializers.ModelSerializer):
+    """Serializer for AI PDF comparison results"""
+    
+    audio_file_title = serializers.CharField(source='audio_file.title', read_only=True)
+    user_username = serializers.CharField(source='user.username', read_only=True)
+    project_title = serializers.CharField(source='project.title', read_only=True)
+    
+    class Meta:
+        model = AIPDFComparisonResult
+        fields = [
+            'id', 'audio_file', 'audio_file_title', 'user', 'user_username',
+            'project', 'project_title', 'ai_provider', 'ai_model',
+            'processing_date', 'processing_time_seconds',
+            'input_tokens', 'output_tokens', 'total_tokens', 'api_cost_usd',
+            'alignment_result', 'discrepancies', 'coverage_percentage',
+            'total_discrepancies', 'missing_in_audio_count', 'extra_in_audio_count',
+            'paraphrased_count', 'high_severity_count', 'medium_severity_count',
+            'low_severity_count', 'overall_quality', 'confidence_score',
+            'clean_transcript_marked', 'reviewed', 'review_notes'
+        ]
+        read_only_fields = [
+            'id', 'audio_file_title', 'user_username', 'project_title',
+            'processing_date', 'processing_time_seconds', 'input_tokens',
+            'output_tokens', 'total_tokens', 'api_cost_usd', 'coverage_percentage',
+            'total_discrepancies', 'missing_in_audio_count', 'extra_in_audio_count',
+            'paraphrased_count', 'high_severity_count', 'medium_severity_count',
+            'low_severity_count', 'overall_quality', 'confidence_score'
+        ]
+
+
+class AIProcessingLogSerializer(serializers.ModelSerializer):
+    """Serializer for AI processing logs"""
+    
+    user_username = serializers.CharField(source='user.username', read_only=True)
+    audio_file_title = serializers.CharField(source='audio_file.title', read_only=True)
+    
+    class Meta:
+        model = AIProcessingLog
+        fields = [
+            'id', 'user', 'user_username', 'audio_file', 'audio_file_title',
+            'project', 'ai_provider', 'ai_model', 'task_type', 'timestamp',
+            'input_tokens', 'output_tokens', 'total_tokens',
+            'processing_time_seconds', 'cost_usd', 'status', 'error_message',
+            'user_consented', 'data_sanitized'
+        ]
+        read_only_fields = ['id', 'user_username', 'audio_file_title', 'timestamp']
+
+
+class AIDetectionRequestSerializer(serializers.Serializer):
+    """Serializer for AI duplicate detection request"""
+    
+    audio_file_id = serializers.IntegerField(required=True)
+    min_words = serializers.IntegerField(default=3, min_value=1, max_value=20)
+    similarity_threshold = serializers.FloatField(default=0.85, min_value=0.5, max_value=1.0)
+    keep_occurrence = serializers.ChoiceField(choices=['first', 'last', 'best'], default='last')
+    enable_paragraph_expansion = serializers.BooleanField(default=False)
+    
+    def validate_audio_file_id(self, value):
+        """Validate audio file exists and belongs to the user"""
+        try:
+            from .models import AudioFile
+            audio_file = AudioFile.objects.get(id=value)
+            
+            # Check if audio file has transcription
+            if not hasattr(audio_file, 'transcription'):
+                raise serializers.ValidationError(
+                    "Audio file must be transcribed before AI detection can be performed"
+                )
+            
+            return value
+        except AudioFile.DoesNotExist:
+            raise serializers.ValidationError(f"Audio file with id {value} does not exist")
+
+
+class AIPDFComparisonRequestSerializer(serializers.Serializer):
+    """Serializer for AI PDF comparison request"""
+    
+    audio_file_id = serializers.IntegerField(required=True)
+    
+    def validate_audio_file_id(self, value):
+        """Validate audio file exists and has transcript"""
+        try:
+            from .models import AudioFile
+            audio_file = AudioFile.objects.get(id=value)
+            
+            # Check transcription
+            if not hasattr(audio_file, 'transcription'):
+                raise serializers.ValidationError(
+                    "Audio file must be transcribed before PDF comparison"
+                )
+            
+            # Check project has PDF
+            if not audio_file.project.pdf_text:
+                raise serializers.ValidationError(
+                    "Project must have PDF text extracted before comparison"
+                )
+            
+            return value
+        except AudioFile.DoesNotExist:
+            raise serializers.ValidationError(f"Audio file with id {value} does not exist")
+
+
+class AICostEstimateRequestSerializer(serializers.Serializer):
+    """Serializer for cost estimation request"""
+    
+    audio_duration_seconds = serializers.FloatField(required=True, min_value=1)
+    task_type = serializers.ChoiceField(
+        choices=['duplicate_detection', 'pdf_comparison'],
+        default='duplicate_detection'
+    )
+
+            
             # Check for common fields (flexible to allow different structures)
             if 'instances' not in group and 'segments' not in group:
                 raise serializers.ValidationError(

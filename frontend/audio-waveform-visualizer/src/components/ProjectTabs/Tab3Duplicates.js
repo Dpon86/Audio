@@ -24,7 +24,9 @@ const Tab3Duplicates = () => {
     selectAudioFile,
     activeTab,
     setActiveTab, 
-    setPendingDeletions 
+    setPendingDeletions,
+    duplicateDetectionMode,
+    setDuplicateDetectionMode
   } = useProjectTab();
   
   const [detecting, setDetecting] = useState(false);
@@ -32,6 +34,12 @@ const Tab3Duplicates = () => {
   const [detectionAlgorithm, setDetectionAlgorithm] = useState('windowed_retry_pdf');
   const [showAlgorithmSettings, setShowAlgorithmSettings] = useState(true);
   const [lastRunSummary, setLastRunSummary] = useState(null);
+
+  useEffect(() => {
+    if (duplicateDetectionMode === 'ai') {
+      setShowAlgorithmSettings(false);
+    }
+  }, [duplicateDetectionMode]);
 
   // Algorithm settings (user-adjustable before start)
   const [tfidfSimilarityThreshold, setTfidfSimilarityThreshold] = useState(0.85);
@@ -363,7 +371,7 @@ const Tab3Duplicates = () => {
   // Initialize WaveSurfer when file is selected
   useEffect(() => {
     // Check if we have either a server audio file or a client-side local file
-    const hasServerAudio = selectedAudioFile && selectedAudioFile.audio_file;
+    const hasServerAudio = selectedAudioFile && (selectedAudioFile.file || selectedAudioFile.audio_file);
     const hasLocalAudio = selectedAudioFile && selectedAudioFile.local_file;
     
     if (!selectedAudioFile || (!hasServerAudio && !hasLocalAudio) || !waveformRef.current) {
@@ -408,7 +416,7 @@ const Tab3Duplicates = () => {
       } else {
         // Server file - use server URL
         console.log('[Tab3Duplicates] Loading waveform from server');
-        audioUrl = `${API_BASE_URL}${selectedAudioFile.audio_file}`;
+        audioUrl = `${API_BASE_URL}${selectedAudioFile.file || selectedAudioFile.audio_file}`;
       }
       
       ws.load(audioUrl);
@@ -918,6 +926,14 @@ const Tab3Duplicates = () => {
           
           if (statusResponse.ok) {
             const statusData = await statusResponse.json();
+            if (statusData.status === 'failed') {
+              clearInterval(pollInterval);
+              setDetecting(false);
+              const serverError = statusData.error || 'Duplicate detection failed on server.';
+              alert(`Duplicate detection failed: ${serverError}`);
+              return;
+            }
+
             if (statusData.status !== 'processing') {
               clearInterval(pollInterval);
               setDetecting(false);
@@ -949,6 +965,169 @@ const Tab3Duplicates = () => {
       alert(`Error: ${error.message}`);
       setDetecting(false);
     }
+  };
+
+  const normalizeAIDuplicateGroups = (aiGroups = []) => {
+    return aiGroups.map((group, groupIndex) => {
+      const occurrences = Array.isArray(group.occurrences) ? group.occurrences : [];
+      const segments = occurrences.map((occurrence, occurrenceIndex) => {
+        const defaultIsDuplicate = occurrenceIndex < (occurrences.length - 1);
+        const action = occurrence.action || '';
+
+        return {
+          id: occurrence.occurrence_id || `${group.group_id || groupIndex + 1}-${occurrenceIndex + 1}`,
+          start_time: occurrence.start_time || 0,
+          end_time: occurrence.end_time || 0,
+          text: occurrence.text || group.duplicate_text || '',
+          segment_ids: occurrence.segment_ids || [],
+          confidence_score: occurrence.confidence_score ?? group.confidence_score ?? 0.8,
+          is_duplicate: action ? action === 'delete' : defaultIsDuplicate,
+          is_kept: action ? action === 'keep' : !defaultIsDuplicate
+        };
+      });
+
+      return {
+        group_id: group.group_id || groupIndex + 1,
+        duplicate_text: group.duplicate_text || '',
+        confidence_score: group.confidence_score ?? 0.8,
+        segments
+      };
+    });
+  };
+
+  const pollAIDetectionStatus = async (taskId) => {
+    for (let i = 0; i < 120; i += 1) {
+      const response = await fetch(
+        `${API_BASE_URL}/api/ai-detection/status/${taskId}/`,
+        {
+          headers: {
+            'Authorization': `Token ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to check AI task status (${response.status})`);
+      }
+
+      const statusData = await response.json();
+      const progress = Number(statusData.progress || 0);
+      setDetectionProgress({
+        current: progress,
+        total: 100,
+        status: statusData.message || 'AI detection in progress...'
+      });
+
+      if (statusData.state === 'SUCCESS') {
+        return statusData;
+      }
+
+      if (statusData.state === 'FAILURE') {
+        throw new Error(statusData.error || 'AI duplicate detection failed');
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+    }
+
+    throw new Error('AI detection timed out. Please try again.');
+  };
+
+  const handleAIDetectDuplicates = async () => {
+    if (!selectedAudioFile) {
+      return;
+    }
+
+    if (selectedAudioFile.client_only || selectedAudioFile.client_processed) {
+      alert('AI mode requires a server-side transcribed file. Please use Algorithm mode for local-only files.');
+      return;
+    }
+
+    const numericAudioFileId = Number(selectedAudioFile.id);
+    if (Number.isNaN(numericAudioFileId)) {
+      alert('Invalid audio file ID for AI detection. Please pick a server file.');
+      return;
+    }
+
+    setDuplicateGroups([]);
+    setSelectedDeletions([]);
+    setExpandedGroups(new Set());
+    setDetecting(true);
+    setDetectionProgress({ current: 5, total: 100, status: 'Starting AI duplicate detection...' });
+
+    try {
+      const startResponse = await fetch(`${API_BASE_URL}/api/ai-detection/detect/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          audio_file_id: numericAudioFileId,
+          min_words: windowMinWordLength || 3,
+          similarity_threshold: tfidfSimilarityThreshold || 0.85,
+          keep_occurrence: 'last',
+          enable_paragraph_expansion: false
+        })
+      });
+
+      if (!startResponse.ok) {
+        let message = `Failed to start AI detection (${startResponse.status})`;
+        try {
+          const errorPayload = await startResponse.json();
+          message = errorPayload.error || errorPayload.message || message;
+        } catch (e) {
+          // Keep fallback message when error response is not JSON.
+        }
+        throw new Error(message);
+      }
+
+      const startPayload = await startResponse.json();
+      const statusPayload = await pollAIDetectionStatus(startPayload.task_id);
+      const detectionResult = statusPayload.detection_result;
+
+      if (!detectionResult || !Array.isArray(detectionResult.duplicate_groups)) {
+        throw new Error('AI detection completed but no duplicate groups were returned.');
+      }
+
+      const normalizedGroups = normalizeAIDuplicateGroups(detectionResult.duplicate_groups);
+      setDuplicateGroups(normalizedGroups);
+
+      const toDelete = [];
+      normalizedGroups.forEach((group) => {
+        (group.segments || []).forEach((segment) => {
+          if (segment.is_duplicate) {
+            toDelete.push(segment.id);
+          }
+        });
+      });
+      setSelectedDeletions(toDelete);
+
+      const firstThree = normalizedGroups.slice(0, 3).map((g) => g.group_id);
+      setExpandedGroups(new Set(firstThree));
+
+      setLastRunSummary({
+        algorithm: 'ai-duplicate-detection',
+        groupCount: normalizedGroups.length
+      });
+
+      setDetectionProgress({ current: 100, total: 100, status: 'AI detection complete.' });
+      alert(`AI duplicate detection completed. Found ${normalizedGroups.length} duplicate groups.`);
+    } catch (error) {
+      console.error('[Tab3Duplicates] AI detection error:', error);
+      alert(`AI duplicate detection failed: ${error.message}`);
+    } finally {
+      setDetecting(false);
+    }
+  };
+
+  const handleStartDetection = async () => {
+    if (duplicateDetectionMode === 'ai') {
+      await handleAIDetectDuplicates();
+      return;
+    }
+
+    await handleDetectDuplicates();
   };
 
   const handleConfirmDeletions = async () => {
@@ -1030,7 +1209,7 @@ const Tab3Duplicates = () => {
       // Format deletions for server API
       const confirmed_deletions = selectedDeletions.map(id => ({ segment_id: id }));
 
-      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/confirm-deletions/`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/confirm-deletions/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1051,10 +1230,11 @@ const Tab3Duplicates = () => {
       const taskId = result.task_id;
       let complete = false;
       let attempts = 0;
-      const maxAttempts = 120; // 2 minutes
+      const pollIntervalMs = 2500;
+      const maxAttempts = 720; // 30 minutes
 
       while (!complete && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
         
         const statusResponse = await fetch(`${API_BASE_URL}/api/tasks/${taskId}/status/`, {
           headers: {
@@ -1074,13 +1254,30 @@ const Tab3Duplicates = () => {
             });
           }
 
-          if (status.status === 'completed') {
+          const isCompleted = status.status === 'completed' || status.status === 'success' || status.task_state === 'SUCCESS';
+          const isFailed = status.status === 'failed' || status.task_state === 'FAILURE';
+
+          if (isCompleted) {
             complete = true;
-            alert('Server assembly complete! Check the Results tab for your processed audio.');
             setIsAssemblingAudio(false);
-            // Optionally navigate to Tab 4
-            // setActiveTab?.('results');
-          } else if (status.status === 'failed') {
+            // Refresh selected file so Results tab shows processed_audio
+            try {
+              const fileResponse = await fetch(
+                `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/`,
+                { headers: { 'Authorization': `Token ${token}` } }
+              );
+              if (fileResponse.ok) {
+                const updatedFile = await fileResponse.json();
+                // API returns { success: true, audio_file: {...} } — unwrap the nested object
+                const fileData = updatedFile.audio_file || updatedFile;
+                selectAudioFile({ ...selectedAudioFile, ...fileData });
+              }
+            } catch (refreshErr) {
+              console.warn('[Tab3Duplicates] Could not refresh file after assembly:', refreshErr);
+            }
+            alert('Server assembly complete! Switching to Results tab.');
+            setActiveTab('results');
+          } else if (isFailed) {
             throw new Error(status.error || 'Task failed');
           }
         }
@@ -1089,7 +1286,9 @@ const Tab3Duplicates = () => {
       }
 
       if (!complete) {
-        throw new Error('Task timed out. Check the Results tab later.');
+        setIsAssemblingAudio(false);
+        alert('Assembly is still running on the server. It has not failed, but it is taking longer than expected. Please check the Results tab in a few minutes.');
+        return;
       }
 
     } catch (error) {
@@ -1601,53 +1800,108 @@ const Tab3Duplicates = () => {
           }}>
             <h4 style={{ margin: 0, marginBottom: '0.5rem', color: '#1e293b' }}>Before you start</h4>
             <p style={{ margin: 0, color: '#475569', fontSize: '0.9rem' }}>
-              1) Choose algorithm. 2) Adjust settings (optional). 3) Click Start.
-              All algorithms keep the last occurrence and mark earlier repeats for deletion.
+              1) Choose mode (AI or Algorithm). 2) For Algorithm mode, adjust settings (optional). 3) Click Start.
+              All modes keep the last occurrence and mark earlier repeats for deletion.
             </p>
           </div>
 
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1rem' }}>
-            <select
-              value={detectionAlgorithm}
-              onChange={(e) => setDetectionAlgorithm(e.target.value)}
-              disabled={detecting}
-              style={{
-                minWidth: '280px',
-                padding: '0.6rem 0.75rem',
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setDuplicateDetectionMode('algorithm')}
+                disabled={detecting}
+                style={{
+                  padding: '0.55rem 0.75rem',
+                  borderRadius: '8px',
+                  border: duplicateDetectionMode === 'algorithm' ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                  background: duplicateDetectionMode === 'algorithm' ? '#eff6ff' : '#ffffff',
+                  fontWeight: '600',
+                  color: '#334155',
+                  cursor: detecting ? 'not-allowed' : 'pointer'
+                }}
+              >
+                Algorithm
+              </button>
+              <button
+                type="button"
+                onClick={() => setDuplicateDetectionMode('ai')}
+                disabled={detecting || selectedAudioFile?.client_only || selectedAudioFile?.client_processed}
+                style={{
+                  padding: '0.55rem 0.75rem',
+                  borderRadius: '8px',
+                  border: duplicateDetectionMode === 'ai' ? '2px solid #0891b2' : '1px solid #cbd5e1',
+                  background: duplicateDetectionMode === 'ai' ? '#ecfeff' : '#ffffff',
+                  fontWeight: '600',
+                  color: '#334155',
+                  cursor: (detecting || selectedAudioFile?.client_only || selectedAudioFile?.client_processed) ? 'not-allowed' : 'pointer'
+                }}
+                title={selectedAudioFile?.client_only || selectedAudioFile?.client_processed ? 'AI mode requires a server-side transcribed file' : 'Use AI duplicate detection'}
+              >
+                AI
+              </button>
+            </div>
+
+            {duplicateDetectionMode === 'algorithm' && (
+              <select
+                value={detectionAlgorithm}
+                onChange={(e) => setDetectionAlgorithm(e.target.value)}
+                disabled={detecting}
+                style={{
+                  minWidth: '280px',
+                  padding: '0.6rem 0.75rem',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  fontWeight: '600',
+                  color: '#334155',
+                  background: 'white'
+                }}
+              >
+                {algorithmOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            )}
+
+            {duplicateDetectionMode === 'ai' && (
+              <div style={{
+                padding: '0.45rem 0.75rem',
                 borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                fontWeight: '600',
-                color: '#334155',
-                background: 'white'
-              }}
-            >
-              {algorithmOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
+                border: '1px solid #99f6e4',
+                background: '#f0fdfa',
+                color: '#0f766e',
+                fontWeight: '600'
+              }}>
+                AI mode uses server-side Claude detection
+              </div>
+            )}
+
+            {duplicateDetectionMode === 'algorithm' && (
+              <button
+                onClick={() => setShowAlgorithmSettings((prev) => !prev)}
+                disabled={detecting}
+                style={{
+                  padding: '0.75rem 1rem',
+                  background: '#ffffff',
+                  color: '#334155',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: detecting ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {showAlgorithmSettings ? '⚙️ Hide Settings' : '⚙️ Show Settings'}
+              </button>
+            )}
 
             <button
-              onClick={() => setShowAlgorithmSettings((prev) => !prev)}
-              disabled={detecting}
-              style={{
-                padding: '0.75rem 1rem',
-                background: '#ffffff',
-                color: '#334155',
-                border: '1px solid #cbd5e1',
-                borderRadius: '8px',
-                fontWeight: '600',
-                cursor: detecting ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {showAlgorithmSettings ? '⚙️ Hide Settings' : '⚙️ Show Settings'}
-            </button>
-
-            <button
-              onClick={() => handleDetectDuplicates()}
+              onClick={handleStartDetection}
               disabled={detecting}
               className="detect-button"
             >
-              {detecting ? '⏳ Detecting Duplicates...' : '▶️ Start Detection'}
+              {detecting
+                ? (duplicateDetectionMode === 'ai' ? '⏳ Running AI Detection...' : '⏳ Detecting Duplicates...')
+                : (duplicateDetectionMode === 'ai' ? '🤖 Start AI Detection' : '▶️ Start Detection')}
             </button>
             
             {detecting && detectionProgress.status && (
@@ -1674,7 +1928,7 @@ const Tab3Duplicates = () => {
             )}
           </div>
 
-          {showAlgorithmSettings && (
+          {duplicateDetectionMode === 'algorithm' && showAlgorithmSettings && (
             <div style={{
               padding: '1rem',
               border: '1px solid #cbd5e1',
@@ -1838,7 +2092,7 @@ const Tab3Duplicates = () => {
               border: '1px solid #bfdbfe',
               marginBottom: '1rem'
             }}>
-              <strong>🔍 Algorithm Used:</strong> {lastRunSummary.algorithm}
+              <strong>🔍 Detection Used:</strong> {lastRunSummary.algorithm}
               {lastRunSummary.groupCount !== undefined && (
                 <> • <strong>{lastRunSummary.groupCount}</strong> duplicate groups found</>
               )}
@@ -1894,9 +2148,9 @@ const Tab3Duplicates = () => {
       )}
 
       {/* Interactive Waveform Editor - works with both server and client files */}
-      {selectedAudioFile && (selectedAudioFile.audio_file || selectedAudioFile.local_file) && duplicateGroups.length > 0 && (
+      {selectedAudioFile && (selectedAudioFile.file || selectedAudioFile.audio_file || selectedAudioFile.local_file) && duplicateGroups.length > 0 && (
         <WaveformDuplicateEditor
-          audioFile={selectedAudioFile.audio_file || selectedAudioFile.local_file}
+          audioFile={selectedAudioFile.file || selectedAudioFile.audio_file || selectedAudioFile.local_file}
           duplicateGroups={duplicateGroups}
           selectedGroupId={selectedGroupId}
           onRegionUpdate={handleRegionUpdate}
@@ -1908,25 +2162,27 @@ const Tab3Duplicates = () => {
       {/* Action Buttons - Moved to top for better UX */}
       {duplicateGroups.length > 0 && (
         <div className="review-actions-top">
-          {(selectedAudioFile?.client_only || selectedAudioFile?.client_processed) && (
-            <>
+          {selectedAudioFile && (
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button
+                onClick={handleSelectAllDuplicates}
+                disabled={processing || isAssemblingAudio}
+                className="secondary-button"
+                style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+              >
+                ✓ Select All
+              </button>
+
+              <button
+                onClick={handleDeselectAll}
+                disabled={processing || isAssemblingAudio || selectedDeletions.length === 0}
+                className="secondary-button"
+                style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+              >
+                ✗ Deselect All
+              </button>
+
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <button
-                  onClick={handleSelectAllDuplicates}
-                  disabled={processing || isAssemblingAudio}
-                  className="secondary-button"
-                  style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
-                >
-                  ✓ Select All
-                </button>
-                <button
-                  onClick={handleDeselectAll}
-                  disabled={processing || isAssemblingAudio || selectedDeletions.length === 0}
-                  className="secondary-button"
-                  style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
-                >
-                  ✗ Deselect All
-                </button>
                 <button
                   onClick={handleAssembleAudio}
                   disabled={selectedDeletions.length === 0 || isAssemblingAudio || processing}
@@ -1938,12 +2194,12 @@ const Tab3Duplicates = () => {
                       <span className="spinner"></span>
                       Assembling Audio...
                     </>
-                  ) : (
-                    `🎵 Assemble Audio (Remove ${selectedDeletions.length} segments)`
-                  )}
+                  ) : ((selectedAudioFile?.client_only || selectedAudioFile?.client_processed)
+                    ? `🎵 Assemble Audio (Remove ${selectedDeletions.length} segments)`
+                    : `🖥️ Assemble on Server (Remove ${selectedDeletions.length} segments)`)}
                 </button>
               </div>
-            </>
+            </div>
           )}
 
           {selectedDeletions.length > 0 && assembledAudioBlob && assemblyInfo && (

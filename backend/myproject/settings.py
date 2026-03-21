@@ -40,13 +40,36 @@ if not SECRET_KEY:
 # Default to False for security
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-# OpenAI API Configuration
+# AI API Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 if not OPENAI_API_KEY:
     import warnings
     warnings.warn(
-        "OPENAI_API_KEY not configured. Set OPENAI_API_KEY environment variable to enable AI-powered PDF comparison."
+        "OPENAI_API_KEY not configured. Set OPENAI_API_KEY environment variable to enable OpenAI features."
     )
+
+# Anthropic API Configuration (for AI-powered duplicate detection)
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+if not ANTHROPIC_API_KEY:
+    import warnings
+    warnings.warn(
+        "ANTHROPIC_API_KEY not configured. Set ANTHROPIC_API_KEY environment variable to enable AI duplicate detection."
+    )
+
+# AI Settings
+AI_PROVIDER = os.getenv('AI_PROVIDER', 'anthropic')  # 'anthropic' or 'openai'
+AI_MODEL = os.getenv('AI_MODEL', 'claude-3-5-sonnet-20241022')
+AI_MAX_TOKENS = int(os.getenv('AI_MAX_TOKENS', '4096'))
+AI_COST_LIMIT_PER_USER_PER_MONTH = float(os.getenv('AI_COST_LIMIT_PER_USER_PER_MONTH', '50.00'))
+
+AI_SETTINGS = {
+    'PROVIDER': AI_PROVIDER,
+    'MODEL': AI_MODEL,
+    'MAX_TOKENS': AI_MAX_TOKENS,
+    'COST_LIMIT_PER_USER_PER_MONTH': AI_COST_LIMIT_PER_USER_PER_MONTH,
+    'ANTHROPIC_API_KEY': ANTHROPIC_API_KEY,
+    'OPENAI_API_KEY': OPENAI_API_KEY,
+}
 
 # Read ALLOWED_HOSTS from environment variable
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
