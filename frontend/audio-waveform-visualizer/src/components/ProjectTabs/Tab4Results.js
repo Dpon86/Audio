@@ -413,7 +413,8 @@ const Tab4Results = () => {
     if (!selectedAudioFile || !selectedAudioFile.processed_audio) return;
     
     try {
-      const audioUrl = `${API_BASE_URL}${selectedAudioFile.processed_audio}`;
+      const isAbsoluteUrl = /^https?:\/\//i.test(selectedAudioFile.processed_audio);
+      const audioUrl = isAbsoluteUrl ? selectedAudioFile.processed_audio : `${API_BASE_URL}${selectedAudioFile.processed_audio}`;
       const response = await fetch(audioUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);

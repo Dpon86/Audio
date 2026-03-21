@@ -313,7 +313,10 @@
   border-radius: 12px;
   padding: 2rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
 .download-button {
@@ -327,6 +330,9 @@
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: 0 4px 6px rgba(22, 163, 74, 0.2);
+  max-width: 400px;
+  width: auto;
+  display: inline-block;
 }
 
 .download-button:hover {
@@ -520,6 +526,9 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  max-width: 300px;
+  width: auto;
+  display: inline-block;
 }
 
 .reset-button:hover:not(:disabled) {
@@ -534,7 +543,7 @@
 
 .reset-button.secondary {
   background: #64748b;
-  margin-left: 1rem;
+  margin-left: 0;
 }
 
 .deletion-preview {

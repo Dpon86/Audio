@@ -22,7 +22,10 @@ const Tab1Files = () => {
     setProjectData,
     refreshProjectData,
     selectedAudioFile,
-    selectAudioFile
+    selectAudioFile,
+    duplicateDetectionMode,
+    setDuplicateDetectionMode,
+    setActiveTab
   } = useProjectTab();
 
   const [uploading, setUploading] = useState(false);
@@ -843,6 +846,71 @@ const Tab1Files = () => {
           All transcription happens in your browser for faster, private processing.
           Your audio files never leave your device. Results are saved locally in your browser.
         </p>
+      </div>
+
+      <div style={{
+        background: '#ffffff',
+        border: '1px solid #dbeafe',
+        borderRadius: '12px',
+        padding: '1rem',
+        marginBottom: '1.25rem',
+        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)'
+      }}>
+        <h3 style={{ margin: 0, marginBottom: '0.5rem', color: '#1e293b' }}>Step 2: Duplicate Detection Mode</h3>
+        <p style={{ margin: 0, marginBottom: '0.75rem', color: '#475569', fontSize: '0.9rem' }}>
+          Choose the mode now. The Duplicates tab will use this selection when you click start.
+        </p>
+
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setDuplicateDetectionMode('algorithm')}
+            style={{
+              padding: '0.6rem 0.9rem',
+              borderRadius: '8px',
+              border: duplicateDetectionMode === 'algorithm' ? '2px solid #2563eb' : '1px solid #cbd5e1',
+              background: duplicateDetectionMode === 'algorithm' ? '#eff6ff' : '#ffffff',
+              color: '#1e293b',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            Algorithm (faster)
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDuplicateDetectionMode('ai')}
+            style={{
+              padding: '0.6rem 0.9rem',
+              borderRadius: '8px',
+              border: duplicateDetectionMode === 'ai' ? '2px solid #0891b2' : '1px solid #cbd5e1',
+              background: duplicateDetectionMode === 'ai' ? '#ecfeff' : '#ffffff',
+              color: '#1e293b',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            AI (higher quality)
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('duplicates')}
+            style={{
+              marginLeft: 'auto',
+              padding: '0.6rem 0.9rem',
+              borderRadius: '8px',
+              border: '1px solid #cbd5e1',
+              background: '#f8fafc',
+              color: '#1e293b',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            Open Duplicates Tab
+          </button>
+        </div>
       </div>
 
       {/* Processing Mode Toggle - DISABLED (server has low memory) */}

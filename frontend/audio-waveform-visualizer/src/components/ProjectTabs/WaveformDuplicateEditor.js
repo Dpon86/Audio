@@ -154,8 +154,9 @@ const WaveformDuplicateEditor = ({
           audioUrl = URL.createObjectURL(audioFile);
           console.log('Loading audio from File object (blob URL):', audioUrl);
         } else {
-          // Use server URL for server-processed files
-          audioUrl = `${API_BASE_URL}${audioFile}`;
+          // Use absolute URLs as-is; otherwise prefix with API_BASE_URL.
+          const isAbsoluteUrl = typeof audioFile === 'string' && /^https?:\/\//i.test(audioFile);
+          audioUrl = isAbsoluteUrl ? audioFile : `${API_BASE_URL}${audioFile}`;
           console.log('Loading audio from server URL:', audioUrl);
         }
         

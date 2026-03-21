@@ -17,6 +17,7 @@ export const ProjectTabProvider = ({ children, projectId }) => {
   const [transcriptionData, setTranscriptionData] = useState(null);
   const [duplicatesData, setDuplicatesData] = useState(null);
   const [pdfComparisonData, setPdfComparisonData] = useState(null);
+  const [duplicateDetectionMode, setDuplicateDetectionMode] = useState('algorithm');
   
   // Deletion workflow state
   const [pendingDeletions, setPendingDeletions] = useState(null); // Confirmed deletions waiting to be processed
@@ -144,6 +145,8 @@ export const ProjectTabProvider = ({ children, projectId }) => {
     setTranscriptionData,
     duplicatesData,
     setDuplicatesData,
+    duplicateDetectionMode,
+    setDuplicateDetectionMode,
     pdfComparisonData,
     setPdfComparisonData,
     
