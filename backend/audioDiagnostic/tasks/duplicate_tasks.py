@@ -1192,7 +1192,352 @@ def detect_duplicates_single_file_task(
                     duplicate_groups.append(component)
 
             return duplicate_groups
-        
+
+        # ─────────────────────────────────────────────────────────────────────
+        # Shared utility: run DFS connected-components on any adjacency graph
+        # ─────────────────────────────────────────────────────────────────────
+        def build_adjacency_components(adjacency, total_segments):
+            """Return sorted groups from a {idx: set(idx)} adjacency dict."""
+            visited = set()
+            groups = []
+            for start in range(total_segments):
+                if start in visited or start not in adjacency:
+                    continue
+                stack, component = [start], []
+                while stack:
+                    node = stack.pop()
+                    if node in visited:
+                        continue
+                    visited.add(node)
+                    component.append(node)
+                    stack.extend(adjacency[node] - visited)
+                if len(component) > 1:
+                    groups.append(sorted(component))
+            return groups
+
+        # ─────────────────────────────────────────────────────────────────────
+        # Algorithm 4: Anchor Phrase Global Detection
+        # ─────────────────────────────────────────────────────────────────────
+        def build_groups_anchor_phrase(segments, normalized_texts, include_pdf_hint=False, normalized_pdf_text=None):
+            """
+            Builds an inverted index of distinctive 3-5-word phrases then verifies
+            shortlisted pairs with SequenceMatcher.  No window limit — finds duplicates
+            anywhere in the file regardless of distance.
+
+            Enhanced normalization strips all punctuation before comparison, so
+            "Bedford," and "Bedford" are treated identically.
+
+            Threshold is intentionally lower (0.68 / 0.55+0.72) because sharing a rare
+            anchor phrase already provides strong matching evidence.
+            """
+            import re
+
+            def _clean(text):
+                text = re.sub(r"[^\w\s']", ' ', text)
+                return ' '.join(text.split())
+
+            clean_texts = [_clean(t) for t in normalized_texts]
+            word_lists  = [t.split() for t in clean_texts]
+            total       = len(segments)
+
+            # --- Build inverted phrase index (lengths 5, 4, 3) ---
+            r.set(f"progress:{task_id}", 42)
+            self.update_state(state='PROGRESS', meta={
+                'progress': 42, 'message': '[anchor_phrase] Building phrase index...'
+            })
+
+            phrase_index = defaultdict(list)
+            for i, words in enumerate(word_lists):
+                if len(words) < 3:
+                    continue
+                for plen in [5, 4, 3]:
+                    if len(words) < plen:
+                        continue
+                    for start in range(len(words) - plen + 1):
+                        chunk = words[start:start + plen]
+                        # Require ≥2 content words (>4 chars) so filler phrases are skipped
+                        if sum(1 for w in chunk if len(w) > 4) < 2:
+                            continue
+                        phrase_index[' '.join(chunk)].append(i)
+
+            # --- Candidate pairs: share ≥1 anchor phrase (2–10 occurrences) ---
+            r.set(f"progress:{task_id}", 50)
+            self.update_state(state='PROGRESS', meta={
+                'progress': 50, 'message': '[anchor_phrase] Finding candidate pairs...'
+            })
+
+            candidate_adj = defaultdict(set)
+            for phrase, indices in phrase_index.items():
+                unique = list(set(indices))
+                if 2 <= len(unique) <= 10:       # >10 = common phrase, not a retry signal
+                    for a in unique:
+                        for b in unique:
+                            if a != b:
+                                candidate_adj[a].add(b)
+
+            logger.info(
+                f"[anchor_phrase] Phrase-index candidate pairs: "
+                f"{sum(len(v) for v in candidate_adj.values()) // 2}"
+            )
+
+            # --- Pre-compute PDF anchors if available ---
+            pdf_anchors = {}
+            if include_pdf_hint and normalized_pdf_text:
+                for idx, words in enumerate(word_lists):
+                    pdf_anchors[idx] = estimate_pdf_anchor(words, normalized_pdf_text)
+
+            # --- Verify candidates with SequenceMatcher ---
+            r.set(f"progress:{task_id}", 55)
+            self.update_state(state='PROGRESS', meta={
+                'progress': 55, 'message': '[anchor_phrase] Verifying candidate pairs...'
+            })
+
+            adjacency = defaultdict(set)
+            for i, neighbors in candidate_adj.items():
+                words_i = word_lists[i]
+                if len(words_i) < 2:
+                    continue
+                for j in sorted(neighbors):
+                    if j <= i:
+                        continue
+                    words_j = word_lists[j]
+                    if len(words_j) < 2:
+                        continue
+
+                    overlap = common_word_ratio(words_i, words_j)
+                    if overlap < 0.38:
+                        continue
+
+                    ratio = SequenceMatcher(None, clean_texts[i], clean_texts[j]).ratio()
+
+                    # PDF gate: if positions in the book are far apart, need strong match
+                    if include_pdf_hint and normalized_pdf_text:
+                        pos_i = pdf_anchors.get(i)
+                        pos_j = pdf_anchors.get(j)
+                        if pos_i is not None and pos_j is not None:
+                            if abs(pos_i - pos_j) > 1200 and ratio < 0.88:
+                                continue
+
+                    # Lower threshold is safe — anchor phrase already confirmed similarity
+                    is_match = ratio >= 0.68 or (ratio >= 0.55 and overlap >= 0.72)
+                    if is_match:
+                        adjacency[i].add(j)
+                        adjacency[j].add(i)
+
+            r.set(f"progress:{task_id}", 58)
+            duplicate_groups = build_adjacency_components(adjacency, total)
+            logger.info(f"[anchor_phrase] Found {len(duplicate_groups)} duplicate groups")
+            return duplicate_groups
+
+        # ─────────────────────────────────────────────────────────────────────
+        # Algorithm 5: Multi-Pass Best — highest possible recall
+        # ─────────────────────────────────────────────────────────────────────
+        def build_groups_multi_pass(segments, normalized_texts, include_pdf_hint=False, normalized_pdf_text=None):
+            """
+            Combines four complementary detection passes, accumulates all evidence into
+            a single adjacency graph, then runs one connected-components pass for full
+            transitivity.  This means A↔B and B↔C always produces group {A, B, C} even
+            if A and C are 400 segments apart.
+
+            Pass 1 — Anchor phrase (global scope, no window limit)
+                     Finds candidates via rare 3-5-word shared phrases.
+            Pass 2 — Extended windowed retry (lookahead=400, relaxed thresholds)
+                     Optimised specialist pass for narrator restarts.
+            Pass 3 — Sub-sentence containment
+                     Short segment matches part of a longer segment (Whisper split).
+            Pass 4 — TF-IDF connected components (global, threshold 0.78)
+                     Catches paraphrases and structural variants.
+
+            Enhanced normalization strips punctuation throughout.
+            """
+            import re
+
+            def _clean(text):
+                text = re.sub(r"[^\w\s']", ' ', text)
+                return ' '.join(text.split())
+
+            clean_texts = [_clean(t) for t in normalized_texts]
+            word_lists  = [t.split() for t in clean_texts]
+            total       = len(segments)
+
+            # Master adjacency — all passes write into this single graph
+            adjacency = defaultdict(set)
+
+            # Pre-compute PDF anchors once, shared by all passes
+            pdf_anchors = {}
+            if include_pdf_hint and normalized_pdf_text:
+                for idx, words in enumerate(word_lists):
+                    pdf_anchors[idx] = estimate_pdf_anchor(words, normalized_pdf_text)
+
+            def _pdf_gate(i, j, ratio):
+                """Return True if this pair should be blocked by the PDF position gate."""
+                if not (include_pdf_hint and normalized_pdf_text):
+                    return False
+                pi = pdf_anchors.get(i)
+                pj = pdf_anchors.get(j)
+                return (pi is not None and pj is not None
+                        and abs(pi - pj) > 1200 and ratio < 0.88)
+
+            # ── Pass 1: Anchor Phrase Fingerprinting (global) ──────────────
+            r.set(f"progress:{task_id}", 42)
+            self.update_state(state='PROGRESS', meta={
+                'progress': 42, 'message': '[multi_pass 1/4] Anchor phrase indexing...'
+            })
+
+            phrase_index = defaultdict(list)
+            for i, words in enumerate(word_lists):
+                if len(words) < 3:
+                    continue
+                for plen in [5, 4, 3]:
+                    if len(words) < plen:
+                        continue
+                    for start in range(len(words) - plen + 1):
+                        chunk = words[start:start + plen]
+                        if sum(1 for w in chunk if len(w) > 4) < 2:
+                            continue
+                        phrase_index[' '.join(chunk)].append(i)
+
+            cand_p1 = defaultdict(set)
+            for phrase, indices in phrase_index.items():
+                unique = list(set(indices))
+                if 2 <= len(unique) <= 10:
+                    for a in unique:
+                        for b in unique:
+                            if a != b:
+                                cand_p1[a].add(b)
+
+            pass1_pairs = 0
+            for i, neighbors in cand_p1.items():
+                words_i = word_lists[i]
+                if len(words_i) < 2:
+                    continue
+                for j in sorted(neighbors):
+                    if j <= i:
+                        continue
+                    words_j = word_lists[j]
+                    if len(words_j) < 2:
+                        continue
+                    overlap = common_word_ratio(words_i, words_j)
+                    if overlap < 0.38:
+                        continue
+                    ratio = SequenceMatcher(None, clean_texts[i], clean_texts[j]).ratio()
+                    if _pdf_gate(i, j, ratio):
+                        continue
+                    if ratio >= 0.68 or (ratio >= 0.55 and overlap >= 0.72):
+                        adjacency[i].add(j)
+                        adjacency[j].add(i)
+                        pass1_pairs += 1
+
+            logger.info(f"[multi_pass] Pass 1 (anchor phrase): {pass1_pairs} pairs")
+
+            # ── Pass 2: Extended Windowed Retry (lookahead=400, relaxed) ───
+            r.set(f"progress:{task_id}", 52)
+            self.update_state(state='PROGRESS', meta={
+                'progress': 52, 'message': '[multi_pass 2/4] Extended windowed retry...'
+            })
+
+            extended_lookahead = 400
+            p2_strong          = 0.88   # was 0.90
+            p2_ratio           = 0.68   # was 0.75
+            p2_overlap_min     = 0.42   # was 0.45
+            p2_overlap_verify  = 0.53   # was 0.58
+            pass2_pairs = 0
+
+            for i in range(total):
+                if i % 50 == 0:
+                    prog = 52 + int((i / max(total, 1)) * 8)
+                    r.set(f"progress:{task_id}", min(prog, 59))
+                words_i = word_lists[i]
+                if len(words_i) < 2:
+                    continue
+                for j in range(i + 1, min(total, i + 1 + extended_lookahead)):
+                    words_j = word_lists[j]
+                    if len(words_j) < 2:
+                        continue
+                    long_len  = max(len(words_i), len(words_j))
+                    short_len = min(len(words_i), len(words_j))
+                    # More lenient length filter (65% vs 55%)
+                    if short_len < 2 or (long_len - short_len) > max(10, int(long_len * 0.65)):
+                        continue
+                    overlap = common_word_ratio(words_i, words_j)
+                    if overlap < p2_overlap_min:
+                        continue
+                    ratio = SequenceMatcher(None, clean_texts[i], clean_texts[j]).ratio()
+                    if _pdf_gate(i, j, ratio):
+                        continue
+                    if ratio >= p2_strong or (ratio >= p2_ratio and overlap >= p2_overlap_verify):
+                        adjacency[i].add(j)
+                        adjacency[j].add(i)
+                        pass2_pairs += 1
+
+            logger.info(f"[multi_pass] Pass 2 (extended windowed, lookahead=400): {pass2_pairs} pairs")
+
+            # ── Pass 3: Sub-Sentence Containment (fragment → full sentence) ─
+            r.set(f"progress:{task_id}", 62)
+            self.update_state(state='PROGRESS', meta={
+                'progress': 62, 'message': '[multi_pass 3/4] Sub-sentence containment...'
+            })
+
+            short_indices  = [i for i, w in enumerate(word_lists) if 2 <= len(w) <= 7]
+            long_index_set = set(i for i, w in enumerate(word_lists) if len(w) > 7)
+            pass3_pairs = 0
+
+            for i in short_indices:
+                short_words = set(word_lists[i])
+                if not short_words:
+                    continue
+                short_text = clean_texts[i]
+                for j in range(total):
+                    if i == j or j not in long_index_set:
+                        continue
+                    long_words = set(word_lists[j])
+                    # Require 80%+ of the short segment's words to appear in the long segment
+                    coverage = len(short_words & long_words) / len(short_words)
+                    if coverage < 0.80:
+                        continue
+                    ratio = SequenceMatcher(None, short_text, clean_texts[j]).ratio()
+                    if ratio >= 0.50:
+                        adjacency[i].add(j)
+                        adjacency[j].add(i)
+                        pass3_pairs += 1
+
+            logger.info(f"[multi_pass] Pass 3 (sub-sentence containment): {pass3_pairs} pairs")
+
+            # ── Pass 4: TF-IDF Connected Components (global, threshold 0.78) ─
+            r.set(f"progress:{task_id}", 70)
+            self.update_state(state='PROGRESS', meta={
+                'progress': 70, 'message': '[multi_pass 4/4] TF-IDF global similarity...'
+            })
+
+            pass4_pairs = 0
+            try:
+                vectorizer  = TfidfVectorizer(ngram_range=(1, 3), min_df=1, max_df=0.9)
+                tfidf_mat   = vectorizer.fit_transform(clean_texts)
+                sim_matrix  = cosine_similarity(tfidf_mat)
+                for i in range(total):
+                    for j in range(i + 1, total):
+                        if sim_matrix[i][j] >= 0.78:
+                            adjacency[i].add(j)
+                            adjacency[j].add(i)
+                            pass4_pairs += 1
+            except Exception as e:
+                logger.warning(f"[multi_pass] TF-IDF pass skipped: {e}")
+
+            logger.info(f"[multi_pass] Pass 4 (TF-IDF global 0.78): {pass4_pairs} pairs")
+
+            # ── Final: merge all evidence → connected components ─────────────
+            r.set(f"progress:{task_id}", 78)
+            self.update_state(state='PROGRESS', meta={
+                'progress': 78, 'message': '[multi_pass] Merging all passes into final groups...'
+            })
+
+            total_edges = sum(len(v) for v in adjacency.values()) // 2
+            logger.info(f"[multi_pass] Total unique edges across 4 passes: {total_edges}")
+
+            duplicate_groups = build_adjacency_components(adjacency, total)
+            logger.info(f"[multi_pass] Found {len(duplicate_groups)} duplicate groups")
+            return duplicate_groups
+
         # Get audio file and transcription
         audio_file = AudioFile.objects.get(id=audio_file_id)
         
@@ -1274,11 +1619,30 @@ def detect_duplicates_single_file_task(
                 normalized_pdf_text=normalized_pdf_text,
             )
             analysis_method = 'windowed_retry_pdf'
+        elif algorithm == 'anchor_phrase_global':
+            duplicate_groups = build_groups_anchor_phrase(
+                segments,
+                segment_texts,
+                include_pdf_hint=bool(use_pdf_hint),
+                normalized_pdf_text=normalized_pdf_text,
+            )
+            analysis_method = 'anchor_phrase_global'
+        elif algorithm == 'multi_pass_best':
+            duplicate_groups = build_groups_multi_pass(
+                segments,
+                segment_texts,
+                include_pdf_hint=bool(use_pdf_hint),
+                normalized_pdf_text=normalized_pdf_text,
+            )
+            analysis_method = 'multi_pass_best'
         else:
             raise ValueError(f"Unsupported duplicate detection algorithm: {algorithm}")
         
-        r.set(f"progress:{task_id}", 60)
-        self.update_state(state='PROGRESS', meta={'progress': 60, 'message': f'Creating {len(duplicate_groups)} duplicate groups...'})
+        # Don't go backwards if a pass already reported higher progress (e.g. multi_pass at 78)
+        _current_prog = int(r.get(f"progress:{task_id}") or 0)
+        _next_prog = max(60, _current_prog)
+        r.set(f"progress:{task_id}", _next_prog)
+        self.update_state(state='PROGRESS', meta={'progress': _next_prog, 'message': f'Creating {len(duplicate_groups)} duplicate groups...'})
         
         # Create DuplicateGroup records and mark duplicates
         groups_created = 0

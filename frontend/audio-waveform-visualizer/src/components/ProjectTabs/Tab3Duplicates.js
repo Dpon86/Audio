@@ -74,9 +74,11 @@ const Tab3Duplicates = () => {
   const [assemblyInfo, setAssemblyInfo] = useState(null);
 
   const algorithmOptions = [
-    { value: 'windowed_retry', label: 'New Retry-Aware (No PDF)' },
-    { value: 'windowed_retry_pdf', label: 'New Retry-Aware + PDF Hint' },
+    { value: 'windowed_retry', label: 'Retry-Aware (No PDF)' },
+    { value: 'windowed_retry_pdf', label: 'Retry-Aware + PDF Hint' },
     { value: 'tfidf_cosine', label: 'Classic TF-IDF Cosine' },
+    { value: 'anchor_phrase_global', label: '🔍 Anchor Phrase — Global (No Window Limit)' },
+    { value: 'multi_pass_best', label: '⭐ Multi-Pass Best (Highest Recall)' },
   ];
 
   // Audio player state
@@ -664,7 +666,7 @@ const Tab3Duplicates = () => {
     }
   };
 
-  const isPdfHintAlgorithm = detectionAlgorithm === 'windowed_retry_pdf';
+  const isPdfHintAlgorithm = ['windowed_retry_pdf', 'anchor_phrase_global', 'multi_pass_best'].includes(detectionAlgorithm);
 
   const handlePdfPositionSelected = (position, text) => {
     if (pdfSelectorMode === 'start') {
@@ -858,7 +860,7 @@ const Tab3Duplicates = () => {
 
     // Server-side detection (existing code)
     const selectedAlgorithm = algorithmOverride || detectionAlgorithm;
-    const usePdfHint = selectedAlgorithm === 'windowed_retry_pdf';
+    const usePdfHint = ['windowed_retry_pdf', 'anchor_phrase_global', 'multi_pass_best'].includes(selectedAlgorithm);
     
     console.log(`[Tab3Duplicates] Starting detection with algorithm: ${selectedAlgorithm}`);
     console.log(`[Tab3Duplicates] Settings:`, {
@@ -1615,14 +1617,15 @@ const Tab3Duplicates = () => {
     }
   };
 
-  const handleDownloadTranscription = (format) => {
+  const handleDownloadTranscription = async (format) => {
     if (!selectedAudioFile) {
       alert('No file selected');
       return;
     }
 
-    // Get all segments
+    // Get all segments — try in-memory first, then localStorage, then server API
     let allSegments = [];
+
     if (selectedAudioFile.transcription && selectedAudioFile.transcription.all_segments) {
       allSegments = selectedAudioFile.transcription.all_segments;
     } else {
@@ -1630,9 +1633,27 @@ const Tab3Duplicates = () => {
       const storageKey = `client_transcriptions_${projectId}`;
       const localFiles = JSON.parse(localStorage.getItem(storageKey) || '[]');
       const matchingFile = localFiles.find(f => f.id === selectedAudioFile.id || f.filename === selectedAudioFile.filename);
-      
+
       if (matchingFile && matchingFile.transcription && matchingFile.transcription.all_segments) {
         allSegments = matchingFile.transcription.all_segments;
+      }
+    }
+
+    // If still empty and this is a server-side transcription, fetch from API
+    if (allSegments.length === 0 && !selectedAudioFile.client_only && selectedAudioFile.transcription) {
+      try {
+        const resp = await fetch(
+          `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/transcription/download/?format=json`,
+          { headers: { Authorization: `Token ${token}` } }
+        );
+        if (resp.ok) {
+          const data = await resp.json();
+          allSegments = data.segments || [];
+        } else {
+          console.warn('[Tab3Duplicates] Could not fetch transcription segments from server:', resp.status);
+        }
+      } catch (err) {
+        console.error('[Tab3Duplicates] Error fetching transcription for download:', err);
       }
     }
 
@@ -1950,6 +1971,38 @@ const Tab3Duplicates = () => {
                     onChange={(e) => setTfidfSimilarityThreshold(parseFloat(e.target.value || 0.85))}
                     style={{ width: '100px', padding: '0.45rem', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                   />
+                </div>
+              )}
+
+              {detectionAlgorithm === 'anchor_phrase_global' && (
+                <div style={{ padding: '0.6rem 0', color: '#475569', fontSize: '0.9rem', lineHeight: '1.55' }}>
+                  <p style={{ margin: 0, marginBottom: '0.4rem' }}>
+                    <strong>Anchor Phrase Global</strong> builds an inverted index of distinctive 3–5 word phrases, then verifies
+                    candidate pairs with SequenceMatcher. Because candidates are found via exact phrase sharing rather than a sliding
+                    window, <strong>there is no segment distance limit</strong> — duplicates hundreds of segments apart are found.
+                  </p>
+                  <p style={{ margin: 0, color: '#64748b' }}>
+                    Match threshold is intentionally lower (0.68) since a shared rare phrase already confirms similarity.
+                    Punctuation is stripped before all comparisons, so "Bedford," and "Bedford" always match.
+                  </p>
+                </div>
+              )}
+
+              {detectionAlgorithm === 'multi_pass_best' && (
+                <div style={{ padding: '0.6rem 0', color: '#475569', fontSize: '0.9rem', lineHeight: '1.55' }}>
+                  <p style={{ margin: 0, marginBottom: '0.4rem' }}>
+                    <strong>Multi-Pass Best</strong> runs four complementary passes and merges all evidence before grouping:
+                  </p>
+                  <ol style={{ margin: '0.3rem 0 0.5rem 1.2rem', padding: 0 }}>
+                    <li><strong>Pass 1 — Anchor Phrase (global)</strong>: phrase fingerprinting, no window limit</li>
+                    <li><strong>Pass 2 — Extended Windowed Retry</strong>: 400-segment lookahead, relaxed thresholds</li>
+                    <li><strong>Pass 3 — Sub-Sentence Containment</strong>: catches Whisper-split sentence fragments</li>
+                    <li><strong>Pass 4 — TF-IDF Global</strong>: cosine similarity ≥ 0.78, catches paraphrases</li>
+                  </ol>
+                  <p style={{ margin: 0, color: '#64748b' }}>
+                    All four adjacency graphs are merged before the final connected-components pass, so A↔B and B↔C always
+                    produces group &#123;A, B, C&#125; even if A and C are far apart. <strong>Takes longer but finds the most duplicates.</strong>
+                  </p>
                 </div>
               )}
 
