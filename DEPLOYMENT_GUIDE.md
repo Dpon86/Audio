@@ -2,6 +2,8 @@
 
 Complete reference for deploying backend and frontend updates to the production server.
 
+> **📚 For system architecture and troubleshooting:** See [ARCHITECTURE.md](./ARCHITECTURE.md)
+
 ---
 
 ## Table of Contents
@@ -193,7 +195,7 @@ scp -r build\* nickd@82.165.221.205:/opt/audioapp/frontend/build/
 
 **From Windows (recommended):**
 ```powershell
-ssh nickd@82.165.221.205 "FRONTEND_CONTAINER=$(docker ps --format '{{.Names}}' | grep -E 'audioapp_frontend|_audioapp_frontend' | head -1) && rsync -av --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r /opt/audioapp/frontend/build/ /opt/audioapp/frontend/audio-waveform-visualizer/build/ && if [ -n \"$FRONTEND_CONTAINER\" ]; then docker cp /opt/audioapp/frontend/build/. $FRONTEND_CONTAINER:/usr/share/nginx/html/ && docker restart $FRONTEND_CONTAINER; fi && sudo systemctl reload nginx"
+ssh nickd@82.165.221.205 "FRONTEND_CONTAINER=$(docker ps --format '{{.Names}}' | grep -E 'audioapp_frontend|_audioapp_frontend' | head -1) && rsync -av --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r /opt/audioapp/frontend/build/ /opt/audioapp/frontend/audio-waveform-visualizer/build/ && if [ -n \"$FRONTEND_CONTAINER\" ]; then docker cp /opt/audioapp/frontend/build/. $FRONTEND_CONTAINER:/usr/share/nginx/html/ && docker restart $FRONTEND_CONTAINER; fi && sudo chmod -R u=rwX,go=rX /opt/audioapp/frontend/audio-waveform-visualizer/build/ && sudo chown -R nickd:www-data /opt/audioapp/frontend/audio-waveform-visualizer/build/ && sudo systemctl reload nginx"
 ```
 
 **From Server:**
@@ -207,6 +209,10 @@ if [ -n "$FRONTEND_CONTAINER" ]; then
   docker cp /opt/audioapp/frontend/build/. $FRONTEND_CONTAINER:/usr/share/nginx/html/
   docker restart $FRONTEND_CONTAINER
 fi
+
+# Fix permissions for nginx (critical!)
+sudo chmod -R u=rwX,go=rX /opt/audioapp/frontend/audio-waveform-visualizer/build/
+sudo chown -R nickd:www-data /opt/audioapp/frontend/audio-waveform-visualizer/build/
 
 # Reload main nginx
 sudo systemctl reload nginx
@@ -235,6 +241,39 @@ If hashes differ, production is still on old assets until you run the rsync step
 # Sync uploaded build into nginx live root and reload nginx
 rsync -av --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r /opt/audioapp/frontend/build/ /opt/audioapp/frontend/audio-waveform-visualizer/build/
 sudo systemctl reload nginx
+```
+
+#### 3.3 Critical: Fix File Permissions for Nginx
+
+**⚠️ IMPORTANT:** If you uploaded files directly via SCP (bypassing rsync --chmod), nginx may not be able to read them, causing 404 errors for CSS/JS files.
+
+**Symptoms:**
+- Browser console shows: `Failed to load main.HASH.js: 404 (Not Found)`
+- Nginx error log shows: `stat() failed (13: Permission denied)`
+
+**Fix:**
+```bash
+# Fix permissions so nginx (www-data) can read all build files
+sudo chmod -R u=rwX,go=rX /opt/audioapp/frontend/audio-waveform-visualizer/build/
+sudo chown -R nickd:www-data /opt/audioapp/frontend/audio-waveform-visualizer/build/
+
+# Reload nginx to apply changes
+sudo systemctl reload nginx
+```
+
+**Verify permissions are correct:**
+```bash
+# Check critical files are readable by nginx
+ls -la /opt/audioapp/frontend/audio-waveform-visualizer/build/static/js/main.*.js | head -1
+ls -la /opt/audioapp/frontend/audio-waveform-visualizer/build/static/css/main.*.css | head -1
+
+# Should show: -rw-r--r-- 1 nickd www-data (nginx can read)
+# NOT:         -rw-rw-r-- 1 nickd nickd (nginx cannot read)
+```
+
+**Check nginx error log if 404s persist:**
+```bash
+sudo tail -20 /var/log/nginx/error.log | grep -E "Permission denied|static"
 ```
 
 #### 4. Verify Frontend Deployment
@@ -334,6 +373,11 @@ if [ -n "$FRONTEND_CONTAINER" ]; then
   docker cp /opt/audioapp/frontend/build/. $FRONTEND_CONTAINER:/usr/share/nginx/html/
   docker restart $FRONTEND_CONTAINER
 fi
+
+# Fix permissions for nginx (critical if files were uploaded via SCP)
+sudo chmod -R u=rwX,go=rX /opt/audioapp/frontend/audio-waveform-visualizer/build/
+sudo chown -R nickd:www-data /opt/audioapp/frontend/audio-waveform-visualizer/build/
+
 sudo systemctl reload nginx
 
 # 6. Restart backend services
