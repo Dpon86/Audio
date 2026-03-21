@@ -73,7 +73,7 @@ services:
     container_name: audioapp_celery_worker
     restart: unless-stopped
     entrypoint: ["/docker-entrypoint-celery.sh"]
-    command: celery -A myproject worker -l info --concurrency=1
+    command: celery -A myproject worker -l info --concurrency=1 -Q celery,processing,transcription
     env_file:
       - ./backend/.env.production
     volumes:

@@ -873,7 +873,7 @@ def refine_duplicate_timestamps_task(self, audio_file_id):
     docker_celery_manager.register_task(task_id)
     
     try:
-        from audioDiagnostic.models import AudioFile, DuplicateGroup
+        from audioDiagnostic.models import AudioFile, DuplicateGroup, TranscriptionSegment
         from pydub import AudioSegment
         import os
         
@@ -915,7 +915,12 @@ def refine_duplicate_timestamps_task(self, audio_file_id):
         # Get all segments that belong to duplicate groups
         all_segments = []
         for group in duplicate_groups:
-            segments = list(group.segments.all())
+            segments = list(
+                TranscriptionSegment.objects.filter(
+                    transcription=audio_file.transcription,
+                    duplicate_group_id=group.group_id,
+                ).order_by('start_time')
+            )
             all_segments.extend(segments)
         
         total_segments = len(all_segments)
@@ -981,15 +986,23 @@ def refine_duplicate_timestamps_task(self, audio_file_id):
         
     except Exception as e:
         logger.error(f"Error in refine_duplicate_timestamps_task: {str(e)}")
+        # Do not mark the whole file as failed: duplicate detection already completed.
+        # Refinement is a best-effort post-processing step.
         try:
             from audioDiagnostic.models import AudioFile
             audio_file = AudioFile.objects.get(id=audio_file_id)
-            audio_file.status = 'failed'
-            audio_file.error_message = str(e)
+            audio_file.status = 'transcribed'
+            audio_file.error_message = f"Timestamp refinement warning: {str(e)}"
             audio_file.save()
-        except:
+        except Exception:
             pass
-        raise
+
+        return {
+            'success': False,
+            'audio_file_id': audio_file_id,
+            'segments_refined': 0,
+            'message': f'Timestamp refinement skipped due to error: {str(e)}'
+        }
     finally:
         docker_celery_manager.unregister_task(task_id)
 
