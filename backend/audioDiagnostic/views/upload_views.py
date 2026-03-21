@@ -233,12 +233,15 @@ class BulkUploadWithTranscriptionView(APIView):
             word_count = sum(len(seg['text'].split()) for seg in segments)
             
             from ..models import Transcription
-            Transcription.objects.create(
+            transcription_obj = Transcription.objects.create(
                 audio_file=audio_obj,
                 full_text=audio_obj.transcript_text,
                 word_count=word_count,
                 confidence_score=avg_confidence
             )
+            
+            # Link all segments to the transcription (required for duplicate detection)
+            TranscriptionSegment.objects.filter(audio_file=audio_obj).update(transcription=transcription_obj)
             
             # Update project status if appropriate
             if project.status == 'setup':
