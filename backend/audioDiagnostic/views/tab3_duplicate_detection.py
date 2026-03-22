@@ -39,6 +39,8 @@ class SingleFileDetectDuplicatesView(APIView):
             'tfidf_cosine',
             'windowed_retry',
             'windowed_retry_pdf',
+            'anchor_phrase_global',
+            'multi_pass_best',
         }
 
         if algorithm not in supported_algorithms:
