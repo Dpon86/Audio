@@ -8,7 +8,7 @@ class InfrastructureStatusView(APIView):
     GET: Get Docker and Celery infrastructure status
     POST: Force shutdown infrastructure
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
@@ -68,7 +68,7 @@ class TaskStatusView(APIView):
     """
     GET: Check status of background tasks to prevent frontend timeouts
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, task_id):

@@ -75,7 +75,7 @@ After server restart, the frontend container is serving the **correct** JavaScri
    ```bash
    curl -s https://audio.precisepouchtrack.com/api/auth/login/ \
      -H "Content-Type: application/json" \
-     -d '{"username":"admin","password":"audioadmin123"}'
+     -d '{"username":"admin","password":"<your-admin-password>"}'
    # Returns: {"token": "...", "user": {...}, "subscription": {...}}
    ```
    - HTTP 200 OK
@@ -91,7 +91,7 @@ After server restart, the frontend container is serving the **correct** JavaScri
 3. **Database:**
    - PostgreSQL healthy
    - Users exist: admin, Nick, unlimited_user, testuser
-   - Admin credentials work: admin / audioadmin123
+   - Admin credentials work: admin / <your-admin-password>
 
 4. **SSL & CORS:**
    - Let's Encrypt certificate valid
@@ -144,7 +144,7 @@ The login form might need a CSRF token from Django, but the React app isn't send
 ### Theory 3: Request Body Format Wrong
 **Evidence:**
 - Exact same error from both curl and browser
-- Request body: `{"username":"admin","password":"audioadmin123"}`
+- Request body: `{"username":"admin","password":"<your-admin-password>"}`
 - Content-Type: `application/json`
 
 **Problem:**
@@ -278,7 +278,7 @@ If login stops working after server restart:
    ```bash
    curl -s https://audio.precisepouchtrack.com/api/auth/login/ \
      -H "Content-Type: application/json" \
-     -d '{"username":"admin","password":"audioadmin123"}'
+     -d '{"username":"admin","password":"<your-admin-password>"}'
    ```
    Should return: `{"token": "...", "user": {...}, "subscription": {...}}`
 
@@ -379,7 +379,7 @@ If login stops working after server restart:
   ```
   URL: https://audio.precisepouchtrack.com/admin/
   Username: admin
-  Password: audioadmin123
+  Password: <your-admin-password>
   ```
 
 - [ ] **Step 4.2:** If admin login works:
@@ -421,7 +421,7 @@ If login stops working after server restart:
   curl -v http://localhost:8001/api/auth/login/ \
     -H "Content-Type: application/json" \
     -X POST \
-    -d '{"username":"admin","password":"audioadmin123"}'
+    -d '{"username":"admin","password":"<your-admin-password>"}'
   ```
 
 - [ ] **Step 6.2:** Compare response to Nginx-proxied request
@@ -429,7 +429,7 @@ If login stops working after server restart:
   curl -v https://audio.precisepouchtrack.com/api/auth/login/ \
     -H "Content-Type: application/json" \
     -X POST \
-    -d '{"username":"admin","password":"audioadmin123"}'
+    -d '{"username":"admin","password":"<your-admin-password>"}'
   ```
 
 **If direct works but proxied fails:** Nginx configuration issue  
@@ -443,7 +443,7 @@ If login stops working after server restart:
   ```bash
   curl -X POST https://audio.precisepouchtrack.com/api-token-auth/ \
     -H "Content-Type: application/json" \
-    -d '{"username":"admin","password":"audioadmin123"}'
+    -d '{"username":"admin","password":"<your-admin-password>"}'
   ```
 
 - [ ] **Step 7.2:** Check if browsable API login works
@@ -472,7 +472,7 @@ If login stops working after server restart:
 
 3. **Try Django admin login to verify basic auth works:**
    - Go to: https://audio.precisepouchtrack.com/admin/
-   - Login: admin / audioadmin123
+   - Login: admin / <your-admin-password>
 
 4. **Enable debug logging and watch live logs:**
    ```bash
@@ -517,7 +517,7 @@ Test with DRF's obtain_auth_token:
 ```bash
 curl -X POST https://audio.precisepouchtrack.com/api/auth/token/ \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"audioadmin123"}'
+  -d '{"username":"admin","password":"<your-admin-password>"}'
 ```
 
 ---

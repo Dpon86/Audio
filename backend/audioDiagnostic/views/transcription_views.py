@@ -10,7 +10,7 @@ class ProjectTranscribeView(APIView):
     POST: Step 1-4: Transcribe ALL audio files in project with word timestamps
     This is the first phase of the new workflow
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     throttle_classes = [TranscribeRateThrottle]
 
@@ -48,7 +48,7 @@ class AudioFileTranscribeView(APIView):
     """
     POST: Transcribe a specific audio file (step 1 of 2-step process)
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id, audio_file_id):
@@ -81,7 +81,7 @@ class AudioFileRestartView(APIView):
     """
     POST: Restart transcription for an audio file (clears task and resets status)
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id, audio_file_id):
@@ -138,7 +138,7 @@ class AudioFileListView(APIView):
     """
     GET: List all audio files in a project
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id):
@@ -175,7 +175,7 @@ class AudioFileDetailView(APIView):
     GET: Get details of a specific audio file
     DELETE: Delete an audio file and its transcription data
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, audio_file_id):

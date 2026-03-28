@@ -7,7 +7,7 @@ import re
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.authentication import SessionAuthentication, TokenAuthentication, BasicAuthentication
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from celery.result import AsyncResult
@@ -27,7 +27,7 @@ class StartPDFComparisonView(APIView):
     """
     POST: Start PDF comparison for a single audio file
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id, audio_file_id):
@@ -82,7 +82,7 @@ class StartPrecisePDFComparisonView(APIView):
         "pdf_end_char": 5000     # Optional: ending character position in PDF
     }
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id, audio_file_id):
@@ -159,7 +159,7 @@ class GetPDFTextView(APIView):
     GET: Get PDF text content for manual region selection
     Returns the full PDF text so frontend can display and allow user to select region
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id):
@@ -256,7 +256,7 @@ class PDFComparisonResultView(APIView):
     """
     GET: Get PDF comparison results for a single audio file
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, audio_file_id):
@@ -294,7 +294,7 @@ class PDFComparisonStatusView(APIView):
     """
     GET: Check PDF comparison status (for polling)
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, audio_file_id):
@@ -366,7 +366,7 @@ class SideBySideComparisonView(APIView):
     GET: Get side-by-side comparison of transcription vs PDF
     Shows matching sections, missing content, extra content in a formatted view
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, audio_file_id):
@@ -477,7 +477,7 @@ class MarkIgnoredSectionsView(APIView):
     POST: Mark sections of the transcription to ignore in comparison
     (e.g., "Narrated by Jane Doe", chapter titles, etc.)
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id, audio_file_id):
@@ -546,7 +546,7 @@ class ResetPDFComparisonView(APIView):
     """
     POST: Reset PDF comparison results and start fresh
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id, audio_file_id):
@@ -577,7 +577,7 @@ class MarkContentForDeletionView(APIView):
     POST: Mark extra content for deletion based on timestamps
     Used when user wants to remove narrator info, chapter titles, etc. found by PDF comparison
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id, audio_file_id):
@@ -726,7 +726,7 @@ class AudiobookProductionAnalysisView(APIView):
     POST: Start comprehensive audiobook production analysis
     Analyzes repetitions, quality, missing sections, and generates production report
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id):
@@ -789,7 +789,7 @@ class AudiobookAnalysisProgressView(APIView):
     """
     GET: Get progress of audiobook production analysis task
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, task_id):
@@ -819,7 +819,7 @@ class AudiobookAnalysisResultView(APIView):
     """
     GET: Get result of completed audiobook production analysis
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, task_id):
@@ -866,7 +866,7 @@ class AudiobookReportSummaryView(APIView):
     """
     GET: Get quick summary of most recent audiobook analysis for a project
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id):

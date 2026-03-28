@@ -10,7 +10,7 @@ class ProjectListCreateView(APIView):
     GET: List user's projects
     POST: Create new project
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -58,7 +58,7 @@ class ProjectDetailView(APIView):
     GET: Get project details including segments
     DELETE: Delete project and all associated data
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, project_id):
@@ -313,7 +313,7 @@ class ProjectTranscriptView(APIView):
     """
     GET: Get full transcript for all audio files in the project
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, project_id):
@@ -379,7 +379,7 @@ class ProjectStatusView(APIView):
     """
     GET: Get processing status and progress
     """
-    # authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    # authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     # permission_classes = [IsAuthenticated]
 
     def get(self, request, project_id):
@@ -428,7 +428,7 @@ class ProjectDownloadView(APIView):
     """
     GET: Download processed audio file
     """
-    # authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    # authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     # permission_classes = [IsAuthenticated]
 
     def get(self, request, project_id):

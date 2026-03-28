@@ -5,7 +5,7 @@ Handles transcribing individual audio files with word-level timestamps
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.authentication import SessionAuthentication, TokenAuthentication, BasicAuthentication
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 
@@ -18,7 +18,7 @@ class SingleFileTranscribeView(APIView):
     """
     POST: Transcribe a single audio file
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id, audio_file_id):
@@ -72,7 +72,7 @@ class SingleFileTranscriptionResultView(APIView):
     """
     GET: Get transcription results for a single audio file
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, audio_file_id):
@@ -114,7 +114,7 @@ class SingleFileTranscriptionStatusView(APIView):
     """
     GET: Check transcription status (for polling)
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, audio_file_id):
@@ -171,7 +171,7 @@ class TranscriptionDownloadView(APIView):
     """
     GET: Download transcription as text or JSON
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, audio_file_id):

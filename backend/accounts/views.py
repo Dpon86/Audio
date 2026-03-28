@@ -1,6 +1,7 @@
 from rest_framework import status, generics, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from django.contrib.auth import authenticate
@@ -14,6 +15,8 @@ import stripe
 import os
 from datetime import timedelta
 
+from accounts.authentication import ExpiringTokenAuthentication
+
 from .models import SubscriptionPlan, UserSubscription, UsageTracking, BillingHistory, UserProfile
 from .serializers import (
     UserRegistrationSerializer, UserProfileSerializer, 
@@ -23,6 +26,21 @@ from .serializers import (
 
 # Configure Stripe
 stripe.api_key = getattr(settings, 'STRIPE_SECRET_KEY', os.getenv('STRIPE_SECRET_KEY'))
+
+
+class LoginRateThrottle(AnonRateThrottle):
+    """Tighter rate limit on the login endpoint to slow brute-force attempts."""
+    rate = '10/hour'
+
+
+def _get_or_create_fresh_token(user):
+    """Return a valid (non-expired) token, deleting and recreating if stale."""
+    expiry_days = getattr(settings, 'TOKEN_EXPIRY_DAYS', 30)
+    token, created = Token.objects.get_or_create(user=user)
+    if not created and (timezone.now() - token.created) > timedelta(days=expiry_days):
+        token.delete()
+        token = Token.objects.create(user=user)
+    return token
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -59,7 +77,7 @@ class UserRegistrationView(generics.CreateAPIView):
             print(f"Stripe customer creation failed: {e}")
         
         # Generate auth token
-        token, created = Token.objects.get_or_create(user=user)
+        token = _get_or_create_fresh_token(user)
         
         return Response({
             'user': {
@@ -81,13 +99,14 @@ class CustomAuthToken(ObtainAuthToken):
     Custom login view that returns user info and subscription
     """
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [LoginRateThrottle]
     
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data,
                                            context={'request': request})
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
-        token, created = Token.objects.get_or_create(user=user)
+        token = _get_or_create_fresh_token(user)
         
         # Get or create subscription for user
         subscription, created = UserSubscription.objects.get_or_create(user=user)

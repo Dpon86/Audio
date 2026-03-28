@@ -400,18 +400,13 @@ def clean_pdf_text_with_pattern_detection(pdf_file_path: str,
         Cleaned text with headers/footers removed
     """
     try:
-        from PyPDF2 import PdfReader
+        import fitz  # PyMuPDF
     except ImportError:
-        raise ImportError("PyPDF2 is required for PDF pattern detection. Install with: pip install PyPDF2")
+        raise ImportError("PyMuPDF is required for PDF pattern detection. Install with: pip install PyMuPDF")
     
     # Extract text page by page
-    reader = PdfReader(pdf_file_path)
-    pages_text = []
-    
-    for page in reader.pages:
-        page_text = page.extract_text()
-        if page_text:
-            pages_text.append(page_text)
+    pdf_doc = fitz.open(pdf_file_path)
+    pages_text = [page.get_text() for page in pdf_doc if page.get_text()]
     
     if not pages_text:
         return ""

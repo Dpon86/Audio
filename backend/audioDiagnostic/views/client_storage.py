@@ -6,7 +6,7 @@ for cross-device persistence.
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.authentication import SessionAuthentication, TokenAuthentication, BasicAuthentication
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
@@ -20,7 +20,7 @@ class ClientTranscriptionListCreateView(APIView):
     GET: List all client transcriptions for a project
     POST: Save a new client transcription or update existing
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id):
@@ -106,7 +106,7 @@ class ClientTranscriptionDetailView(APIView):
     PUT/PATCH: Update a client transcription
     DELETE: Delete a client transcription
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, transcription_id):
@@ -187,7 +187,7 @@ class DuplicateAnalysisListCreateView(APIView):
     GET: List all duplicate analyses for a project
     POST: Save a new duplicate analysis or update existing
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id):
@@ -273,7 +273,7 @@ class DuplicateAnalysisDetailView(APIView):
     PUT/PATCH: Update a duplicate analysis
     DELETE: Delete a duplicate analysis
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, analysis_id):

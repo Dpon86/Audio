@@ -69,9 +69,9 @@ function App() {
             />
             
             {/* Legacy Routes (for backward compatibility) */}
-            <Route path="/AudioUpload" element={<AudioPage />} />
-            <Route path="/EditPage" element={<EditPage />} />
-            <Route path="/PDFAnalysis" element={<PDFAnalysisPage />} />
+            <Route path="/AudioUpload" element={<ProtectedRoute><AudioPage /></ProtectedRoute>} />
+            <Route path="/EditPage" element={<ProtectedRoute><EditPage /></ProtectedRoute>} />
+            <Route path="/PDFAnalysis" element={<ProtectedRoute><PDFAnalysisPage /></ProtectedRoute>} />
             
             {/* Catch all route - redirect to home */}
             <Route path="*" element={<Navigate to="/" replace />} />

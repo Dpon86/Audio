@@ -10,9 +10,8 @@ class ProjectProcessView(APIView):
     POST: Step 5-10: Process transcribed audio files for duplicates
     This is the second phase - only works after all files are transcribed
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
-    throttle_classes = [ProcessRateThrottle]
     throttle_classes = [ProcessRateThrottle]
 
     def post(self, request, project_id):
@@ -53,7 +52,7 @@ class AudioFileProcessView(APIView):
     """
     POST: Process a specific audio file
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id, audio_file_id):

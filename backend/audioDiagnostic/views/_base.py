@@ -14,8 +14,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import authentication_classes, permission_classes
-from rest_framework.authentication import SessionAuthentication, BasicAuthentication, TokenAuthentication
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
+from accounts.authentication import ExpiringTokenAuthentication
 
 from django.http import JsonResponse, FileResponse, Http404, HttpResponseBadRequest
 from django.conf import settings

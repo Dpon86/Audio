@@ -78,9 +78,9 @@ export const apiFetch = async (endpoint, options = {}) => {
   // Get token from localStorage
   const token = localStorage.getItem('token');
   
-  // Merge headers
+  // Set Content-Type only when NOT sending FormData (browser sets it with multipart boundary)
   const headers = {
-    'Content-Type': 'application/json',
+    ...(!(options.body instanceof FormData) && { 'Content-Type': 'application/json' }),
     ...options.headers,
   };
   

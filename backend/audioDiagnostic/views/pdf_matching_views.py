@@ -10,7 +10,7 @@ class ProjectMatchPDFView(APIView):
     POST: Step 1 - Match audio transcript to PDF section/chapter
     Identifies which section of the PDF corresponds to the audio transcript
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, project_id):

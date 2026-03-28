@@ -894,6 +894,9 @@ def refine_duplicate_timestamps_task(self, audio_file_id):
         # Load audio file
         audio_path = audio_file.file.path
         logger.info(f"Loading audio from: {audio_path}")
+        MAX_AUDIO_SIZE_BYTES = 400 * 1024 * 1024  # 400 MB
+        if os.path.getsize(audio_path) > MAX_AUDIO_SIZE_BYTES:
+            raise ValueError(f"Audio file too large for processing: {os.path.getsize(audio_path)} bytes (limit: {MAX_AUDIO_SIZE_BYTES} bytes)")
         audio = AudioSegment.from_file(audio_path)
         
         # Get all duplicate groups for this file
@@ -1813,6 +1816,9 @@ def process_deletions_single_file_task(self, audio_file_id, segment_ids_to_delet
         
         # Load original audio
         original_audio_path = audio_file.file.path
+        MAX_AUDIO_SIZE_BYTES = 400 * 1024 * 1024  # 400 MB
+        if os.path.getsize(original_audio_path) > MAX_AUDIO_SIZE_BYTES:
+            raise ValueError(f"Audio file too large for processing: {os.path.getsize(original_audio_path)} bytes (limit: {MAX_AUDIO_SIZE_BYTES} bytes)")
         audio = PydubAudioSegment.from_file(original_audio_path)
         
         # Ensure original duration is saved (in case it wasn't extracted during upload)
@@ -1941,6 +1947,9 @@ def preview_deletions_task(self, audio_file_id, segment_ids_to_delete):
             raise ValueError("Audio file must be transcribed first")
         
         # Load original audio
+        MAX_AUDIO_SIZE_BYTES = 400 * 1024 * 1024  # 400 MB
+        if os.path.getsize(audio_file.file.path) > MAX_AUDIO_SIZE_BYTES:
+            raise ValueError(f"Audio file too large for processing: {os.path.getsize(audio_file.file.path)} bytes (limit: {MAX_AUDIO_SIZE_BYTES} bytes)")
         audio = AudioSegment.from_file(audio_file.file.path)
         original_duration = len(audio) / 1000.0
         

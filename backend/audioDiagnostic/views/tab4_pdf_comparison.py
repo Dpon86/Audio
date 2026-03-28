@@ -5,7 +5,7 @@ Compare transcription against PDF - find matching section, missing content, extr
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.authentication import SessionAuthentication, TokenAuthentication, BasicAuthentication
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from celery.result import AsyncResult
@@ -18,7 +18,7 @@ class SingleTranscriptionPDFCompareView(APIView):
     """
     POST: Start PDF comparison for a single audio file
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id, audio_file_id):
@@ -61,7 +61,7 @@ class SingleTranscriptionPDFResultView(APIView):
     """
     GET: Get PDF comparison results for a single audio file
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, audio_file_id):
@@ -91,7 +91,7 @@ class SingleTranscriptionPDFStatusView(APIView):
     """
     GET: Check PDF comparison status (for polling)
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, audio_file_id):
@@ -151,7 +151,7 @@ class SingleTranscriptionSideBySideView(APIView):
     """
     GET: Get side-by-side comparison of transcription vs PDF
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, audio_file_id):
@@ -248,7 +248,7 @@ class SingleTranscriptionRetryComparisonView(APIView):
     """
     POST: Retry PDF comparison with different settings
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id, audio_file_id):

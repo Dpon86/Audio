@@ -32,7 +32,7 @@ class AudioProjectSerializer(serializers.ModelSerializer):
     
     def get_audio_files_count(self, obj):
         """Get count of audio files in project"""
-        return obj.audiofile_set.count()
+        return obj.audio_files.count()
     
     def validate_title(self, value):
         """Validate project title"""

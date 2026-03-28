@@ -27,12 +27,14 @@ echo "✓ Static files collected!"
 
 # Create superuser if needed
 echo "Checking for admin user..."
+ADMIN_PASSWORD=${DJANGO_ADMIN_PASSWORD:-changeme}
 python manage.py shell << END
 from django.contrib.auth import get_user_model
+import os
 User = get_user_model()
 if not User.objects.filter(username='admin').exists():
-    User.objects.create_superuser('admin', 'admin@precisepouchtrack.com', 'audioadmin123')
-    print('✓ Superuser created: admin / audioadmin123 (CHANGE THIS!)')
+    User.objects.create_superuser('admin', 'admin@precisepouchtrack.com', os.environ.get('DJANGO_ADMIN_PASSWORD', 'changeme'))
+    print('✓ Superuser created: admin (password from DJANGO_ADMIN_PASSWORD env var)')
 else:
     print('✓ Superuser already exists')
 END

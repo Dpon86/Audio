@@ -61,12 +61,14 @@ class ClientSideTranscriptionService {
     this.isLoading = true;
     console.log('[ClientTranscription] Starting model initialization...');
 
-    // Intercept fetch to log URLs
+    // Intercept fetch to log URLs (development only)
     const originalFetch = window.fetch;
-    window.fetch = function(...args) {
-      console.log('[ClientTranscription] Fetching URL:', args[0]);
-      return originalFetch.apply(this, args);
-    };
+    if (process.env.NODE_ENV === 'development') {
+      window.fetch = function(...args) {
+        console.log('[ClientTranscription] Fetching URL:', args[0]);
+        return originalFetch.apply(this, args);
+      };
+    }
 
     try {
       const modelName = `Xenova/whisper-${modelSize}.en`;

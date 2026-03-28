@@ -163,7 +163,7 @@ CELERY_TASK_ROUTES = {
 # Django REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'accounts.authentication.ExpiringTokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -193,14 +193,15 @@ REST_FRAMEWORK = {
 }
 
 # CORS Configuration
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
-CORS_ALLOW_CREDENTIALS = True
-
-# Database
+# Read allowed origins from environment (comma-separated) or fall back to dev defaults
+_cors_env = os.getenv('CORS_ALLOWED_ORIGINS', '')
+CORS_ALLOWED_ORIGINS = (
+    [o.strip() for o in _cors_env.split(',') if o.strip()]
+    or [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+)
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
@@ -257,7 +258,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOG_DIR = os.path.join(MEDIA_ROOT, "logs")
+LOG_DIR = os.path.join(BASE_DIR, "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
 LOGGING = {
@@ -301,15 +302,10 @@ LOGGING = {
     },
 }
 
-# CORS settings for frontend communication
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
+# CORS settings for frontend communication — origins controlled by first CORS block above
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOW_ALL_ORIGINS = True  # Only for development
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only True in development (DEBUG=True)
 
 # Allow specific headers for file uploads
 CORS_ALLOW_HEADERS = [
@@ -338,11 +334,20 @@ STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
 
 # Validate Stripe keys if billing features are enabled
 if not all([STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET]):
+    if not DEBUG:
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured(
+            "STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, and STRIPE_WEBHOOK_SECRET "
+            "must all be set in production."
+        )
     import warnings
     warnings.warn(
         "Stripe keys not configured. Set STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, "
         "and STRIPE_WEBHOOK_SECRET environment variables to enable billing features."
     )
+
+# Token expiry: tokens older than this many days are rejected and the user must re-login
+TOKEN_EXPIRY_DAYS = int(os.getenv('TOKEN_EXPIRY_DAYS', '30'))
 
 # Email configuration (for user registration emails)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # Development - prints to console

@@ -31,7 +31,7 @@ def ai_compare_transcription_to_pdf_task(self, audio_file_id):
     try:
         from ..models import AudioFile, AudioProject, TranscriptionSegment
         from ..utils import get_redis_connection
-        from PyPDF2 import PdfReader
+        import fitz  # PyMuPDF
         import openai
         
         # Check if OpenAI API key is configured
@@ -60,8 +60,8 @@ def ai_compare_transcription_to_pdf_task(self, audio_file_id):
         # Load PDF text
         if not project.pdf_text:
             logger.info("Extracting PDF text")
-            reader = PdfReader(project.pdf_file.path)
-            pdf_text = "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
+            pdf_doc = fitz.open(project.pdf_file.path)
+            pdf_text = "\n".join(page.get_text() for page in pdf_doc if page.get_text())
             project.pdf_text = pdf_text
             project.save(update_fields=['pdf_text'])
         else:

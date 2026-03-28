@@ -4,7 +4,7 @@ Quick-fix view: Create missing Transcription objects for all files with transcri
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.authentication import SessionAuthentication, TokenAuthentication, BasicAuthentication
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 
 from ..models import AudioFile, Transcription
 
@@ -14,7 +14,7 @@ class FixMissingTranscriptionsView(APIView):
     POST: Create Transcription objects for all AudioFiles that have transcript_text but no Transcription
     This fixes files that were transcribed with old code before the Transcription model was required
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id):

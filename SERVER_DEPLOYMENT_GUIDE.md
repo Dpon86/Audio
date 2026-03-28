@@ -28,7 +28,7 @@ sleep 10
 # Test login API
 curl -s https://audio.precisepouchtrack.com/api/auth/login/ \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"audioadmin123"}'
+  -d '{"username":"admin","password":"<your-admin-password>"}'
 ```
 
 **Expected Result:** Should return `{"token": "...", "user": {...}, "subscription": {...}}`
@@ -104,7 +104,7 @@ sleep 15
 echo "Testing login API..."
 RESPONSE=$(curl -s https://audio.precisepouchtrack.com/api/auth/login/ \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"audioadmin123"}')
+  -d '{"username":"admin","password":"<your-admin-password>"}')
 
 if echo "$RESPONSE" | grep -q "token"; then
     echo "✅ Login API working!"
@@ -202,7 +202,7 @@ docker compose -f docker-compose.production.yml up -d frontend
 
 ### Default Admin Account:
 - **Username:** admin
-- **Password:** audioadmin123
+- **Password:** <your-admin-password>
 - **⚠️ CHANGE THIS PASSWORD IN PRODUCTION**
 
 ### Other Users:
@@ -319,7 +319,7 @@ docker system df  # Docker disk usage
 # Login test
 curl -s https://audio.precisepouchtrack.com/api/auth/login/ \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"audioadmin123"}'
+  -d '{"username":"admin","password":"<your-admin-password>"}'
 
 # Health check
 curl -s https://audio.precisepouchtrack.com/api/
@@ -471,7 +471,7 @@ free -h
 # 7. Test the application
 curl -s https://audio.precisepouchtrack.com/api/auth/login/ \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"audioadmin123"}' | head -c 100
+  -d '{"username":"admin","password":"<your-admin-password>"}' | head -c 100
 
 # 8. Open browser and hard refresh
 # Windows/Linux: Ctrl + Shift + R

@@ -1,0 +1,5 @@
+node_modules/
+test-results/
+playwright-report/
+user-manual-screenshots/*.png
+!user-manual-screenshots/.gitkeep

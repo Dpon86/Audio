@@ -55,13 +55,14 @@ def process_audio_file_task(self, audio_file_id):
         
         # Step 2: Extract PDF text
         logger.info(f"Extracting PDF text for audio file {audio_file_id}")
-        from PyPDF2 import PdfReader
+        from PyPDF2 import PdfReader  # noqa: F401 — kept for legacy compatibility
+        import fitz  # PyMuPDF
         
         if not project.pdf_file:
             raise ValueError("No PDF file provided")
             
-        reader = PdfReader(project.pdf_file.path)
-        pdf_text = "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
+        pdf_doc = fitz.open(project.pdf_file.path)
+        pdf_text = "\n".join(page.get_text() for page in pdf_doc if page.get_text())
         
         r.set(f"progress:{task_id}", 40)
         

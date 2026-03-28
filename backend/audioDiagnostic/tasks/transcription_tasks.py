@@ -9,6 +9,18 @@ from .transcription_utils import (
     calculate_transcription_quality_metrics
 )
 
+
+# ---------------------------------------------------------------------------
+# Whisper model singleton — loaded once per Celery worker, not per task call
+# ---------------------------------------------------------------------------
+_whisper_model = None
+
+def _get_whisper_model():
+    global _whisper_model
+    if _whisper_model is None:
+        _whisper_model = _get_whisper_model()
+    return _whisper_model
+
 @shared_task(bind=True)
 def transcribe_all_project_audio_task(self, project_id):
     """
@@ -51,7 +63,7 @@ def transcribe_all_project_audio_task(self, project_id):
         MemoryManager.log_memory_usage("Before model load")
         
         # Load Whisper model once
-        model = whisper.load_model("base")
+        model = _get_whisper_model()
         MemoryManager.log_memory_usage("After model load")
         
         total_files = audio_files.count()
@@ -220,7 +232,7 @@ def transcribe_audio_file_task(self, audio_file_id):
         
         # Step 1: Transcribe audio with word timestamps
         logger.info(f"Starting transcription for audio file {audio_file_id}")
-        model = whisper.load_model("base")
+        model = _get_whisper_model()
         
         MemoryManager.log_memory_usage("After model load")
         
@@ -360,7 +372,7 @@ def transcribe_audio_task(self, audio_path, audio_url):
     r = get_redis_connection()
     r.set(f"progress:{task_id}", 0)
 
-    model = whisper.load_model("base")
+    model = _get_whisper_model()
     r.set(f"progress:{task_id}", 10)
 
     # Transcribe with word timestamps
@@ -447,7 +459,7 @@ def transcribe_audio_words_task(self, audio_path, audio_url):
       - the segments (phrases/sentences with timings).
     """
     import whisper
-    model = whisper.load_model("base")
+    model = _get_whisper_model()
     result = model.transcribe(audio_path, word_timestamps=True)
 
     # Collect all words with timestamps
@@ -686,7 +698,7 @@ def transcribe_single_audio_file_task(self, audio_file_id):
         r.set(f"progress:{task_id}", 20)
         
         # Load Whisper model
-        model = whisper.load_model("base")
+        model = _get_whisper_model()
         
         # Update progress
         self.update_state(state='PROGRESS', meta={'progress': 30, 'message': 'Transcribing audio...'})
@@ -832,7 +844,7 @@ def retranscribe_processed_audio_task(self, audio_file_id):
         # Load Whisper model
         r.set(f"progress:{task_id}", 20)
         self.update_state(state='PROGRESS', meta={'progress': 20, 'message': 'Loading Whisper model...'})
-        model = whisper.load_model("base")
+        model = _get_whisper_model()
         
         # Transcribe the processed audio
         r.set(f"progress:{task_id}", 30)

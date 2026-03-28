@@ -18,12 +18,16 @@ class AudioTaskStatusSentencesView(APIView):
             return Response({'status': 'processing', 'progress': progress}, status=202)
 
 
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def download_audio(request, filename):
-    # Path to your Downloads folder
-    downloads_dir = os.path.join(settings.BASE_DIR, "media", "Downloads")
-    file_path = os.path.join(downloads_dir, filename)
+    downloads_dir = os.path.realpath(os.path.join(settings.BASE_DIR, "media", "Downloads"))
+    safe_name = os.path.basename(filename)  # Strip any directory components
+    file_path = os.path.realpath(os.path.join(downloads_dir, safe_name))
+    # Prevent path traversal outside the downloads directory
+    if not file_path.startswith(downloads_dir + os.sep) and file_path != downloads_dir:
+        return HttpResponseBadRequest("Invalid filename")
     if os.path.exists(file_path):
-        # You may want to set the correct content_type for your audio files
         return FileResponse(open(file_path, 'rb'), content_type='audio/wav')
     else:
         raise Http404("File not found")
@@ -33,6 +37,8 @@ def cut_audio(request):
     if request.method != "POST":
         logger.error("cut_audio: Not a POST request")
         return HttpResponseBadRequest("POST only")
+    temp_copy_path = None
+    tmp_path = None
     try:
         logger.info("cut_audio: Received request body: %s", request.body)
         data = json.loads(request.body)
@@ -82,11 +88,9 @@ def cut_audio(request):
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             output.export(tmp.name, format="wav")
             tmp_path = tmp.name
-        
+
         with open(tmp_path, "rb") as f:
             audio_bytes = f.read()
-        os.unlink(tmp_path)
-        os.unlink(temp_copy_path)
         logger.info("cut_audio: Returning edited audio file")
         response = FileResponse(io.BytesIO(audio_bytes), content_type="audio/wav")
         response["Content-Disposition"] = 'attachment; filename="edited.wav"'
@@ -95,6 +99,11 @@ def cut_audio(request):
     except Exception as e:
         logger.error("cut_audio: Exception occurred: %s", str(e))
         return JsonResponse({"error": str(e)}, status=400)
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        if temp_copy_path and os.path.exists(temp_copy_path):
+            os.unlink(temp_copy_path)
     
 
 #------------------------------Comparing Views ----------------
@@ -130,10 +139,11 @@ class N8NTranscribeView(APIView):
     """
     On POST, finds the latest .wav file in the specified folder and starts transcription.
     """
-    FOLDER_TO_WATCH = r"C:\Users\user\Documents\GitHub\n8n\Files"  # Change as needed
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        folder = self.FOLDER_TO_WATCH
+        folder = os.environ.get('N8N_WATCH_FOLDER', os.path.join(settings.MEDIA_ROOT, 'Downloads'))
         wav_files = [f for f in os.listdir(folder) if f.lower().endswith('.wav')]
         if not wav_files:
             return Response({"error": "No .wav files found in folder."}, status=status.HTTP_404_NOT_FOUND)
@@ -157,7 +167,7 @@ class AudioFileStatusView(APIView):
     """
     GET: Get status of a specific audio file
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, audio_file_id):

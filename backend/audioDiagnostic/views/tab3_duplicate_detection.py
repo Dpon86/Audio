@@ -5,7 +5,7 @@ Detects and removes duplicates within ONE audio file at a time
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.authentication import SessionAuthentication, TokenAuthentication, BasicAuthentication
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 
@@ -18,7 +18,7 @@ class SingleFileDetectDuplicatesView(APIView):
     """
     POST: Detect duplicates within a single audio file
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id, audio_file_id):
@@ -28,8 +28,8 @@ class SingleFileDetectDuplicatesView(APIView):
 
         # Default to windowed_retry_pdf for best audiobook results
         algorithm = request.data.get('algorithm', 'windowed_retry_pdf')
-        # Enable PDF hints by default for windowed_retry algorithms
-        default_pdf_hint = algorithm in ['windowed_retry_pdf']
+        # Enable PDF hints by default for algorithms that support PDF anchoring
+        default_pdf_hint = algorithm in ['windowed_retry_pdf', 'anchor_phrase_global', 'multi_pass_best']
         raw_pdf_hint = request.data.get('use_pdf_hint', default_pdf_hint)
         if isinstance(raw_pdf_hint, bool):
             use_pdf_hint = raw_pdf_hint
@@ -39,6 +39,8 @@ class SingleFileDetectDuplicatesView(APIView):
             'tfidf_cosine',
             'windowed_retry',
             'windowed_retry_pdf',
+            'anchor_phrase_global',
+            'multi_pass_best',
         }
 
         if algorithm not in supported_algorithms:
@@ -48,7 +50,7 @@ class SingleFileDetectDuplicatesView(APIView):
                 'supported_algorithms': sorted(list(supported_algorithms))
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        if algorithm == 'windowed_retry_pdf':
+        if algorithm in {'windowed_retry_pdf', 'anchor_phrase_global', 'multi_pass_best'}:
             use_pdf_hint = True
 
         def parse_optional_int(value):
@@ -126,7 +128,7 @@ class SingleFileDuplicatesReviewView(APIView):
     """
     GET: Get detected duplicates for review
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, audio_file_id):
@@ -203,7 +205,7 @@ class SingleFileConfirmDeletionsView(APIView):
     """
     POST: Confirm deletions and generate clean audio for single file
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id, audio_file_id):
@@ -269,7 +271,7 @@ class SingleFileProcessingStatusView(APIView):
     """
     GET: Check processing status (for polling)
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, audio_file_id):
@@ -324,7 +326,7 @@ class SingleFileProcessedAudioView(APIView):
     """
     GET: Download processed (clean) audio file
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, audio_file_id):
@@ -350,7 +352,7 @@ class SingleFileStatisticsView(APIView):
     """
     GET: Get before/after statistics for processed file
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, project_id, audio_file_id):
@@ -398,7 +400,7 @@ class UpdateSegmentTimesView(APIView):
     PATCH: Update start_time and end_time for a specific transcription segment
     Used when user drags region boundaries in waveform editor
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def patch(self, request, project_id, audio_file_id, segment_id):
@@ -482,7 +484,7 @@ class RetranscribeProcessedAudioView(APIView):
     """
     POST: Re-transcribe processed audio for maximum accuracy
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request, project_id, audio_file_id):

@@ -5,11 +5,38 @@ from ._base import *
 from rest_framework.parsers import JSONParser
 from pydub import AudioSegment
 
+# Magic-byte signatures for allowed file types
+_AUDIO_MAGIC = {
+    b'RIFF': '.wav',
+    b'ID3\x00': '.mp3', b'\xff\xfb': '.mp3', b'\xff\xf3': '.mp3',
+    b'\xff\xf2': '.mp3', b'\xff\xfa': '.mp3',
+    b'fLaC': '.flac',
+    b'OggS': '.ogg',
+}
+
+def _check_audio_magic(file_obj):
+    """Return True if file starts with a known audio magic signature."""
+    header = file_obj.read(12)
+    file_obj.seek(0)
+    # M4A/MP4: 'ftyp' at offset 4
+    if header[4:8] == b'ftyp':
+        return True
+    for magic in _AUDIO_MAGIC:
+        if header[:len(magic)] == magic:
+            return True
+    return False
+
+def _check_pdf_magic(file_obj):
+    """Return True if file starts with the PDF magic bytes."""
+    header = file_obj.read(5)
+    file_obj.seek(0)
+    return header == b'%PDF-'
+
 class ProjectUploadPDFView(APIView):
     """
     POST: Upload PDF file for project
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     throttle_classes = [UploadRateThrottle]
     parser_classes = [MultiPartParser, FormParser]
@@ -22,9 +49,11 @@ class ProjectUploadPDFView(APIView):
         
         pdf_file = request.FILES['pdf_file']
         
-        # Validate file type
+        # Validate file type (extension + magic bytes)
         if not pdf_file.name.lower().endswith('.pdf'):
             return Response({'error': 'File must be a PDF'}, status=status.HTTP_400_BAD_REQUEST)
+        if not _check_pdf_magic(pdf_file):
+            return Response({'error': 'File content does not match a valid PDF'}, status=status.HTTP_400_BAD_REQUEST)
         
         project.pdf_file = pdf_file
         project.save()
@@ -40,7 +69,7 @@ class ProjectUploadAudioView(APIView):
     """
     POST: Upload audio file for project
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     throttle_classes = [UploadRateThrottle]
     parser_classes = [MultiPartParser, FormParser]
@@ -53,12 +82,12 @@ class ProjectUploadAudioView(APIView):
         
         audio_file = request.FILES['audio_file']
         
-        # Validate file type
+        # Validate file type (extension + magic bytes)
         allowed_extensions = ['.wav', '.mp3', '.m4a', '.flac', '.ogg']
         if not any(audio_file.name.lower().endswith(ext) for ext in allowed_extensions):
             return Response({'error': 'Invalid audio file format'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Generate title and order index for the audio file
+        if not _check_audio_magic(audio_file):
+            return Response({'error': 'File content does not match a valid audio format'}, status=status.HTTP_400_BAD_REQUEST) for the audio file
         title = request.data.get('title', f"Audio File {project.audio_files.count() + 1}")
         order_index = project.audio_files.count()
         
@@ -117,7 +146,7 @@ class BulkUploadWithTranscriptionView(APIView):
         ...
     ]
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
     throttle_classes = [UploadRateThrottle]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -132,10 +161,13 @@ class BulkUploadWithTranscriptionView(APIView):
                 return Response({'error': 'No audio file provided'}, 
                               status=status.HTTP_400_BAD_REQUEST)
             
-            # Validate audio file type
+            # Validate audio file type (extension + magic bytes)
             allowed_extensions = ['.wav', '.mp3', '.m4a', '.flac', '.ogg']
             if not any(audio_file.name.lower().endswith(ext) for ext in allowed_extensions):
                 return Response({'error': 'Invalid audio file format'}, 
+                              status=status.HTTP_400_BAD_REQUEST)
+            if not _check_audio_magic(audio_file):
+                return Response({'error': 'File content does not match a valid audio format'},
                               status=status.HTTP_400_BAD_REQUEST)
             
             # Get transcription data (JSON string or object)

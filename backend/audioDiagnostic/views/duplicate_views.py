@@ -10,7 +10,7 @@ class ProjectRefinePDFBoundariesView(APIView):
     POST: User refines the PDF match boundaries by selecting exact start and end positions
     Saves the refined boundaries for use in duplicate detection
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, project_id):
@@ -99,7 +99,7 @@ class ProjectDetectDuplicatesView(APIView):
     POST: Step 2 - Compare audio transcript against PDF to detect duplicates
     Returns detailed comparison with highlighted differences and duplicate segments
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, project_id):
@@ -246,7 +246,7 @@ class ProjectDuplicatesReviewView(APIView):
     GET: Step 3 - Get detected duplicates for interactive review
     Returns all duplicates with audio segment info for user confirmation
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, project_id):
@@ -322,7 +322,7 @@ class ProjectConfirmDeletionsView(APIView):
     POST: Step 4 - Accept user-confirmed deletions and process final audio
     Removes confirmed duplicate segments and generates clean audio file
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, project_id):
@@ -364,7 +364,7 @@ class ProjectVerifyCleanupView(APIView):
     Compares the transcribed clean audio against the original PDF matched section
     to ensure all duplicates were removed successfully
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, project_id):
@@ -460,7 +460,7 @@ class ProjectRedetectDuplicatesView(APIView):
     POST: Step 6 - Create a NEW child project for iterative cleaning
     Copies PDF and clean audio to a fresh project, starts from Step 1
     """
-    authentication_classes = [SessionAuthentication, TokenAuthentication, BasicAuthentication]
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, project_id):
