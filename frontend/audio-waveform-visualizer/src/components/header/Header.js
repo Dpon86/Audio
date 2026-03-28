@@ -292,6 +292,17 @@ const Menu = ({ isOpen, toggle, navigate, isAuthenticated }) => (
               Support
             </button>
           </li>
+          <li>
+            <a
+              href="/user-manual.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="Hd-nav-item"
+            >
+              <i className="icon-book"></i>
+              User Manual
+            </a>
+          </li>
         </ul>
       </div>
     </div>

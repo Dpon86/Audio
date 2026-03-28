@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 
 from ..models import AudioProject, AudioFile, Transcription, TranscriptionSegment, DuplicateGroup
+from ..models import AIDuplicateDetectionResult
 from ..serializers import AudioFileDetailSerializer, DuplicateGroupSerializer
 from ..tasks.duplicate_tasks import detect_duplicates_single_file_task, process_deletions_single_file_task
 
@@ -242,7 +243,13 @@ class SingleFileConfirmDeletionsView(APIView):
                 'success': False,
                 'error': 'No valid segment IDs provided'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
+        # Mark any pending AI detection result for this file as confirmed
+        AIDuplicateDetectionResult.objects.filter(
+            audio_file=audio_file,
+            user_confirmed=False
+        ).update(user_confirmed=True)
+
         # Update audio file status
         audio_file.status = 'processing'
         audio_file.save()

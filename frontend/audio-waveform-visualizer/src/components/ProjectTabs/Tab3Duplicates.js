@@ -1088,33 +1088,26 @@ const Tab3Duplicates = () => {
       const statusPayload = await pollAIDetectionStatus(startPayload.task_id);
       const detectionResult = statusPayload.detection_result;
 
-      if (!detectionResult || !Array.isArray(detectionResult.duplicate_groups)) {
-        throw new Error('AI detection completed but no duplicate groups were returned.');
+      if (!detectionResult) {
+        throw new Error('AI detection completed but no result was returned.');
       }
 
-      const normalizedGroups = normalizeAIDuplicateGroups(detectionResult.duplicate_groups);
-      setDuplicateGroups(normalizedGroups);
+      // The backend has written DuplicateGroup rows and TranscriptionSegment flags,
+      // so we load via the same server path as the non-AI route.
+      // This gives us real DB integer IDs, accurate DB timestamps, localStorage
+      // persistence, and auto-selection of duplicates — all for free.
+      await loadDuplicateGroups();
 
-      const toDelete = [];
-      normalizedGroups.forEach((group) => {
-        (group.segments || []).forEach((segment) => {
-          if (segment.is_duplicate) {
-            toDelete.push(segment.id);
-          }
-        });
-      });
-      setSelectedDeletions(toDelete);
-
-      const firstThree = normalizedGroups.slice(0, 3).map((g) => g.group_id);
-      setExpandedGroups(new Set(firstThree));
+      const groupCount = detectionResult.duplicate_count
+        || (Array.isArray(detectionResult.duplicate_groups) ? detectionResult.duplicate_groups.length : 0);
 
       setLastRunSummary({
         algorithm: 'ai-duplicate-detection',
-        groupCount: normalizedGroups.length
+        groupCount
       });
 
       setDetectionProgress({ current: 100, total: 100, status: 'AI detection complete.' });
-      alert(`AI duplicate detection completed. Found ${normalizedGroups.length} duplicate groups.`);
+      alert(`AI duplicate detection completed. Found ${groupCount} duplicate groups.`);
     } catch (error) {
       console.error('[Tab3Duplicates] AI detection error:', error);
       alert(`AI duplicate detection failed: ${error.message}`);

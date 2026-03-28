@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audio Duplicate Detection — User Manual</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --accent: #7c3aed;
+      --surface: #f8fafc;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --success: #059669;
+      --warning: #d97706;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--surface);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    .site-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      color: #fff;
+      padding: 48px 32px 40px;
+      text-align: center;
+    }
+    .site-header h1 { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 10px; }
+    .site-header p  { font-size: 1.1rem; opacity: .85; max-width: 600px; margin: 0 auto 20px; }
+    .badge-row { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+    .badge {
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.3);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: .82rem;
+      font-weight: 600;
+    }
+
+    /* ── Layout ── */
+    .layout { display: flex; min-height: 100vh; }
+
+    /* ── Sidebar TOC ── */
+    nav.toc {
+      width: 270px;
+      min-width: 270px;
+      background: #fff;
+      border-right: 1px solid var(--border);
+      padding: 28px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      scroll-behavior: smooth;
+    }
+    nav.toc h2 { padding: 0 20px 12px; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); }
+    nav.toc a {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 20px;
+      font-size: .88rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-left: 3px solid transparent;
+      transition: all .15s;
+    }
+    nav.toc a:hover, nav.toc a.active {
+      color: var(--primary);
+      border-left-color: var(--primary);
+      background: #eff6ff;
+    }
+    nav.toc .toc-number {
+      display: inline-block;
+      width: 22px; height: 22px;
+      background: var(--border);
+      border-radius: 50%;
+      font-size: .72rem; font-weight: 700;
+      text-align: center; line-height: 22px;
+      flex-shrink: 0;
+    }
+    nav.toc a:hover .toc-number, nav.toc a.active .toc-number {
+      background: var(--primary);
+      color: #fff;
+    }
+    nav.toc .toc-section-heading {
+      padding: 16px 20px 4px;
+      font-size: .7rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .08em;
+      color: var(--text-muted);
+    }
+
+    /* ── Main content ── */
+    main { flex: 1; padding: 40px 48px; max-width: 1000px; }
+
+    /* ── Section containers ── */
+    .section {
+      margin-bottom: 64px;
+      scroll-margin-top: 24px;
+    }
+
+    .section-header {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 28px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid var(--border);
+    }
+    .section-number {
+      display: flex; align-items: center; justify-content: center;
+      width: 42px; height: 42px;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 1rem; font-weight: 800;
+      flex-shrink: 0;
+    }
+    .section-title { font-size: 1.45rem; font-weight: 700; }
+    .section-subtitle { font-size: .9rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Step cards ── */
+    .step-card {
+      background: #fff;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 40px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.08);
+      transition: transform .2s, box-shadow .2s;
+    }
+    .step-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0,0,0,.12);
+    }
+    .step-card-header {
+      display: flex; align-items: flex-start; gap: 16px;
+      padding: 24px 28px 20px;
+      border-bottom: 2px solid var(--border);
+      background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+    }
+    .step-pill {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: .85rem; font-weight: 800;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-top: 2px;
+      box-shadow: 0 2px 4px rgba(37,99,235,.3);
+    }
+    .step-pill.setup { background: #64748b; box-shadow: 0 2px 4px rgba(100,116,139,.3); }
+    .step-pill.wait  { background: var(--warning); box-shadow: 0 2px 4px rgba(217,119,6,.3); }
+    .step-pill.done  { background: var(--success); box-shadow: 0 2px 4px rgba(5,150,105,.3); }
+    .step-title { font-weight: 800; font-size: 1.25rem; line-height: 1.4; color: var(--text); }
+    .step-desc  { font-size: 1.05rem; color: var(--text); margin-top: 8px; line-height: 1.6; }
+
+    .step-card img {
+      width: 100%;
+      max-width: 900px;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+      border-top: 2px solid var(--border);
+      cursor: pointer;
+      transition: transform .2s;
+    }
+    .step-card img:hover {
+      transform: scale(1.02);
+    }
+    .step-card .img-caption {
+      padding: 14px 28px;
+      font-size: .95rem;
+      color: var(--text);
+      background: #fffdf7;
+      border-top: 2px solid #fbbf24;
+      border-left: 4px solid #f59e0b;
+      font-weight: 500;
+    }
+    .step-card .img-caption::before {
+      content: '👁️ ';
+      margin-right: 6px;
+    }
+
+    /* ── Note / Tip boxes ── */
+    .note, .tip, .warning-box {
+      display: flex; gap: 12px;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin: 16px 0 22px;
+      font-size: .9rem;
+    }
+    .note    { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+    .tip     { background: #f0fdf4; border: 1px solid #bbf7d0; color: #14532d; }
+    .warning-box { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+    .note .icon, .tip .icon, .warning-box .icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Inline code ── */
+    code {
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      font-size: .85em;
+    }
+
+    /* ── Prerequisites table ── */
+    .prereq-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+      margin: 18px 0;
+    }
+    .prereq-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+    .prereq-card .prereq-icon { font-size: 1.6rem; margin-bottom: 8px; }
+    .prereq-card .prereq-title { font-weight: 700; font-size: .9rem; margin-bottom: 4px; }
+    .prereq-card .prereq-body  { font-size: .83rem; color: var(--text-muted); }
+
+    /* ── Flow overview ── */
+    .flow-row {
+      display: flex; align-items: center; gap: 8px;
+      flex-wrap: wrap; margin: 18px 0;
+    }
+    .flow-item {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: .85rem; font-weight: 600;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      nav.toc { display: none; }
+      main { padding: 24px 18px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <h1>Audio Duplicate Detection</h1>
+  <p>Step-by-step user manual with annotated screenshots from the live application</p>
+  <div class="badge-row">
+    <span class="badge">📅 March 2026</span>
+    <span class="badge">🌐 audio.precisepouchtrack.com</span>
+    <span class="badge">📸 Automated screenshots</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ═══ Sidebar TOC ═══════════════════════════════════════════════ -->
+  <nav class="toc" id="toc">
+    <h2>Contents</h2>
+
+    <span class="toc-section-heading">Part 1 · Getting Started</span>
+    <a href="#sec-overview"><span class="toc-number">→</span> Overview</a>
+    <a href="#sec-prereqs"><span class="toc-number">→</span> Prerequisites</a>
+
+    <span class="toc-section-heading">Part 2 · Workflow A · New Project</span>
+    <a href="#sec-login"><span class="toc-number">1</span> Sign In</a>
+    <a href="#sec-project"><span class="toc-number">2</span> Create a Project</a>
+    <a href="#sec-upload"><span class="toc-number">3</span> Upload Audio</a>
+    <a href="#sec-transcribe"><span class="toc-number">4</span> Transcription</a>
+    <a href="#sec-pdf"><span class="toc-number">5</span> Upload PDF Script</a>
+
+    <span class="toc-section-heading">Part 3 · Workflow B · Duplicates</span>
+    <a href="#sec-dup-tab"><span class="toc-number">6</span> Open Duplicates Tab</a>
+    <a href="#sec-detect"><span class="toc-number">7</span> Run Detection</a>
+    <a href="#sec-align"><span class="toc-number">8</span> Align to Silence</a>
+    <a href="#sec-review"><span class="toc-number">9</span> Review &amp; Select</a>
+    <a href="#sec-assemble"><span class="toc-number">10</span> Assemble &amp; Download</a>
+
+    <span class="toc-section-heading">Reference</span>
+    <a href="#sec-algorithms"><span class="toc-number">→</span> Detection Algorithms</a>
+    <a href="#sec-tips"><span class="toc-number">→</span> Tips &amp; Troubleshooting</a>
+    <a href="#sec-appendix"><span class="toc-number">📋</span> Quick Reference</a>
+  </nav>
+
+  <!-- ═══ Main ═══════════════════════════════════════════════════════ -->
+  <main>
+
+    <!-- ── Overview ── -->
+    <section class="section" id="sec-overview">
+      <div class="section-header">
+        <div class="section-number" style="background:var(--accent)">✦</div>
+        <div>
+          <div class="section-title">Overview</div>
+          <div class="section-subtitle">What this application does and how to use this manual</div>
+        </div>
+      </div>
+
+      <p>The <strong>Audio Duplicate Detection</strong> application helps audiobook producers and audio engineers find and remove repeated passages from recorded audio. It transcribes your audio file using Whisper, identifies duplicate phrases, aligns cut points to natural silence boundaries, and assembles a clean output file — all through a browser interface.</p>
+
+      <div style="margin: 20px 0;">
+        <strong>End-to-end workflow:</strong>
+        <div class="flow-row">
+          <div class="flow-item">🔐 Sign in</div><span class="flow-arrow">›</span>
+          <div class="flow-item">📁 Create project</div><span class="flow-arrow">›</span>
+          <div class="flow-item">🎵 Upload audio</div><span class="flow-arrow">›</span>
+          <div class="flow-item">📝 Transcribe</div><span class="flow-arrow">›</span>
+          <div class="flow-item">📄 Upload PDF</div><span class="flow-arrow">›</span>
+          <div class="flow-item">🔍 Detect duplicates</div><span class="flow-arrow">›</span>
+          <div class="flow-item">🔇 Align to silence</div><span class="flow-arrow">›</span>
+          <div class="flow-item">✂️ Assemble clean audio</div>
+        </div>
+      </div>
+
+      <div class="note">
+        <span class="icon">ℹ️</span>
+        <div>This manual is generated from automated end-to-end tests. Every screenshot was captured from the live application at <strong>audio.precisepouchtrack.com</strong> and reflects the actual UI.</div>
+      </div>
+    </section>
+
+    <!-- ── Prerequisites ── -->
+    <section class="section" id="sec-prereqs">
+      <div class="section-header">
+        <div class="section-number" style="background:var(--accent)">✦</div>
+        <div>
+          <div class="section-title">Prerequisites</div>
+          <div class="section-subtitle">What you need before you start</div>
+        </div>
+      </div>
+
+      <div class="prereq-grid">
+        <div class="prereq-card">
+          <div class="prereq-icon">🔑</div>
+          <div class="prereq-title">Account</div>
+          <div class="prereq-body">A registered account on audio.precisepouchtrack.com. Contact your administrator to create one.</div>
+        </div>
+        <div class="prereq-card">
+          <div class="prereq-icon">🎵</div>
+          <div class="prereq-title">Audio File</div>
+          <div class="prereq-body">A WAV or MP3 recording. Files up to 400 MB are supported. Larger files should be split first.</div>
+        </div>
+        <div class="prereq-card">
+          <div class="prereq-icon">📄</div>
+          <div class="prereq-title">PDF Script (optional)</div>
+          <div class="prereq-body">A PDF of the recording script. Improves duplicate detection accuracy by providing text context.</div>
+        </div>
+        <div class="prereq-card">
+          <div class="prereq-icon">⏱️</div>
+          <div class="prereq-title">Time</div>
+          <div class="prereq-body">Transcription: ~5–20 mins per hour of audio. Detection: 2–10 mins. Assembly: 1–5 mins.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════
+         PART 2 · WORKFLOW A
+         ══════════════════════════════════════════════════════ -->
+
+    <!-- ── Section 1: Sign In ── -->
+    <section class="section" id="sec-login">
+      <div class="section-header">
+        <div class="section-number">1</div>
+        <div>
+          <div class="section-title">Sign In</div>
+          <div class="section-subtitle">Access the application through the main website or directly</div>
+        </div>
+      </div>
+
+      <!-- Step 1: Navigate -->
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 1</span>
+          <div>
+            <div class="step-title">Open the application</div>
+            <div class="step-desc">Navigate directly to <code>https://audio.precisepouchtrack.com</code> or reach it via the main PrecisePouchTrack website under <strong>Other Products → Audio Duplicate Detection</strong>.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-01-audio-app-landing-2026-03-28T10-54-11-670Z.png" alt="Audio app landing page" loading="lazy" />
+        <div class="img-caption">The Audio Duplicate Detection landing page. Click <strong>Sign In</strong> to continue.</div>
+      </div>
+
+      <!-- Step 2: Login form -->
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 2</span>
+          <div>
+            <div class="step-title">Enter your credentials</div>
+            <div class="step-desc">Fill in your <strong>Username</strong> and <strong>Password</strong>, then click <strong>Sign In</strong>. You will be redirected to the Projects page on success.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-02-login-page-2026-03-28T10-54-11-994Z.png" alt="Login page" loading="lazy" />
+        <div class="img-caption">Enter your credentials and click <strong>Sign In</strong>.</div>
+      </div>
+
+      <!-- Step 3: Projects page -->
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill done">Signed In</span>
+          <div>
+            <div class="step-title">Projects page</div>
+            <div class="step-desc">After a successful login you land on the <strong>Projects</strong> page. Existing projects are shown as cards. New users will see an empty list.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-03-projects-page-2026-03-28T10-54-13-252Z.png" alt="Projects page after login" loading="lazy" />
+        <div class="img-caption">The Projects dashboard. Each card shows project status and file counts.</div>
+      </div>
+    </section>
+
+    <!-- ── Section 2: Create a Project ── -->
+    <section class="section" id="sec-project">
+      <div class="section-header">
+        <div class="section-number">2</div>
+        <div>
+          <div class="section-title">Create a Project</div>
+          <div class="section-subtitle">Projects group your audio files, transcriptions, and results</div>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 3</span>
+          <div>
+            <div class="step-title">Click "Create New Project"</div>
+            <div class="step-desc">On the Projects page, click the <strong>Create New Project</strong> button. A dialog will appear asking for a project name.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-07-create-project-dialog-2026-03-28T09-26-36-982Z.png" alt="Create project dialog" loading="lazy" />
+        <div class="img-caption">Enter a descriptive project name (e.g. the book title and chapter number).</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 4</span>
+          <div>
+            <div class="step-title">Enter the project name and confirm</div>
+            <div class="step-desc">Type a name for the project and click <strong>Create</strong>. You will be taken to the project detail page.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-08-project-name-entered-2026-03-28T09-26-37-166Z.png" alt="Project name entered" loading="lazy" />
+        <div class="img-caption">The project name is entered. Click <strong>Create</strong> to proceed.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill done">Created</span>
+          <div>
+            <div class="step-title">Project created</div>
+            <div class="step-desc">The new project opens. You'll see tabs at the top: <strong>Files</strong>, <strong>Duplicates</strong>, <strong>Results</strong>, and <strong>Review</strong>. The Files tab is active by default.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-09-project-created-2026-03-28T09-26-37-853Z.png" alt="Project created" loading="lazy" />
+        <div class="img-caption">Project created. The Files tab is shown where you can upload audio.</div>
+      </div>
+    </section>
+
+    <!-- ── Section 3: Upload Audio ── -->
+    <section class="section" id="sec-upload">
+      <div class="section-header">
+        <div class="section-number">3</div>
+        <div>
+          <div class="section-title">Upload Audio</div>
+          <div class="section-subtitle">Add the raw audio recording to the project</div>
+        </div>
+      </div>
+
+      <div class="tip">
+        <span class="icon">💡</span>
+        <div>Supported formats: <strong>WAV, MP3, M4A, FLAC, OGG</strong>. For best transcription quality provide a WAV file recorded at 44.1 kHz or higher. Keep individual files under 400 MB.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 5</span>
+          <div>
+            <div class="step-title">Scroll to the file upload area and click "Select Files"</div>
+            <div class="step-desc">Scroll down on the Files tab until you see the <strong>Select Files</strong> button. Click it to open a file chooser.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-10-scrolled-to-select-files-2026-03-28T09-26-38-584Z.png" alt="Scroll to select files" loading="lazy" />
+        <div class="img-caption">The upload zone becomes visible after scrolling down.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 6</span>
+          <div>
+            <div class="step-title">Choose the audio file</div>
+            <div class="step-desc">Select your WAV or MP3 file from your local file system. The upload will start immediately.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-11-file-picker-opened-2026-03-28T09-26-39-365Z.png" alt="File picker opened" loading="lazy" />
+        <div class="img-caption">The native file picker opens. Navigate to your audio file and select it.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill wait">Uploading</span>
+          <div>
+            <div class="step-title">Upload in progress</div>
+            <div class="step-desc">A progress indicator appears while the file is uploading. Transcription starts automatically once the upload is complete.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-12-file-selected-uploading-2026-03-28T09-26-41-596Z.png" alt="File uploading" loading="lazy" />
+        <div class="img-caption">Upload in progress. Transcription begins automatically once the upload finishes.</div>
+      </div>
+    </section>
+
+    <!-- ── Section 4: Transcription ── -->
+    <section class="section" id="sec-transcribe">
+      <div class="section-header">
+        <div class="section-number">4</div>
+        <div>
+          <div class="section-title">Transcription</div>
+          <div class="section-subtitle">The server converts your audio to text using OpenAI Whisper</div>
+        </div>
+      </div>
+
+      <div class="warning-box">
+        <span class="icon">⏳</span>
+        <div>Transcription time depends on file length and server load. Allow roughly <strong>5–20 minutes per hour of audio</strong>. Do not close the browser tab — you can keep it open and watch for the completion dialog.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill wait">Waiting</span>
+          <div>
+            <div class="step-title">Transcription in progress</div>
+            <div class="step-desc">The file row shows a status of <strong>Transcribing…</strong>. The page polls automatically. You can see intermediate progress in the status column.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-14-transcription-check-5min-2026-03-28T09-31-44-861Z.png" alt="Transcription in progress" loading="lazy" />
+        <div class="img-caption">Status column shows transcription is running. The page checks progress every 5 minutes.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill done">Complete</span>
+          <div>
+            <div class="step-title">Transcription complete dialog</div>
+            <div class="step-desc">A dialog appears when transcription finishes. Click <strong>OK</strong> to dismiss it. The file status changes to <strong>Transcribed</strong>.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-13-transcription-complete-dialog-2026-03-24T15-20-36-804Z.png" alt="Transcription complete dialog" loading="lazy" />
+        <div class="img-caption">"Transcription Complete!" dialog. Click OK to continue.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill done">Ready</span>
+          <div>
+            <div class="step-title">After transcription</div>
+            <div class="step-desc">The project page refreshes. The file is now listed with status <strong>Transcribed</strong> and a segment count. You can now upload the PDF script.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-49-after-transcription-dialog-dismissed-2026-03-28T09-48-35-645Z.png" alt="After transcription dialog dismissed" loading="lazy" />
+        <div class="img-caption">File status shows Transcribed. Scroll down to find the PDF upload button.</div>
+      </div>
+    </section>
+
+    <!-- ── Section 5: Upload PDF ── -->
+    <section class="section" id="sec-pdf">
+      <div class="section-header">
+        <div class="section-number">5</div>
+        <div>
+          <div class="section-title">Upload PDF Script</div>
+          <div class="section-subtitle">Providing the script PDF improves duplicate detection accuracy</div>
+        </div>
+      </div>
+
+      <div class="tip">
+        <span class="icon">💡</span>
+        <div>The PDF gives the detection algorithm the original script text. It can then compare the transcript against the script to identify where in the book each duplicate phrase appears, greatly reducing false positives in long recordings.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 7</span>
+          <div>
+            <div class="step-title">Scroll down to find the PDF upload button</div>
+            <div class="step-desc">After transcription completes, scroll to the bottom of the Files tab to locate the <strong>Upload PDF Script</strong> button.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-50-scrolled-to-bottom-looking-for-pdf-button-2026-03-28T09-48-38-853Z.png" alt="Scrolled to PDF upload area" loading="lazy" />
+        <div class="img-caption">The PDF upload section is at the bottom of the Files tab.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 8</span>
+          <div>
+            <div class="step-title">Click "Upload PDF Script" and select the file</div>
+            <div class="step-desc">Click the button, choose your PDF file, and wait for the upload to complete. A confirmation message will appear.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-51-upload-pdf-button-visible-2026-03-28T09-48-41-604Z.png" alt="PDF upload button visible" loading="lazy" />
+        <div class="img-caption">The <strong>Upload PDF Script</strong> button is visible at the bottom of the page.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 9</span>
+          <div>
+            <div class="step-title">PDF file picker</div>
+            <div class="step-desc">Your system file picker opens. Navigate to the PDF and select it.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-52-pdf-file-picker-opened-2026-03-28T09-48-42-303Z.png" alt="PDF file picker" loading="lazy" />
+        <div class="img-caption">Select the PDF script file from your local drive.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill done">Uploaded</span>
+          <div>
+            <div class="step-title">PDF uploaded successfully</div>
+            <div class="step-desc">The PDF filename appears in the project. The project is now fully ready for duplicate detection.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-53-pdf-uploaded-2026-03-28T09-48-45-504Z.png" alt="PDF uploaded" loading="lazy" />
+        <div class="img-caption">PDF uploaded. You can now move to the Duplicates tab.</div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════
+         PART 3 · WORKFLOW B · DUPLICATES
+         ══════════════════════════════════════════════════════ -->
+
+    <!-- ── Section 6: Open Duplicates Tab ── -->
+    <section class="section" id="sec-dup-tab">
+      <div class="section-header">
+        <div class="section-number">6</div>
+        <div>
+          <div class="section-title">Open the Duplicates Tab</div>
+          <div class="section-subtitle">Select your file and switch to duplicate detection mode</div>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 10</span>
+          <div>
+            <div class="step-title">Open the project and select the audio file</div>
+            <div class="step-desc">Open your project from the Projects page. In the Files tab, click the audio file row to select it. The row will highlight to confirm selection.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-04-project-page-opened-2026-03-28T10-54-13-416Z.png" alt="Project page opened" loading="lazy" />
+        <div class="img-caption">Project detail page. Click an audio file row to select it for processing.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 11</span>
+          <div>
+            <div class="step-title">Select the audio file row</div>
+            <div class="step-desc">Click directly on the audio file row in the table. The row turns highlighted. The selected file will be used in all processing tabs.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-06-audio-file-selected-2026-03-28T10-54-16-534Z.png" alt="Audio file selected" loading="lazy" />
+        <div class="img-caption">The selected audio file row is highlighted. Scroll back to the top.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 12</span>
+          <div>
+            <div class="step-title">Click the "Duplicates" tab</div>
+            <div class="step-desc">Scroll back to the top and click the <strong>Duplicates</strong> tab. The duplicate detection controls will load.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-07-scrolled-back-to-top-tabs-visible-2026-03-28T10-54-17-195Z.png" alt="Tabs visible at top" loading="lazy" />
+        <div class="img-caption">Tabs are visible at the top. Click <strong>Duplicates</strong>.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill done">Tab Open</span>
+          <div>
+            <div class="step-title">Duplicates tab loaded</div>
+            <div class="step-desc">The Duplicates tab shows the detection controls — algorithm selector, settings, and the <strong>Start Detection</strong> button. The selected audio file is shown at the top.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-55-duplicates-tab-visible-2026-03-28T10-54-18-461Z.png" alt="Duplicates tab visible" loading="lazy" />
+        <div class="img-caption">The Duplicates tab is open with the selected file displayed.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 13</span>
+          <div>
+            <div class="step-title">The Duplicates tab content</div>
+            <div class="step-desc">After clicking the tab, the detection interface becomes visible with algorithm controls.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-56-after-duplicates-clicked-2026-03-28T10-54-20-756Z.png" alt="Duplicates tab content" loading="lazy" />
+        <div class="img-caption">Algorithm controls and settings are shown. Scroll down to access the detection options.</div>
+      </div>
+    </section>
+
+    <!-- ── Section 7: Run Detection ── -->
+    <section class="section" id="sec-detect">
+      <div class="section-header">
+        <div class="section-number">7</div>
+        <div>
+          <div class="section-title">Run Duplicate Detection</div>
+          <div class="section-subtitle">Choose an algorithm and start the analysis</div>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 14</span>
+          <div>
+            <div class="step-title">Scroll down to the detection controls</div>
+            <div class="step-desc">Scroll down to see the algorithm dropdown and detection settings.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-57-scrolled-down-2026-03-28T10-54-21-571Z.png" alt="Scrolled to detection controls" loading="lazy" />
+        <div class="img-caption">Detection controls visible after scrolling. The current algorithm is shown in the dropdown.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 15</span>
+          <div>
+            <div class="step-title">Choose the detection algorithm</div>
+            <div class="step-desc">Click the algorithm dropdown. For audiobooks with a PDF script, choose <strong>Multi-pass Highest Accuracy</strong> (<code>multi_pass_best</code>) for the most reliable results.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-58-dropdown-before-selection-2026-03-28T10-54-22-288Z.png" alt="Algorithm dropdown" loading="lazy" />
+        <div class="img-caption">The algorithm dropdown with all available options. See the Reference section below for descriptions.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 16</span>
+          <div>
+            <div class="step-title">Multi-Pass selected</div>
+            <div class="step-desc">The dropdown now shows <strong>Multi-pass Highest Accuracy</strong> selected.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-59-multi-pass-selected-2026-03-28T10-54-23-045Z.png" alt="Multi-pass selected" loading="lazy" />
+        <div class="img-caption">Multi-pass algorithm selected. Ready to start detection.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 17</span>
+          <div>
+            <div class="step-title">Click "Start Detection"</div>
+            <div class="step-desc">Click the <strong>Start Detection</strong> button. A confirmation dialog will appear — click <strong>OK</strong> to confirm. The detection task will be queued on the server.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-60-before-start-detection-2026-03-28T10-54-23-775Z.png" alt="Before clicking start detection" loading="lazy" />
+        <div class="img-caption">Click <strong>Start Detection</strong> to begin. A confirmation dialog will appear next.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill wait">Running</span>
+          <div>
+            <div class="step-title">Detection running</div>
+            <div class="step-desc">After confirming, detection starts. A progress indicator is shown. Detection typically takes 2–10 minutes depending on file length.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-61-after-detection-started-2026-03-28T10-54-26-019Z.png" alt="Detection started" loading="lazy" />
+        <div class="img-caption">Detection is running. The progress bar updates automatically.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill done">Complete</span>
+          <div>
+            <div class="step-title">Detection complete — results loaded</div>
+            <div class="step-desc">When detection finishes, the duplicate groups appear on screen. Each group shows the repeated phrase with all occurrences. The last occurrence in each group is automatically marked to <strong>keep</strong>; earlier occurrences are marked for <strong>deletion</strong>.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-62-clear-results-button-visible-detection-complete-2026-03-28T10-54-27-985Z.png" alt="Detection complete" loading="lazy" />
+        <div class="img-caption">Duplicate groups are loaded. The <strong>Clear Results</strong> button confirms detection is complete.</div>
+      </div>
+    </section>
+
+    <!-- ── Section 8: Align to Silence ── -->
+    <section class="section" id="sec-align">
+      <div class="section-header">
+        <div class="section-number">8</div>
+        <div>
+          <div class="section-title">Align Cut Points to Silence</div>
+          <div class="section-subtitle">Ensure cuts happen at natural pauses, not mid-word</div>
+        </div>
+      </div>
+
+      <div class="tip">
+        <span class="icon">💡</span>
+        <div>This step is strongly recommended. Without alignment, cuts may fall mid-syllable. Alignment scans ±500 ms around each boundary and snaps it to the nearest silence — resulting in cleaner, more professional output.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 18</span>
+          <div>
+            <div class="step-title">Click "Align to Silence"</div>
+            <div class="step-desc">Click the <strong>Align to Silence</strong> button. This starts a background task that analyses the waveform and adjusts all cut start/end times.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-63-align-to-silence-button-visible-2026-03-28T10-54-28-741Z.png" alt="Align to silence button" loading="lazy" />
+        <div class="img-caption">The <strong>Align to Silence</strong> button. Click it to start boundary refinement.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill wait">Processing</span>
+          <div>
+            <div class="step-title">Alignment in progress</div>
+            <div class="step-desc">The task scans the audio waveform and adjusts each timestamp. This usually completes in 30 seconds to 2 minutes.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-64-alignment-processing-2026-03-28T10-54-46-797Z.png" alt="Alignment processing" loading="lazy" />
+        <div class="img-caption">Alignment is running. The UI updates with progress information.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill done">Aligned</span>
+          <div>
+            <div class="step-title">Alignment complete</div>
+            <div class="step-desc">A dialog confirms alignment is done. Click <strong>OK</strong>. The timestamps in the duplicate groups are now refined to silence boundaries.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-65-after-alignment-complete-2026-03-28T10-55-02-065Z.png" alt="Alignment complete" loading="lazy" />
+        <div class="img-caption">Alignment complete. Timestamps are snapped to silence. Click OK to continue.</div>
+      </div>
+    </section>
+
+    <!-- ── Section 9: Review & Select ── -->
+    <section class="section" id="sec-review">
+      <div class="section-header">
+        <div class="section-number">9</div>
+        <div>
+          <div class="section-title">Review &amp; Select Deletions</div>
+          <div class="section-subtitle">Confirm which occurrences to remove before assembling</div>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 19</span>
+          <div>
+            <div class="step-title">Select all deletions</div>
+            <div class="step-desc">Click <strong>Select All</strong> to mark all auto-identified duplicates for deletion. You can also expand individual groups and deselect specific occurrences if needed.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-66-select-all-button-visible-2026-03-28T10-55-02-828Z.png" alt="Select all button visible" loading="lazy" />
+        <div class="img-caption">The <strong>Select All</strong> button marks all duplicate occurrences for deletion.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill done">Selected</span>
+          <div>
+            <div class="step-title">Deletions selected</div>
+            <div class="step-desc">All duplicate occurrences are now checked. The total count of selected deletions is shown in the toolbar. Review any groups by expanding them before proceeding.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-67-after-select-all-2026-03-28T10-55-04-077Z.png" alt="After select all" loading="lazy" />
+        <div class="img-caption">Duplicates selected. The count in the toolbar confirms how many segments will be cut.</div>
+      </div>
+
+      <div class="note">
+        <span class="icon">ℹ️</span>
+        <div><strong>The last occurrence of each duplicate group is always kept.</strong> Earlier occurrences are the ones deleted. This preserves the final, best-quality reading of each passage.</div>
+      </div>
+    </section>
+
+    <!-- ── Section 10: Assemble ── -->
+    <section class="section" id="sec-assemble">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <div>
+          <div class="section-title">Assemble &amp; Download</div>
+          <div class="section-subtitle">Generate the final clean audio file</div>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill">Step 20</span>
+          <div>
+            <div class="step-title">Click "Assemble"</div>
+            <div class="step-desc">Click the <strong>Assemble</strong> (or <strong>Confirm Deletions</strong>) button. A final confirmation dialog lists how many segments will be removed. Click <strong>OK</strong>.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-68-before-assemble-2026-03-28T10-55-04-309Z.png" alt="Before assemble" loading="lazy" />
+        <div class="img-caption">The <strong>Assemble</strong> button triggers the audio generation. Confirm the deletion count in the dialog.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill wait">Assembling</span>
+          <div>
+            <div class="step-title">Assembly in progress</div>
+            <div class="step-desc">The server cuts the duplicate segments from the audio and assembles a clean output file. A progress indicator is shown. This typically takes 1–5 minutes.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-69-assembly-started-2026-03-28T10-32-37-452Z.png" alt="Assembly in progress" loading="lazy" />
+        <div class="img-caption">Assembly in progress. The server is cutting and joining the audio segments.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill wait">Processing</span>
+          <div>
+            <div class="step-title">Waiting for assembly to complete</div>
+            <div class="step-desc">The page polls the server for progress updates. Keep this tab open.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-70-assembly-wait-5s-2026-03-28T10-55-12-869Z.png" alt="Waiting for assembly" loading="lazy" />
+        <div class="img-caption">Progress is reported every few seconds while the server processes the audio.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill done">Done</span>
+          <div>
+            <div class="step-title">Assembly complete</div>
+            <div class="step-desc">A success dialog confirms assembly is complete. Click <strong>OK</strong>. The app switches to the <strong>Results</strong> tab automatically.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-71-after-assembly-complete-2026-03-28T10-55-41-383Z.png" alt="Assembly complete" loading="lazy" />
+        <div class="img-caption">Assembly complete. The app is switching to the Results tab.</div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-card-header">
+          <span class="step-pill done">Results</span>
+          <div>
+            <div class="step-title">Results tab — download your clean audio</div>
+            <div class="step-desc">The <strong>Results</strong> tab shows the processed audio file. Click <strong>Download</strong> to save the clean WAV to your computer. The file has all duplicate passages removed.</div>
+          </div>
+        </div>
+        <img src="user-manual-screenshots/step-72-results-tab-active-2026-03-28T10-55-54-565Z.png" alt="Results tab" loading="lazy" />
+        <div class="img-caption">The Results tab with the assembled clean audio ready to download.</div>
+      </div>
+    </section>
+
+    <!-- ── Reference: Algorithms ── -->
+    <section class="section" id="sec-algorithms">
+      <div class="section-header">
+        <div class="section-number" style="background:var(--accent)">★</div>
+        <div>
+          <div class="section-title">Detection Algorithms</div>
+          <div class="section-subtitle">Choosing the right algorithm for your recording</div>
+        </div>
+      </div>
+
+      <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+        <thead>
+          <tr style="background:#f1f5f9;">
+            <th style="padding:10px 14px;text-align:left;border:1px solid var(--border);">Algorithm</th>
+            <th style="padding:10px 14px;text-align:left;border:1px solid var(--border);">Best For</th>
+            <th style="padding:10px 14px;text-align:left;border:1px solid var(--border);">Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:10px 14px;border:1px solid var(--border);font-weight:600;">TF-IDF Cosine</td>
+            <td style="padding:10px 14px;border:1px solid var(--border);">Short recordings, exact phrase repeats</td>
+            <td style="padding:10px 14px;border:1px solid var(--border);">Fast. Uses ≥0.85 cosine similarity. Good for clean recordings.</td>
+          </tr>
+          <tr style="background:#fafbfc;">
+            <td style="padding:10px 14px;border:1px solid var(--border);font-weight:600;">Retry-Aware Windowed</td>
+            <td style="padding:10px 14px;border:1px solid var(--border);">Standard audiobook recordings</td>
+            <td style="padding:10px 14px;border:1px solid var(--border);">Rolling 150-segment window. Balances speed vs. accuracy.</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 14px;border:1px solid var(--border);font-weight:600;">Retry-Aware + PDF</td>
+            <td style="padding:10px 14px;border:1px solid var(--border);">When PDF script is available</td>
+            <td style="padding:10px 14px;border:1px solid var(--border);">Adds a PDF position gate to reduce false positives in long books. <strong>Recommended when PDF is uploaded.</strong></td>
+          </tr>
+          <tr style="background:#fafbfc;">
+            <td style="padding:10px 14px;border:1px solid var(--border);font-weight:600;">Anchor Phrase Global</td>
+            <td style="padding:10px 14px;border:1px solid var(--border);">Recordings with widely spaced repeats</td>
+            <td style="padding:10px 14px;border:1px solid var(--border);">No window limit. Catches duplicates any distance apart.</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 14px;border:1px solid var(--border);font-weight:600;">Multi-Pass Highest Accuracy</td>
+            <td style="padding:10px 14px;border:1px solid var(--border);">Complex or long recordings</td>
+            <td style="padding:10px 14px;border:1px solid var(--border);">Runs all four passes and merges results. Slowest but most thorough. <strong>Best choice for audiobooks.</strong></td>
+          </tr>
+          <tr style="background:#fafbfc;">
+            <td style="padding:10px 14px;border:1px solid var(--border);font-weight:600;">AI Detection</td>
+            <td style="padding:10px 14px;border:1px solid var(--border);">When semantic similarity matters</td>
+            <td style="padding:10px 14px;border:1px solid var(--border);">Calls Claude claude-3-5-sonnet-20241022 to detect semantically similar passages. Requires API credits. Uses the same assembly flow as other algorithms.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ── Tips & Troubleshooting ── -->
+    <section class="section" id="sec-tips">
+      <div class="section-header">
+        <div class="section-number" style="background:var(--accent)">?</div>
+        <div>
+          <div class="section-title">Tips &amp; Troubleshooting</div>
+          <div class="section-subtitle">Common issues and how to resolve them</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <div class="step-card">
+          <div class="step-card-header">
+            <span class="step-pill" style="background:#dc2626;">Issue</span>
+            <div>
+              <div class="step-title">Transcription seems stuck</div>
+              <div class="step-desc">If the transcription progress has not changed for more than 20 minutes, refresh the page. The task continues running server-side and the UI will pick up where it left off. If the status shows <strong>Failed</strong>, try re-uploading the file.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card-header">
+            <span class="step-pill" style="background:#dc2626;">Issue</span>
+            <div>
+              <div class="step-title">Too many false positives detected</div>
+              <div class="step-desc">Switch to an algorithm that accepts a PDF: <strong>Retry-Aware + PDF</strong> or <strong>Multi-Pass</strong>. If no PDF is available, increase the similarity threshold in the advanced settings. You can also manually deselect individual occurrences before assembling.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card-header">
+            <span class="step-pill" style="background:#dc2626;">Issue</span>
+            <div>
+              <div class="step-title">Assembly fails or produces a corrupt file</div>
+              <div class="step-desc">This can happen if the audio file has unusual formatting. Try converting to standard 44.1 kHz 16-bit WAV using Audacity before uploading. Re-run detection and assembly after re-uploading.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card-header">
+            <span class="step-pill" style="background:#dc2626;">Issue</span>
+            <div>
+              <div class="step-title">Page state lost after browser refresh</div>
+              <div class="step-desc">Detection results are saved to both the server and the browser's local storage. Refreshing the page will restore them. If results are not restored, re-run detection — the previous results are cleared when a new detection run starts.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-card-header">
+            <span class="step-pill" style="background:#dc2626;">Issue</span>
+            <div>
+              <div class="step-title">AI detection returns no groups</div>
+              <div class="step-desc">The AI model may not have found duplicates above the similarity threshold. Try lowering the <strong>Similarity Threshold</strong> slider or switching to a dictionary-based algorithm instead.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tip">
+          <span class="icon">💡</span>
+          <div><strong>Best practice:</strong> For audiobook chapter files, use <strong>Multi-Pass + PDF</strong> with the similarity threshold at the default 0.85. Run <strong>Align to Silence</strong> before every assembly. Download the output and listen to the first few transitions before distributing.</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Appendix: Quick Reference ── -->
+    <section class="section" id="sec-appendix">
+      <div class="section-header">
+        <div class="section-number" style="background:var(--accent)">📋</div>
+        <div>
+          <div class="section-title">Appendix: Quick Reference</div>
+          <div class="section-subtitle">Jump to the section you need</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;">
+        
+        <!-- Getting Started Quick Links -->
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:20px;">
+          <h4 style="font-size:1.05rem;font-weight:700;margin-bottom:14px;color:var(--primary);">🚀 Getting Started</h4>
+          <ul style="list-style:none;padding:0;margin:0;font-size:.9rem;">
+            <li style="margin-bottom:8px;"><a href="#sec-overview" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">→ Overview &amp; Workflow</a></li>
+            <li style="margin-bottom:8px;"><a href="#sec-prereqs" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">→ Prerequisites</a></li>
+            <li style="margin-bottom:8px;"><a href="#sec-login" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">Step 1: Sign In</a></li>
+            <li style="margin-bottom:8px;"><a href="#sec-project" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">Step 2: Create a Project</a></li>
+          </ul>
+        </div>
+
+        <!-- Upload & Transcription Quick Links -->
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:20px;">
+          <h4 style="font-size:1.05rem;font-weight:700;margin-bottom:14px;color:var(--primary);">🎵 Upload &amp; Transcription</h4>
+          <ul style="list-style:none;padding:0;margin:0;font-size:.9rem;">
+            <li style="margin-bottom:8px;"><a href="#sec-upload" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">Step 3: Upload Audio</a></li>
+            <li style="margin-bottom:8px;"><a href="#sec-transcribe" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">Step 4: Transcription</a></li>
+            <li style="margin-bottom:8px;"><a href="#sec-pdf" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">Step 5: Upload PDF Script</a></li>
+          </ul>
+        </div>
+
+        <!-- Duplicate Detection Quick Links -->
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:20px;">
+          <h4 style="font-size:1.05rem;font-weight:700;margin-bottom:14px;color:var(--primary);">🔍 Duplicate Detection</h4>
+          <ul style="list-style:none;padding:0;margin:0;font-size:.9rem;">
+            <li style="margin-bottom:8px;"><a href="#sec-dup-tab" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">Step 6: Open Duplicates Tab</a></li>
+            <li style="margin-bottom:8px;"><a href="#sec-detect" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">Step 7: Run Detection</a></li>
+            <li style="margin-bottom:8px;"><a href="#sec-algorithms" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">→ Algorithm Reference</a></li>
+          </ul>
+        </div>
+
+        <!-- Processing & Assembly Quick Links -->
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:20px;">
+          <h4 style="font-size:1.05rem;font-weight:700;margin-bottom:14px;color:var(--primary);">✂️ Processing &amp; Assembly</h4>
+          <ul style="list-style:none;padding:0;margin:0;font-size:.9rem;">
+            <li style="margin-bottom:8px;"><a href="#sec-align" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">Step 8: Align to Silence</a></li>
+            <li style="margin-bottom:8px;"><a href="#sec-review" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">Step 9: Review &amp; Select</a></li>
+            <li style="margin-bottom:8px;"><a href="#sec-assemble" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">Step 10: Assemble &amp; Download</a></li>
+          </ul>
+        </div>
+
+        <!-- Help & Troubleshooting Quick Links -->
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:20px;">
+          <h4 style="font-size:1.05rem;font-weight:700;margin-bottom:14px;color:var(--primary);">❓ Help &amp; Reference</h4>
+          <ul style="list-style:none;padding:0;margin:0;font-size:.9rem;">
+            <li style="margin-bottom:8px;"><a href="#sec-tips" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">→ Tips &amp; Troubleshooting</a></li>
+            <li style="margin-bottom:8px;"><a href="#sec-algorithms" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">→ Detection Algorithms</a></li>
+            <li style="margin-bottom:8px;"><a href="https://audio.precisepouchtrack.com" target="_blank" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">🌐 Open Application</a></li>
+          </ul>
+        </div>
+
+        <!-- Common Tasks Quick Links -->
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:20px;">
+          <h4 style="font-size:1.05rem;font-weight:700;margin-bottom:14px;color:var(--primary);">⚡ Common Tasks</h4>
+          <ul style="list-style:none;padding:0;margin:0;font-size:.9rem;">
+            <li style="margin-bottom:8px;"><a href="#sec-upload" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">↗ How to upload audio</a></li>
+            <li style="margin-bottom:8px;"><a href="#sec-detect" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">↗ Choose an algorithm</a></li>
+            <li style="margin-bottom:8px;"><a href="#sec-align" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">↗ Align cut points</a></li>
+            <li style="margin-bottom:8px;"><a href="#sec-assemble" style="color:var(--text);text-decoration:none;display:block;padding:4px 0;border-bottom:1px solid #f1f5f9;">↗ Download clean audio</a></li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div class="note" style="margin-top:28px;">
+        <span class="icon">💡</span>
+        <div><strong>Tip:</strong> Use the sticky sidebar on the left to navigate between sections while reading. Click any heading to jump directly to that part of the manual.</div>
+      </div>
+    </section>
+
+    <footer style="margin-top:48px;padding:24px 0;border-top:1px solid var(--border);color:var(--text-muted);font-size:.85rem;">
+      Audio Duplicate Detection · User Manual · Generated March 28, 2026 from automated Playwright end-to-end tests · <a href="https://audio.precisepouchtrack.com" style="color:var(--primary);">audio.precisepouchtrack.com</a>
+    </footer>
+
+  </main>
+</div>
+
+<script>
+  // Highlight active TOC link on scroll
+  const sections = document.querySelectorAll('.section[id]');
+  const tocLinks = document.querySelectorAll('nav.toc a[href^="#"]');
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach(entry => {
+        const link = document.querySelector(`nav.toc a[href="#${entry.target.id}"]`);
+        if (link) link.classList.toggle('active', entry.isIntersecting);
+      });
+    },
+    { rootMargin: '-20% 0px -70% 0px' }
+  );
+  sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>

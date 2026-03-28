@@ -7,11 +7,12 @@ and PDF comparison using Anthropic Claude or OpenAI.
 from ._base import *
 from audioDiagnostic.services.ai import DuplicateDetector, CostCalculator
 from audioDiagnostic.models import (
-    AudioFile, 
+    AudioFile,
     AudioProject,
     AIDuplicateDetectionResult,
     AIPDFComparisonResult,
-    AIProcessingLog
+    AIProcessingLog,
+    DuplicateGroup,
 )
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -254,7 +255,110 @@ def ai_detect_duplicates_task(
             f"cost: ${cost:.4f}, "
             f"result_id: {detection_result.id}"
         )
-        
+
+        # --- Write standard DuplicateGroup rows and TranscriptionSegment flags ---
+        # This makes the AI path identical to the non-AI path so the same review /
+        # deletion / assembly flow works unchanged (Gaps 1, 2, 4, 5).
+        r.set(f"progress:{task_id}", 65)
+        r.set(f"status:{task_id}", json.dumps({
+            'status': 'processing',
+            'message': 'Writing duplicate groups to database...'
+        }))
+        try:
+            from .duplicate_tasks import refine_duplicate_timestamps_task
+
+            # Clear any previously detected groups for this file
+            DuplicateGroup.objects.filter(audio_file=audio_file).delete()
+
+            segments_to_update = []
+            for group_index, ai_group in enumerate(duplicate_groups):
+                occurrences = ai_group.get('occurrences', [])
+                if not occurrences:
+                    continue
+
+                # Gather all segment PKs, honouring the AI 'action' field
+                all_segment_pks = []
+                keep_segment_pks = set()
+                for occ in occurrences:
+                    pk_list = occ.get('segment_ids') or []
+                    if not pk_list and occ.get('segment_id'):
+                        pk_list = [occ['segment_id']]
+                    action = occ.get('action', '')
+                    for pk in pk_list:
+                        all_segment_pks.append(int(pk))
+                        if action == 'keep':
+                            keep_segment_pks.add(int(pk))
+
+                if not all_segment_pks:
+                    continue
+
+                # Fetch real segment objects — use DB timestamps, not LLM timestamps
+                db_segments = list(
+                    TranscriptionSegment.objects.filter(
+                        id__in=all_segment_pks,
+                        transcription=audio_file.transcription
+                    ).order_by('start_time')
+                )
+
+                if not db_segments:
+                    continue
+
+                # If AI gave no explicit 'keep', keep the last occurrence (non-AI default)
+                if not keep_segment_pks:
+                    keep_segment_pks = {db_segments[-1].id}
+
+                total_duration = sum(
+                    max(0.0, (s.end_time or 0.0) - (s.start_time or 0.0))
+                    for s in db_segments
+                    if s.id not in keep_segment_pks
+                )
+
+                group_db_id = f"group_{audio_file_id}_{group_index + 1}"
+                DuplicateGroup.objects.create(
+                    audio_file=audio_file,
+                    group_id=group_db_id,
+                    duplicate_text=(
+                        ai_group.get('duplicate_text') or db_segments[0].text
+                    )[:500],
+                    occurrence_count=len(db_segments),
+                    total_duration_seconds=total_duration,
+                )
+
+                for seg in db_segments:
+                    seg.duplicate_group_id = group_db_id
+                    seg.is_kept = seg.id in keep_segment_pks
+                    seg.is_duplicate = seg.id not in keep_segment_pks
+                    segments_to_update.append(seg)
+
+            if segments_to_update:
+                TranscriptionSegment.objects.bulk_update(
+                    segments_to_update,
+                    ['duplicate_group_id', 'is_duplicate', 'is_kept']
+                )
+
+            groups_written = DuplicateGroup.objects.filter(audio_file=audio_file).count()
+            logger.info(
+                f"Wrote {groups_written} DuplicateGroup rows and updated "
+                f"{len(segments_to_update)} TranscriptionSegment flags "
+                f"for audio_file_id={audio_file_id}"
+            )
+
+            # Chain timestamp refinement — snaps boundaries to silence (same as non-AI path)
+            if groups_written > 0:
+                refine_duplicate_timestamps_task.apply_async(args=[audio_file_id])
+                logger.info(
+                    f"Chained refine_duplicate_timestamps_task for audio_file_id={audio_file_id}"
+                )
+
+        except Exception as db_write_err:
+            # Non-fatal: the AIDuplicateDetectionResult is already saved.
+            # Log the failure but let the task succeed so the user gets results.
+            logger.error(
+                f"Failed to write DuplicateGroup rows for audio_file_id={audio_file_id}: "
+                f"{db_write_err}",
+                exc_info=True
+            )
+
         # Optionally run paragraph expansion
         if enable_paragraph_expansion and duplicate_count > 0:
             r.set(f"progress:{task_id}", 70)

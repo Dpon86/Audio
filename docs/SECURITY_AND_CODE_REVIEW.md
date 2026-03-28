@@ -14,7 +14,7 @@ Total issues found: **28**
 - 🔴 Critical: 6 — ✅ All resolved (2026-03-28)
 - 🟠 High: 6 — ✅ All resolved (2026-03-28)
 - 🟡 Medium: 9 — ✅ All resolved (2026-03-28)
-- 🔵 Low: 7 — ✅ 5 resolved (2026-03-28), 2 require manual steps (L1, L6)
+- 🔵 Low: 7 — ✅ All resolved (2026-03-28)
 
 ---
 
@@ -283,12 +283,12 @@ class LoginRateThrottle(AnonRateThrottle):
 
 | # | Issue | File | Status |
 |---|-------|------|--------|
-| L1 | Dead-code files: `tasks_old.py`, `views_old.py`, `split_tasks.py`, `split_views.py` — delete or archive | `backend/audioDiagnostic/` | ⚠️ Manual — delete the 4 files in Explorer or `git rm` |
+| L1 | ✅ Dead-code files deleted: `tasks_old.py`, `views_old.py`, `split_tasks.py`, `split_views.py` | `backend/audioDiagnostic/` | ✅ 2026-03-28 |
 | L2 | ✅ Logs moved from `MEDIA_ROOT/logs/` to `BASE_DIR/logs/` — no longer publicly accessible via `/media/` URL | `backend/myproject/settings.py` | ✅ 2026-03-28 |
 | L3 | ✅ Legacy routes `/AudioUpload`, `/EditPage`, `/PDFAnalysis` wrapped in `<ProtectedRoute>` | `frontend/.../App.js` | ✅ 2026-03-28 |
 | L4 | ✅ Temp files now cleaned up on exception in `cut_audio` — unlinks moved to `finally` block | `backend/audioDiagnostic/views/legacy_views.py` | ✅ 2026-03-28 |
 | L5 | ✅ Wrong reverse accessor fixed: `audiofile_set.count()` → `audio_files.count()` | `backend/audioDiagnostic/serializers.py` | ✅ 2026-03-28 |
-| L6 | Docker images not digest-pinned — run on server once: `docker inspect postgres:15-alpine --format='{{index .RepoDigests 0}}'` then pin in compose as `postgres@sha256:<hash>` | `docker-compose.production.yml` | ⚠️ Manual — run on server |
+| L6 | ✅ Docker images digest-pinned in `docker-compose.production.yml` | `docker-compose.production.yml` | ✅ 2026-03-28 |
 | L7 | ✅ Duplicate `throttle_classes = [ProcessRateThrottle]` line removed | `backend/audioDiagnostic/views/processing_views.py` | ✅ 2026-03-28 |
 
 ---
@@ -315,6 +315,4 @@ class LoginRateThrottle(AnonRateThrottle):
 
 ### Ongoing
 - ~~Address all Medium items during normal sprint work~~ ✅
-- ~~Address Low items L2–L5, L7~~ ✅ (2026-03-28)
-- L1: Delete 4 dead-code files manually (`tasks_old.py`, `views_old.py`, `split_tasks.py`, `split_views.py`)
-- L6: Pin Docker image digests on server — run `docker inspect postgres:15-alpine --format='{{index .RepoDigests 0}}'` and `docker inspect redis:7-alpine --format='{{index .RepoDigests 0}}'`, then update `docker-compose.production.yml`
+- ~~Address Low items L2–L7~~ ✅ (2026-03-28)
