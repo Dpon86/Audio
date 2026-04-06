@@ -374,6 +374,25 @@ docker compose down
 
 ---
 
+## 🤖 **Additional Projects**
+
+### Precise Robotics - Automated Medication Packing System
+
+This repository also contains comprehensive documentation for a modular, low-cost medication packing robot designed for paramedic medicine bags. The system automates the process of safely packing medications into pouches with complete verification and logging.
+
+📁 **[View Precise Robotics Documentation](./precise-robotics/)**
+
+Key features:
+- Complete project brief and workflow
+- Detailed bill of materials ($795-$1,595)
+- Step-by-step assembly guide (20-40 hours build time)
+- Software integration documentation
+- Technical specifications
+
+Perfect for: Healthcare facilities, emergency services, educational robotics projects
+
+---
+
 ## 📄 **License**
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
