@@ -38,6 +38,7 @@ stripe==12.2.0
 # File processing
 openpyxl==3.1.5
 PyMuPDF>=1.23.0  # For PDF text extraction in Tab 4 (using latest pre-built)
+PyPDF2>=3.0.0  # For PDF reading in transcription tasks
 
 # Core dependencies (automatically installed with above, but listed for clarity)
 asgiref==3.8.1

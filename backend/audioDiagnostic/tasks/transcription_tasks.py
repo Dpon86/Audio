@@ -11,7 +11,7 @@ from .transcription_utils import (
 
 
 # ---------------------------------------------------------------------------
-# Whisper model singleton — loaded once per Celery worker, not per task call
+# Whisper model singleton ï¿½ loaded once per Celery worker, not per task call
 # ---------------------------------------------------------------------------
 _whisper_model = None
 
@@ -516,7 +516,6 @@ def transcribe_audio_words_task(self, audio_path, audio_url):
 from celery import shared_task
 import difflib
 import re
-from PyPDF2 import PdfReader
 
 def split_segment_to_sentences(seg, next_segment_start=None, audio_end=None):
     import logging
