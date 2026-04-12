@@ -334,12 +334,6 @@ STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
 
 # Validate Stripe keys if billing features are enabled
 if not all([STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET]):
-    if not DEBUG:
-        from django.core.exceptions import ImproperlyConfigured
-        raise ImproperlyConfigured(
-            "STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, and STRIPE_WEBHOOK_SECRET "
-            "must all be set in production."
-        )
     import warnings
     warnings.warn(
         "Stripe keys not configured. Set STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, "
