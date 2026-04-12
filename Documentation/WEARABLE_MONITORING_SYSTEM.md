@@ -23,8 +23,18 @@
 10. [Step 5 — Firmware Development](#10-step-5--firmware-development)
 11. [Step 6 — Testing & Validation](#11-step-6--testing--validation)
 12. [Step 7 — Data Logging & Wireless Streaming](#12-step-7--data-logging--wireless-streaming)
-13. [Troubleshooting Guide](#13-troubleshooting-guide)
-14. [Next Steps: Moving to Custom PCB](#14-next-steps-moving-to-custom-pcb)
+13. [Step 8 — AI / Machine Learning Integration](#13-step-8--ai--machine-learning-integration)
+    - 13.1 [AI Architecture Overview](#131-ai-architecture-overview)
+    - 13.2 [Phase 1 — Data Collection & Labelling](#132-phase-1--data-collection--labelling)
+    - 13.3 [Phase 2 — Feature Engineering](#133-phase-2--feature-engineering)
+    - 13.4 [Phase 3 — Model Training](#134-phase-3--model-training)
+    - 13.5 [Phase 4 — On-Device Inference (Edge AI)](#135-phase-4--on-device-inference-edge-ai)
+    - 13.6 [Phase 5 — Cloud AI Pipeline](#136-phase-5--cloud-ai-pipeline)
+    - 13.7 [AI Use Cases & Target Models](#137-ai-use-cases--target-models)
+    - 13.8 [AI Validation & Testing](#138-ai-validation--testing)
+    - 13.9 [AI Development Checklist](#139-ai-development-checklist)
+14. [Troubleshooting Guide](#14-troubleshooting-guide)
+15. [Next Steps: Moving to Custom PCB](#15-next-steps-moving-to-custom-pcb)
 
 ---
 
@@ -57,28 +67,49 @@ Build a developmental prototype wearable device that captures high-quality physi
 ## 2. System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   Li-ion Battery (500–1000 mAh)          │
-│                         │                               │
-│                  BQ25895 Charger                         │
-│                         │                               │
-│               3.3 V LDO Regulator                        │
-│                         │                               │
-│         ┌───────────────┼───────────────┐                │
-│         │               │               │                │
-│   MCU (nRF5340 DK   or ESP32-S3)        │                │
-│   ├── SPI Bus                           │                │
-│   │   ├── MAX30003 (ECG)                │                │
-│   │   ├── ADS1298R (multi-lead ECG*)    │                │
-│   │   ├── AFE4300  (bio-impedance*)     │                │
-│   │   └── ICM-42688-P (IMU)            │                │
-│   └── I²C Bus                          │                │
-│       ├── MAX30102 (SpO₂/HR)           │                │
-│       └── STS40-AD (Temperature)       │                │
-│                                        │                │
-│   BLE 5.x ──────────────────────────► Mobile App /     │
-│   (optional SD card logging)           Cloud Dashboard  │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                   Li-ion Battery (500–1000 mAh)                  │
+│                         │                                        │
+│                  BQ25895 Charger                                  │
+│                         │                                        │
+│               3.3 V LDO Regulator                                 │
+│                         │                                        │
+│         ┌───────────────┼───────────────┐                         │
+│         │               │               │                         │
+│   MCU (nRF5340 DK   or ESP32-S3)        │                         │
+│   ├── SPI Bus                           │                         │
+│   │   ├── MAX30003 (ECG)                │                         │
+│   │   ├── ADS1298R (multi-lead ECG*)    │                         │
+│   │   ├── AFE4300  (bio-impedance*)     │                         │
+│   │   └── ICM-42688-P (IMU)            │                         │
+│   └── I²C Bus                          │                         │
+│       ├── MAX30102 (SpO₂/HR)           │                         │
+│       └── STS40-AD (Temperature)       │                         │
+│                                                                   │
+│   ┌─────────────────────────────────────────────────────────┐    │
+│   │            Edge AI Layer (On-Device Inference)           │    │
+│   │  TFLite Micro / Edge Impulse runtime                     │    │
+│   │  ├── Arrhythmia detector  (ECG CNN/LSTM)                 │    │
+│   │  ├── SpO₂ anomaly flag    (PPG threshold + ML)           │    │
+│   │  ├── Activity classifier  (IMU CNN)                      │    │
+│   │  ├── Fall detector        (IMU threshold + ML)           │    │
+│   │  └── Motion artifact gate (IMU → ECG/PPG quality)       │    │
+│   └──────────────────────────┬──────────────────────────────┘    │
+│                               │                                   │
+│   BLE 5.x ────────────────────┴──────────────────►               │
+│   (raw signals + AI inference results + SD logging)               │
+│                               │                                   │
+│                     ┌─────────┴──────────┐                        │
+│                     │   Mobile App        │                        │
+│                     │ (real-time display) │                        │
+│                     └─────────┬──────────┘                        │
+│                               │  Wi-Fi / LTE                      │
+│                     ┌─────────┴──────────┐                        │
+│                     │  Cloud AI Pipeline  │                        │
+│                     │ (retraining, fleet  │                        │
+│                     │  analytics, alerts) │                        │
+│                     └────────────────────┘                        │
+└─────────────────────────────────────────────────────────────────┘
 
 * Optional sensors
 ```
@@ -910,22 +941,698 @@ Raw ECG
   → Pan-Tompkins QRS detector
   → R-R interval extraction
   → Heart rate variability (HRV) metrics
+  → AI model input (see Section 13)
 
 Raw PPG
   → 0.5–10 Hz bandpass filter
   → AC/DC decomposition
   → SpO2 calculation (R-of-Ratios)
   → Pulse rate extraction
+  → AI model input (see Section 13)
 
 IMU
   → Complementary filter (accel + gyro)
   → Posture detection (angle thresholds)
   → Motion artifact flag (when |acceleration| > 1.2 g)
+  → Activity classification AI model input (see Section 13)
+```
+
+> For on-device real-time AI inference and the full cloud AI training pipeline, see **[Step 8 — AI / Machine Learning Integration](#13-step-8--ai--machine-learning-integration)**.
+
+---
+
+## 13. Step 8 — AI / Machine Learning Integration
+
+### 13.1 AI Architecture Overview
+
+The AI layer sits between raw sensor data and clinical/user-facing outputs. It operates at two levels:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  LEVEL 1 — Edge AI (On-Device, Real-Time)                     │
+│  Runs directly on the nRF5340 / ESP32-S3                      │
+│  ┌────────────────┐  ┌──────────────────┐  ┌───────────────┐ │
+│  │ Motion Artifact│  │ Activity / Fall   │  │ Arrhythmia   │ │
+│  │ Gate           │  │ Classifier (IMU)  │  │ Screener     │ │
+│  │ (IMU → ECG/PPG)│  │ TFLite Micro      │  │ (ECG LSTM)   │ │
+│  └────────────────┘  └──────────────────┘  └───────────────┘ │
+└──────────────────────────────┬───────────────────────────────┘
+                                │  BLE — labeled inferences
+┌──────────────────────────────┴───────────────────────────────┐
+│  LEVEL 2 — Cloud AI (Server / Mobile, Offline + Online)       │
+│  Runs on mobile app backend or cloud server                   │
+│  ┌────────────────┐  ┌──────────────────┐  ┌───────────────┐ │
+│  │ SpO₂ Trend     │  │ HRV / Stress     │  │ Model Re-     │ │
+│  │ Anomaly Detect │  │ Analysis         │  │ training Loop │ │
+│  └────────────────┘  └──────────────────┘  └───────────────┘ │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Design principle:** Keep latency-critical, safety-critical inferences (motion artifact gating, arrhythmia screening) on-device. Push compute-heavy, personalization, and trend analysis to the cloud.
+
+---
+
+### 13.2 Phase 1 — Data Collection & Labelling
+
+Before training any model you need a labelled dataset. Use the prototype itself to collect data.
+
+#### 13.2.1 Data Collection Setup
+
+1. Set up the Python BLE streaming tool from Section 12.1 to record raw binary packets to disk.
+2. Record sessions covering all target conditions:
+
+| Condition | Duration | Notes |
+|---|---|---|
+| Resting (sitting) | 5 min | Baseline ECG, PPG, temperature |
+| Resting (supine) | 5 min | Baseline + postural comparison |
+| Walking (3–5 km/h) | 5 min | Motion artifact source |
+| Running (8–10 km/h) | 5 min | High-intensity motion artifact |
+| Stair climbing | 3 min | Sudden acceleration events |
+| Simulated arrhythmia* | — | Use synthetic ECG signal injector |
+| Low SpO₂ simulation* | — | Breath-holding (see note below) |
+
+> **Safety note:** Do not deliberately induce hypoxia for data collection. Use public open-access datasets for SpO₂ anomaly ground truth (PhysioNet MIMIC, MESA).
+
+#### 13.2.2 Open-Access Datasets
+
+Supplement your own recordings with established benchmark datasets:
+
+| Dataset | Signals | URL |
+|---|---|---|
+| PhysioNet MIT-BIH Arrhythmia | ECG | https://physionet.org/content/mitdb/ |
+| PhysioNet MESA | ECG, SpO₂, IMU | https://sleepdata.org/datasets/mesa |
+| PTB-XL | 12-lead ECG | https://physionet.org/content/ptb-xl/ |
+| BIDMC PPG + Resp | PPG, ECG, SpO₂ | https://physionet.org/content/bidmc/ |
+| UCI HAR (Activity) | IMU (Accel + Gyro) | https://archive.ics.uci.edu/dataset/240/human+activity+recognition+using+smartphones |
+| MoRe-Fall (Fall Detection) | IMU | https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6406321/ |
+
+#### 13.2.3 Data Labelling
+
+Use annotation tools to label segments:
+
+| Tool | Purpose | URL |
+|---|---|---|
+| Label Studio | General time-series labelling | https://labelstud.io |
+| WFDB Viewer | ECG waveform annotation | https://physionet.org/content/wfdb-python/ |
+| SigViewer | ECG / BioSignal annotation | https://github.com/cbrnr/sigviewer |
+
+Label at minimum:
+- ECG: **Normal sinus rhythm**, **Atrial fibrillation**, **Premature ventricular contraction (PVC)**, **Noise/artifact**
+- PPG: **Good contact**, **Motion artifact**, **Low perfusion**
+- IMU: **Stationary**, **Walking**, **Running**, **Stair climbing**, **Fall**, **Unknown**
+
+---
+
+### 13.3 Phase 2 — Feature Engineering
+
+Extract features from the labelled signals before model training.
+
+#### 13.3.1 ECG Features
+
+```python
+import numpy as np
+import neurokit2 as nk
+
+def extract_ecg_features(ecg_signal, fs=512):
+    """Extract time-domain and frequency-domain HRV features from ECG."""
+    # Clean and find R-peaks
+    ecg_cleaned = nk.ecg_clean(ecg_signal, sampling_rate=fs)
+    _, rpeaks = nk.ecg_peaks(ecg_cleaned, sampling_rate=fs)
+
+    # HRV time-domain features
+    hrv_time = nk.hrv_time(rpeaks, sampling_rate=fs)
+
+    # HRV frequency-domain features
+    hrv_freq = nk.hrv_frequency(rpeaks, sampling_rate=fs)
+
+    # Morphology features (QRS width, PR interval, QT interval)
+    _, waves = nk.ecg_delineate(ecg_cleaned, rpeaks, sampling_rate=fs)
+
+    features = {
+        "mean_rr":   hrv_time["HRV_MeanNN"].values[0],
+        "sdnn":      hrv_time["HRV_SDNN"].values[0],
+        "rmssd":     hrv_time["HRV_RMSSD"].values[0],
+        "pnn50":     hrv_time["HRV_pNN50"].values[0],
+        "lf_power":  hrv_freq["HRV_LF"].values[0],
+        "hf_power":  hrv_freq["HRV_HF"].values[0],
+        "lf_hf":     hrv_freq["HRV_LFHF"].values[0],
+    }
+    return features
+```
+
+#### 13.3.2 PPG Features
+
+```python
+def extract_ppg_features(red_signal, ir_signal, fs=100):
+    """Extract SpO2, pulse rate, perfusion index from raw PPG."""
+    # AC/DC decomposition
+    from scipy.signal import butter, filtfilt
+
+    def bandpass(sig, low=0.5, high=10, fs=fs):
+        b, a = butter(4, [low/(fs/2), high/(fs/2)], btype='band')
+        return filtfilt(b, a, sig)
+
+    red_ac = bandpass(red_signal)
+    ir_ac  = bandpass(ir_signal)
+
+    red_dc = np.mean(red_signal)
+    ir_dc  = np.mean(ir_signal)
+
+    # Ratio of ratios → SpO2 (calibration needed for clinical accuracy)
+    R = (np.std(red_ac) / red_dc) / (np.std(ir_ac) / ir_dc)
+    spo2_estimate = 110.0 - 25.0 * R  # simplified formula for R&D only
+
+    # Perfusion index
+    pi = (np.ptp(ir_ac) / ir_dc) * 100
+
+    return {"spo2_estimate": spo2_estimate, "perfusion_index": pi}
+```
+
+#### 13.3.3 IMU Features (Activity Classification)
+
+```python
+def extract_imu_features(accel_xyz, gyro_xyz, fs=100, window_sec=2.56):
+    """Extract statistical features from a sliding IMU window."""
+    n = int(window_sec * fs)
+    features = {}
+
+    for i, axis in enumerate(['x', 'y', 'z']):
+        a = accel_xyz[:n, i]
+        g = gyro_xyz[:n, i]
+
+        features[f"accel_{axis}_mean"]  = np.mean(a)
+        features[f"accel_{axis}_std"]   = np.std(a)
+        features[f"accel_{axis}_max"]   = np.max(np.abs(a))
+        features[f"accel_{axis}_energy"]= np.sum(a**2) / n
+
+        features[f"gyro_{axis}_mean"]   = np.mean(g)
+        features[f"gyro_{axis}_std"]    = np.std(g)
+
+    # Signal magnitude area (SMA) — motion intensity metric
+    features["sma"] = np.sum(
+        np.abs(accel_xyz[:n, 0]) +
+        np.abs(accel_xyz[:n, 1]) +
+        np.abs(accel_xyz[:n, 2])
+    ) / n
+
+    return features
 ```
 
 ---
 
-## 13. Troubleshooting Guide
+### 13.4 Phase 3 — Model Training
+
+#### 13.4.1 Recommended Frameworks & Tools
+
+| Tool | Purpose | Notes |
+|---|---|---|
+| **Edge Impulse Studio** | End-to-end edge ML platform | Drag-and-drop pipeline; direct export to TFLite Micro / nRF SDK |
+| **TensorFlow / Keras** | Model training | Full flexibility; export to TFLite for deployment |
+| **PyTorch + ONNX** | Research-grade training | Export via ONNX → TFLite conversion |
+| **scikit-learn** | Classical ML (SVM, RF, XGBoost) | Fast baselines; feature-based models |
+| **NeuroKit2** | ECG/PPG signal processing | Python library for physiological signal feature extraction |
+| **Weights & Biases** | Experiment tracking | Log training runs, hyperparameters, metrics |
+
+#### 13.4.2 ECG Arrhythmia Screener — CNN-LSTM Model
+
+```python
+import tensorflow as tf
+from tensorflow import keras
+
+def build_ecg_cnn_lstm(input_len=1024, n_classes=4):
+    """
+    1D CNN + LSTM for ECG rhythm classification.
+    Input:  (batch, input_len, 1) — 2-second ECG window at 512 Hz
+    Output: (batch, n_classes)    — [Normal, AF, PVC, Noise]
+    """
+    inp = keras.Input(shape=(input_len, 1))
+
+    # 1D CNN feature extraction
+    x = keras.layers.Conv1D(32, kernel_size=7, activation='relu', padding='same')(inp)
+    x = keras.layers.BatchNormalization()(x)
+    x = keras.layers.MaxPooling1D(2)(x)
+
+    x = keras.layers.Conv1D(64, kernel_size=5, activation='relu', padding='same')(x)
+    x = keras.layers.BatchNormalization()(x)
+    x = keras.layers.MaxPooling1D(2)(x)
+
+    x = keras.layers.Conv1D(128, kernel_size=3, activation='relu', padding='same')(x)
+    x = keras.layers.BatchNormalization()(x)
+    x = keras.layers.MaxPooling1D(2)(x)
+
+    # LSTM temporal modelling
+    x = keras.layers.LSTM(64, return_sequences=False)(x)
+    x = keras.layers.Dropout(0.3)(x)
+
+    out = keras.layers.Dense(n_classes, activation='softmax')(x)
+
+    model = keras.Model(inp, out)
+    model.compile(
+        optimizer='adam',
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy']
+    )
+    return model
+
+model = build_ecg_cnn_lstm()
+model.summary()
+```
+
+**Target performance (MIT-BIH benchmark):**
+- Sensitivity (AF): > 95%
+- Specificity (Normal): > 97%
+- Latency on nRF5340: < 20 ms per 2-second window
+
+---
+
+#### 13.4.3 Activity / Fall Classifier — IMU CNN
+
+```python
+def build_imu_cnn(input_len=256, n_axes=6, n_classes=6):
+    """
+    1D CNN for activity recognition from IMU data.
+    Input:  (batch, input_len, n_axes) — 2.56 s window, 100 Hz, 6-axis
+    Output: (batch, n_classes)         — [Stationary, Walk, Run, Stairs, Fall, Unknown]
+    """
+    inp = keras.Input(shape=(input_len, n_axes))
+
+    x = keras.layers.Conv1D(64, kernel_size=5, activation='relu', padding='same')(inp)
+    x = keras.layers.BatchNormalization()(x)
+    x = keras.layers.MaxPooling1D(2)(x)
+
+    x = keras.layers.Conv1D(128, kernel_size=3, activation='relu', padding='same')(x)
+    x = keras.layers.BatchNormalization()(x)
+    x = keras.layers.GlobalAveragePooling1D()(x)
+
+    x = keras.layers.Dense(64, activation='relu')(x)
+    x = keras.layers.Dropout(0.25)(x)
+    out = keras.layers.Dense(n_classes, activation='softmax')(x)
+
+    model = keras.Model(inp, out)
+    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    return model
+```
+
+#### 13.4.4 HRV / Stress Regression Model
+
+```python
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+# Feature vector: [sdnn, rmssd, pnn50, lf_power, hf_power, lf_hf, spo2, skin_temp]
+# Target: validated stress score (e.g., from PSS questionnaire labels)
+
+stress_model = Pipeline([
+    ('scaler', StandardScaler()),
+    ('regressor', GradientBoostingRegressor(n_estimators=200, max_depth=4))
+])
+
+# stress_model.fit(X_train, y_train)
+```
+
+---
+
+#### 13.4.5 Model Quantization (Float32 → INT8 for Edge Deployment)
+
+```python
+import tensorflow as tf
+
+def quantize_model(keras_model, representative_dataset_fn):
+    """
+    Post-training INT8 quantization for TFLite Micro deployment.
+    representative_dataset_fn: generator yielding sample input batches.
+    """
+    converter = tf.lite.TFLiteConverter.from_keras_model(keras_model)
+    converter.optimizations = [tf.lite.Optimize.DEFAULT]
+    converter.representative_dataset = representative_dataset_fn
+    converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+    converter.inference_input_type  = tf.int8
+    converter.inference_output_type = tf.int8
+
+    tflite_model = converter.convert()
+    with open('ecg_arrhythmia_int8.tflite', 'wb') as f:
+        f.write(tflite_model)
+
+    print(f"Model size: {len(tflite_model) / 1024:.1f} KB")
+    return tflite_model
+```
+
+**Memory budget targets for nRF5340 (512 KB RAM, 1 MB Flash):**
+
+| Model | Flash (quantized) | RAM (activations) | Inference time |
+|---|---|---|---|
+| ECG arrhythmia CNN-LSTM | ~80–120 KB | ~40 KB | ~15 ms |
+| IMU activity classifier CNN | ~30–50 KB | ~15 KB | ~5 ms |
+| Motion artifact gate | ~10 KB | ~5 KB | ~1 ms |
+
+---
+
+### 13.5 Phase 4 — On-Device Inference (Edge AI)
+
+#### 13.5.1 Option A — Edge Impulse (Recommended for Rapid Prototyping)
+
+Edge Impulse provides a full end-to-end pipeline from data collection to on-device deployment with direct nRF5340 and ESP32-S3 board support.
+
+**Workflow:**
+
+```
+1. Create project at studio.edgeimpulse.com
+2. Connect device via Edge Impulse CLI:
+   npm install -g edge-impulse-cli
+   edge-impulse-daemon
+3. Upload labelled sensor data from CSV/binary files
+4. Configure Impulse:
+   - Input block:  Raw data (ECG 512 Hz, IMU 100 Hz)
+   - Processing:   Spectral features / raw
+   - Learning:     Classification (Neural Network)
+5. Train and validate in browser
+6. Deploy → Arduino library / Zephyr module / C++ library
+7. Integrate generated library into your Zephyr project
+```
+
+**Zephyr integration (Edge Impulse C++ library):**
+```c
+#include "edge-impulse-sdk/classifier/ei_run_classifier.h"
+
+static float ecg_features[EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE];
+
+void run_ecg_inference(int16_t *ecg_samples, size_t n) {
+    // Normalise samples to float [-1, 1]
+    for (size_t i = 0; i < n; i++) {
+        ecg_features[i] = ecg_samples[i] / 32768.0f;
+    }
+
+    signal_t signal;
+    numpy::signal_from_buffer(ecg_features, n, &signal);
+
+    ei_impulse_result_t result;
+    EI_IMPULSE_ERROR err = run_classifier(&signal, &result, false);
+    if (err != EI_IMPULSE_OK) return;
+
+    printk("ECG classification:\n");
+    for (size_t i = 0; i < EI_CLASSIFIER_LABEL_COUNT; i++) {
+        printk("  %s: %.2f\n", ei_classifier_inferencing_categories[i],
+               result.classification[i].value);
+    }
+}
+```
+
+---
+
+#### 13.5.2 Option B — TensorFlow Lite Micro (Manual Pipeline)
+
+If you need full control over the model architecture and inference pipeline:
+
+**Step 1 — Convert model to C array:**
+```bash
+# Convert .tflite binary to C source file
+xxd -i ecg_arrhythmia_int8.tflite > ecg_model_data.cc
+```
+
+**Step 2 — Add TFLite Micro to Zephyr project (`CMakeLists.txt`):**
+```cmake
+# Add TFLite Micro as an external module
+list(APPEND ZEPHYR_EXTRA_MODULES
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tflite-micro
+)
+```
+
+**Step 3 — Inference in firmware (C++):**
+```cpp
+#include "tensorflow/lite/micro/micro_interpreter.h"
+#include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
+#include "tensorflow/lite/schema/schema_generated.h"
+#include "ecg_model_data.h"  // generated from xxd
+
+// Tensor arena (tune size based on model requirements)
+constexpr int kTensorArenaSize = 60 * 1024;
+alignas(16) uint8_t tensor_arena[kTensorArenaSize];
+
+tflite::MicroMutableOpResolver<6> resolver;
+resolver.AddConv2D();
+resolver.AddDepthwiseConv2D();
+resolver.AddMaxPool2D();
+resolver.AddFullyConnected();
+resolver.AddSoftmax();
+resolver.AddReshape();
+
+const tflite::Model* model = tflite::GetModel(ecg_model_data);
+tflite::MicroInterpreter interpreter(model, resolver, tensor_arena,
+                                     kTensorArenaSize);
+interpreter.AllocateTensors();
+
+TfLiteTensor* input  = interpreter.input(0);
+TfLiteTensor* output = interpreter.output(0);
+
+// Fill input tensor with ECG samples (quantized INT8)
+memcpy(input->data.int8, ecg_int8_buffer, input->bytes);
+
+interpreter.Invoke();
+
+// Read output probabilities
+int8_t* probs = output->data.int8;
+int predicted_class = std::max_element(probs, probs + 4) - probs;
+// 0=Normal, 1=AF, 2=PVC, 3=Noise
+```
+
+---
+
+#### 13.5.3 Motion Artifact Gate
+
+Before running ECG or PPG models, gate inference based on IMU motion level:
+
+```c
+#define MOTION_THRESHOLD_G  0.5f  // g — tune empirically
+
+bool is_motion_artifact(imu_sample_t *imu) {
+    float mag = sqrtf(
+        imu->accel_x * imu->accel_x +
+        imu->accel_y * imu->accel_y +
+        imu->accel_z * imu->accel_z
+    );
+    // Subtract gravity component (1.0 g when stationary)
+    return fabsf(mag - 1.0f) > MOTION_THRESHOLD_G;
+}
+
+void inference_manager_tick(void) {
+    if (is_motion_artifact(&latest_imu)) {
+        flag_sample_as_corrupted();
+        return;  // skip ECG/PPG inference during high motion
+    }
+    run_ecg_inference(ecg_buffer, ECG_WINDOW_SAMPLES);
+    run_ppg_inference(ppg_buffer, PPG_WINDOW_SAMPLES);
+}
+```
+
+---
+
+### 13.6 Phase 5 — Cloud AI Pipeline
+
+Use the cloud for model retraining, fleet analytics, and deep trend analysis that exceeds on-device compute.
+
+#### 13.6.1 Data Ingestion Architecture
+
+```
+Wearable Device
+    │ BLE
+    ▼
+Mobile App (iOS/Android)
+    │ HTTPS / MQTT
+    ▼
+Cloud Broker (AWS IoT Core / MQTT broker)
+    │
+    ├──► Time-Series DB (InfluxDB / AWS Timestream)
+    │         └──► Grafana dashboard (real-time monitoring)
+    │
+    ├──► Object Storage (S3 / GCS) ← raw binary recordings
+    │         └──► Batch ML Training pipeline
+    │
+    └──► Stream Processor (AWS Kinesis / Apache Flink)
+              └──► Real-time anomaly detection microservice
+```
+
+#### 13.6.2 Anomaly Detection Microservice (Python / FastAPI)
+
+```python
+from fastapi import FastAPI
+import numpy as np
+import tflite_runtime.interpreter as tflite
+
+app = FastAPI()
+interpreter = tflite.Interpreter(model_path="ecg_arrhythmia_int8.tflite")
+interpreter.allocate_tensors()
+
+input_details  = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+
+@app.post("/infer/ecg")
+async def infer_ecg(payload: dict):
+    """Receive ECG window, return arrhythmia classification."""
+    samples = np.array(payload["samples"], dtype=np.float32).reshape(1, -1, 1)
+
+    interpreter.set_tensor(input_details[0]['index'], samples)
+    interpreter.invoke()
+
+    probs = interpreter.get_tensor(output_details[0]['index'])[0]
+    labels = ["Normal", "AF", "PVC", "Noise"]
+    result = {labels[i]: float(probs[i]) for i in range(len(labels))}
+
+    # Alert if AF probability exceeds threshold
+    if result["AF"] > 0.85:
+        trigger_alert(payload["device_id"], "Possible AF detected")
+
+    return result
+
+def trigger_alert(device_id: str, message: str):
+    # Send push notification via FCM / APNs
+    pass
+```
+
+#### 13.6.3 Continuous Model Retraining Loop
+
+```
+1. Collect new labelled data from fleet devices (opt-in users)
+2. Merge with existing training set in S3
+3. Trigger retraining job (AWS SageMaker / GCP Vertex AI)
+4. Validate new model against held-out test set
+5. If metrics improve AND pass safety checks:
+   a. Quantize to INT8
+   b. Package as OTA firmware update
+   c. Stage-roll to 5% of fleet → monitor → expand
+6. Log model version + SHA256 hash in database for audit trail
+```
+
+---
+
+### 13.7 AI Use Cases & Target Models
+
+| Use Case | Signals Used | Model Type | Deployment |
+|---|---|---|---|
+| **Arrhythmia screening** | ECG | 1D CNN-LSTM | On-device (TFLite Micro) |
+| **AF detection** | ECG (RR intervals) | Threshold + SVM | On-device |
+| **SpO₂ trend anomaly** | PPG, SpO₂ history | Autoencoder / z-score | Cloud |
+| **Activity classification** | IMU (6-axis) | 1D CNN | On-device (TFLite Micro) |
+| **Fall detection** | IMU (6-axis) | Threshold + lightweight SVM | On-device |
+| **Stress / HRV analysis** | ECG (HRV features) | Gradient Boosting / LSTM | Cloud |
+| **Sleep staging** | ECG, PPG, IMU | Multi-modal CNN-LSTM | Cloud |
+| **Motion artifact removal** | ECG, PPG, IMU | Adaptive filter + ML gate | On-device |
+| **Hydration status (BIA)** | Bio-impedance (AFE4300) | Ridge regression | Cloud |
+| **Personalized baseline adaptation** | All signals | Online learning | Cloud |
+
+---
+
+### 13.8 AI Validation & Testing
+
+#### 13.8.1 Model Performance Metrics
+
+For classification models:
+
+```python
+from sklearn.metrics import classification_report, confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+def evaluate_model(y_true, y_pred, labels):
+    print(classification_report(y_true, y_pred, target_names=labels))
+
+    cm = confusion_matrix(y_true, y_pred)
+    sns.heatmap(cm, annot=True, fmt='d', xticklabels=labels, yticklabels=labels)
+    plt.title("Confusion Matrix")
+    plt.ylabel("True Label")
+    plt.xlabel("Predicted Label")
+    plt.tight_layout()
+    plt.savefig("confusion_matrix.png", dpi=150)
+```
+
+**Minimum acceptable performance targets:**
+
+| Model | Sensitivity | Specificity | F1-Score |
+|---|---|---|---|
+| Arrhythmia screener (AF) | ≥ 95% | ≥ 97% | ≥ 0.96 |
+| Activity classifier | ≥ 90% (all classes) | — | ≥ 0.90 |
+| Fall detector | ≥ 98% | ≥ 90% | ≥ 0.94 |
+| Motion artifact gate | ≥ 95% | ≥ 85% | ≥ 0.90 |
+
+#### 13.8.2 On-Device Validation
+
+Before deploying a new model to the device, verify:
+
+```bash
+# Benchmark TFLite model on target hardware using Edge Impulse profiler
+edge-impulse-run-impulse --debug
+
+# Or use TFLite benchmark tool cross-compiled for ARM Cortex-M33 (nRF5340)
+./benchmark_model \
+  --graph=ecg_arrhythmia_int8.tflite \
+  --num_runs=100 \
+  --warmup_runs=5
+```
+
+Key metrics to capture and document:
+- Average inference latency (ms)
+- Peak RAM usage (KB)
+- Flash storage footprint (KB)
+- Power consumption during inference (mA) — measure with a current probe
+
+#### 13.8.3 Subject-Independent Cross-Validation
+
+To avoid over-fitting to specific individuals:
+
+```python
+from sklearn.model_selection import GroupKFold
+
+# Groups = subject IDs — ensures no subject appears in both train and test
+gkf = GroupKFold(n_splits=5)
+for fold, (train_idx, test_idx) in enumerate(gkf.split(X, y, groups=subject_ids)):
+    X_train, X_test = X[train_idx], X[test_idx]
+    y_train, y_test = y[train_idx], y[test_idx]
+    # train and evaluate ...
+```
+
+---
+
+### 13.9 AI Development Checklist
+
+**Data Collection**
+- [ ] Minimum 30 minutes of labelled ECG per rhythm class per subject
+- [ ] At least 10 subjects for initial model training
+- [ ] Open-access dataset (MIT-BIH or PTB-XL) included in training set
+- [ ] All data de-identified and stored securely
+
+**Model Training**
+- [ ] Baseline classical ML model trained and evaluated (SVM / Random Forest)
+- [ ] Deep learning model trained with cross-validation
+- [ ] Subject-independent evaluation confirmed (GroupKFold)
+- [ ] No data leakage between train/test splits
+
+**Quantization & Deployment**
+- [ ] INT8 quantization applied with representative dataset
+- [ ] Model accuracy drop after quantization < 1%
+- [ ] Model fits within memory budget (Flash + RAM)
+- [ ] Inference latency meets real-time requirement
+
+**On-Device Integration**
+- [ ] TFLite Micro / Edge Impulse runtime integrated into Zephyr build
+- [ ] Inference task runs without starving sensor acquisition tasks
+- [ ] Motion artifact gate active before ECG/PPG inference
+- [ ] Inference results transmitted over BLE GATT
+
+**Cloud Pipeline**
+- [ ] Raw data ingestion to time-series DB verified
+- [ ] Anomaly detection microservice deployed and tested
+- [ ] Alert pipeline (push notification) tested end-to-end
+- [ ] Model versioning and audit log in place
+
+**Validation**
+- [ ] Sensitivity and specificity meet targets (Section 13.8.1)
+- [ ] On-device latency and memory budget confirmed
+- [ ] Subject-independent cross-validation completed
+- [ ] Comparison against clinical reference device documented
+
+---
+
+## 14. Troubleshooting Guide
 
 | Symptom | Likely Cause | Solution |
 |---|---|---|
@@ -940,14 +1647,16 @@ IMU
 | BLE drops connection | Interference or too-short connection interval | Move device to 2.4 GHz-clear environment; increase connection interval |
 | Battery draining in < 2 hrs | All sensors at full ODR, BLE at max duty | Reduce IMU ODR; use BLE sleep modes; disable unused sensors |
 | Short circuit on power rail | Solder bridge or wrong wire connection | Inspect under magnifier; measure rail impedance to GND with power off |
+| AI model always predicts one class | Class imbalance in training data | Apply class weights or oversample minority class (SMOTE) |
+| AI inference causes BLE drops | Inference task starving BLE stack | Lower inference task priority; run inference in low-priority idle thread |
 
 ---
 
-## 14. Next Steps: Moving to Custom PCB
+## 15. Next Steps: Moving to Custom PCB
 
 Once the prototype is validated and signal quality meets requirements, the next phase is a custom-designed PCB:
 
-### 14.1 PCB Design Guidelines
+### 15.1 PCB Design Guidelines
 
 1. **Analog ground plane separation** — separate AGND (ECG AFE, PPG) from DGND (MCU, SPI bus), joined at a single star point.
 2. **Power supply filtering** — use ferrite beads + capacitors between digital and analog power rails.
@@ -956,7 +1665,7 @@ Once the prototype is validated and signal quality meets requirements, the next 
 5. **Component placement** — keep ECG AFE as far as possible from switching regulators and clock sources.
 6. **Flex PCB or rigid-flex** — consider a two-part design: rigid MCU board + flexible sensor strip.
 
-### 14.2 Recommended EDA Tools
+### 15.2 Recommended EDA Tools
 
 | Tool | License | Notes |
 |---|---|---|
@@ -964,7 +1673,7 @@ Once the prototype is validated and signal quality meets requirements, the next 
 | Altium Designer | Commercial | Industry standard |
 | EasyEDA / LCSC | Free (with JLCPCB) | Fast prototyping, low cost |
 
-### 14.3 Pre-Production Checklist
+### 15.3 Pre-Production Checklist
 
 - [ ] PCB design rule check (DRC) passed
 - [ ] Schematic review against all sensor datasheets
@@ -977,6 +1686,8 @@ Once the prototype is validated and signal quality meets requirements, the next 
 ---
 
 ## Appendix A — Useful Resources
+
+### Hardware Datasheets
 
 | Resource | URL |
 |---|---|
@@ -992,6 +1703,30 @@ Once the prototype is validated and signal quality meets requirements, the next 
 | nRF Connect SDK | https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/index.html |
 | Bleak (Python BLE) | https://bleak.readthedocs.io |
 
+### AI / Machine Learning Resources
+
+| Resource | URL |
+|---|---|
+| Edge Impulse Studio | https://studio.edgeimpulse.com |
+| Edge Impulse CLI Docs | https://docs.edgeimpulse.com/docs/tools/edge-impulse-cli |
+| TensorFlow Lite Micro | https://www.tensorflow.org/lite/microcontrollers |
+| TFLite Model Optimization | https://www.tensorflow.org/lite/performance/post_training_quantization |
+| NeuroKit2 (ECG/PPG processing) | https://neuropsychology.github.io/NeuroKit/ |
+| PyTorch + ONNX export | https://pytorch.org/docs/stable/onnx.html |
+| Weights & Biases | https://wandb.ai |
+| Label Studio | https://labelstud.io |
+| WFDB Python (ECG annotation) | https://wfdb.readthedocs.io |
+
+### Open-Access Biosignal Datasets
+
+| Dataset | Signals | URL |
+|---|---|---|
+| PhysioNet MIT-BIH Arrhythmia | ECG | https://physionet.org/content/mitdb/ |
+| PTB-XL (12-lead ECG) | ECG | https://physionet.org/content/ptb-xl/ |
+| BIDMC PPG + Resp | PPG, ECG, SpO₂ | https://physionet.org/content/bidmc/ |
+| PhysioNet MESA | ECG, SpO₂, IMU | https://sleepdata.org/datasets/mesa |
+| UCI HAR (Activity) | IMU | https://archive.ics.uci.edu/dataset/240 |
+
 ---
 
 ## Appendix B — Revision History
@@ -999,6 +1734,7 @@ Once the prototype is validated and signal quality meets requirements, the next 
 | Version | Date | Author | Notes |
 |---|---|---|---|
 | 1.0 | 2026-04-06 | — | Initial release — developmental prototype guide |
+| 1.1 | 2026-04-12 | — | Added Step 8: full AI/ML integration section (data collection, feature engineering, model training, on-device TFLite Micro / Edge Impulse inference, cloud pipeline, validation checklist) |
 
 ---
 
