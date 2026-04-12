@@ -650,15 +650,6 @@ class AICostEstimateRequestSerializer(serializers.Serializer):
         default='duplicate_detection'
     )
 
-            
-            # Check for common fields (flexible to allow different structures)
-            if 'instances' not in group and 'segments' not in group:
-                raise serializers.ValidationError(
-                    f"Duplicate group {i} must contain 'instances' or 'segments' array"
-                )
-        
-        return value
-    
     def validate_selected_deletions(self, value):
         """Validate selected deletions is an array"""
         if value is not None and not isinstance(value, list):
