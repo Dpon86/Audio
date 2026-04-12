@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Processing Platform - Pricing Plans</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 50px;
+        }
+
+        .header h1 {
+            font-size: 48px;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 20px;
+            opacity: 0.9;
+        }
+
+        .billing-toggle {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .toggle-wrapper {
+            display: inline-flex;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50px;
+            padding: 5px;
+            backdrop-filter: blur(10px);
+        }
+
+        .toggle-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: transparent;
+            color: white;
+        }
+
+        .toggle-btn.active {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .save-badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .pricing-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+
+        .pricing-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+
+        .pricing-card.popular {
+            border: 3px solid #667eea;
+            transform: scale(1.05);
+        }
+
+        .pricing-card.popular::before {
+            content: '⭐ MOST POPULAR';
+            position: absolute;
+            top: 15px;
+            right: -35px;
+            background: #667eea;
+            color: white;
+            padding: 5px 50px;
+            font-size: 12px;
+            font-weight: 700;
+            transform: rotate(45deg);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .pricing-card.enterprise {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .card-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .pricing-card.enterprise .card-header {
+            border-bottom-color: rgba(255,255,255,0.2);
+        }
+
+        .plan-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .plan-name {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .plan-price {
+            font-size: 48px;
+            font-weight: 800;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .pricing-card.enterprise .plan-price {
+            color: white;
+        }
+
+        .price-currency {
+            font-size: 24px;
+            vertical-align: super;
+        }
+
+        .price-period {
+            font-size: 16px;
+            color: #666;
+            font-weight: 400;
+        }
+
+        .pricing-card.enterprise .price-period {
+            color: rgba(255,255,255,0.8);
+        }
+
+        .plan-description {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .pricing-card.enterprise .plan-description {
+            color: rgba(255,255,255,0.9);
+        }
+
+        .features-list {
+            list-style: none;
+            margin-bottom: 30px;
+        }
+
+        .features-list li {
+            padding: 12px 0;
+            display: flex;
+            align-items: flex-start;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .features-list li::before {
+            content: '✓';
+            color: #10b981;
+            font-weight: 700;
+            font-size: 18px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .features-list li.disabled::before {
+            content: '✗';
+            color: #ccc;
+        }
+
+        .features-list li.disabled {
+            color: #999;
+            text-decoration: line-through;
+        }
+
+        .pricing-card.enterprise .features-list li::before {
+            color: #fbbf24;
+        }
+
+        .feature-category {
+            font-weight: 700;
+            color: #667eea;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .pricing-card.enterprise .feature-category {
+            color: #fbbf24;
+        }
+
+        .cta-button {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .cta-button.primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .cta-button.primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .cta-button.secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .cta-button.secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .cta-button.enterprise {
+            background: white;
+            color: #667eea;
+        }
+
+        .cta-button.enterprise:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 255, 255, 0.3);
+        }
+
+        .comparison-table {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-top: 60px;
+            overflow-x: auto;
+        }
+
+        .comparison-table h2 {
+            text-align: center;
+            font-size: 32px;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        th {
+            font-weight: 700;
+            color: #667eea;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        td {
+            font-size: 14px;
+        }
+
+        .check-yes {
+            color: #10b981;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .check-no {
+            color: #ef4444;
+            text-align: center;
+        }
+
+        .faq-section {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-top: 40px;
+        }
+
+        .faq-section h2 {
+            text-align: center;
+            font-size: 32px;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .faq-item {
+            margin-bottom: 25px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .faq-item:last-child {
+            border-bottom: none;
+        }
+
+        .faq-question {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .faq-answer {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .pricing-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .pricing-card.popular {
+                transform: scale(1);
+            }
+
+            .header h1 {
+                font-size: 32px;
+            }
+
+            .comparison-table {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Choose Your Perfect Plan</h1>
+            <p>AI-powered audio processing with flexible pricing for every need</p>
+        </div>
+
+        <div class="billing-toggle">
+            <div class="toggle-wrapper">
+                <button class="toggle-btn active" onclick="toggleBilling('monthly')">Monthly</button>
+                <button class="toggle-btn" onclick="toggleBilling('yearly')">
+                    Yearly
+                    <span class="save-badge">Save 17%</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="pricing-cards">
+            <!-- Free Trial Card -->
+            <div class="pricing-card">
+                <div class="card-header">
+                    <div class="plan-icon">🆓</div>
+                    <div class="plan-name">Free Trial</div>
+                    <div class="plan-price">
+                        <span class="price-currency">£</span>0
+                    </div>
+                    <div class="price-period">for 7 days</div>
+                    <div class="plan-description">Perfect for testing the platform</div>
+                </div>
+                <ul class="features-list">
+                    <li>Upload & manage audio files</li>
+                    <li>Manual transcription tools</li>
+                    <li>Algorithm duplicate detection</li>
+                    <li>PDF assembly & export</li>
+                    <li><strong>1 FREE AI use</strong> (test any feature)</li>
+                    <div class="feature-category">Limits</div>
+                    <li>60 minutes audio</li>
+                    <li>3 projects max</li>
+                    <li>0.5 GB storage</li>
+                    <li>50 MB max file size</li>
+                </ul>
+                <button class="cta-button secondary">Start Free Trial</button>
+            </div>
+
+            <!-- Starter Card -->
+            <div class="pricing-card">
+                <div class="card-header">
+                    <div class="plan-icon">🎯</div>
+                    <div class="plan-name">Starter</div>
+                    <div class="plan-price">
+                        <span class="price-currency">£</span><span class="price-amount monthly">4.99</span><span class="price-amount yearly" style="display:none;">4.08</span>
+                    </div>
+                    <div class="price-period">per month</div>
+                    <div class="plan-description">For manual workflows</div>
+                </div>
+                <ul class="features-list">
+                    <li>All Free Trial features</li>
+                    <li>Unlimited manual transcription</li>
+                    <li>Algorithm duplicate detection</li>
+                    <li>PDF assembly & export</li>
+                    <li>Email support</li>
+                    <div class="feature-category">Limits</div>
+                    <li>300 minutes audio/month</li>
+                    <li>10 projects</li>
+                    <li>2 GB storage</li>
+                    <li>100 MB max file size</li>
+                    <div class="feature-category">AI Features</div>
+                    <li class="disabled">AI Duplicate Detection</li>
+                    <li class="disabled">AI Transcription</li>
+                    <li class="disabled">AI PDF Comparison</li>
+                </ul>
+                <button class="cta-button secondary">Get Started</button>
+            </div>
+
+            <!-- Basic Card - Most Popular -->
+            <div class="pricing-card popular">
+                <div class="card-header">
+                    <div class="plan-icon">⭐</div>
+                    <div class="plan-name">Basic</div>
+                    <div class="plan-price">
+                        <span class="price-currency">£</span><span class="price-amount monthly">9.99</span><span class="price-amount yearly" style="display:none;">8.25</span>
+                    </div>
+                    <div class="price-period">per month</div>
+                    <div class="plan-description">AI-powered duplicate detection</div>
+                </div>
+                <ul class="features-list">
+                    <li>All Starter features</li>
+                    <li><strong>AI Duplicate Detection</strong></li>
+                    <li>Sentence-level detection</li>
+                    <li>Paragraph expansion</li>
+                    <li>Confidence scores</li>
+                    <li>Priority email support</li>
+                    <div class="feature-category">Limits</div>
+                    <li>500 minutes audio/month</li>
+                    <li>20 projects</li>
+                    <li>5 GB storage</li>
+                    <li>150 MB max file size</li>
+                    <li>£20 AI budget (~33 files)</li>
+                    <div class="feature-category">AI Features</div>
+                    <li>AI Duplicate Detection ✓</li>
+                    <li class="disabled">AI Transcription</li>
+                    <li class="disabled">AI PDF Comparison</li>
+                </ul>
+                <button class="cta-button primary">Start Basic Plan</button>
+            </div>
+
+            <!-- Pro Card -->
+            <div class="pricing-card">
+                <div class="card-header">
+                    <div class="plan-icon">🚀</div>
+                    <div class="plan-name">Professional</div>
+                    <div class="plan-price">
+                        <span class="price-currency">£</span><span class="price-amount monthly">24.99</span><span class="price-amount yearly" style="display:none;">20.75</span>
+                    </div>
+                    <div class="price-period">per month</div>
+                    <div class="plan-description">Full AI suite for professionals</div>
+                </div>
+                <ul class="features-list">
+                    <li>All Basic features</li>
+                    <li><strong>ALL AI Features</strong></li>
+                    <li>AI Transcription (95% accuracy)</li>
+                    <li>AI PDF Comparison</li>
+                    <li>Speaker detection</li>
+                    <li>Advanced analytics</li>
+                    <li>API access (beta)</li>
+                    <li>Priority support (24h)</li>
+                    <div class="feature-category">Limits</div>
+                    <li>2000 minutes audio/month</li>
+                    <li>Unlimited projects</li>
+                    <li>20 GB storage</li>
+                    <li>300 MB max file size</li>
+                    <li>£60 AI budget (~100 files)</li>
+                    <div class="feature-category">AI Features</div>
+                    <li>AI Duplicate Detection ✓</li>
+                    <li>AI Transcription ✓</li>
+                    <li>AI PDF Comparison ✓</li>
+                </ul>
+                <button class="cta-button primary">Start Pro Plan</button>
+            </div>
+
+            <!-- Enterprise Card -->
+            <div class="pricing-card enterprise">
+                <div class="card-header">
+                    <div class="plan-icon">💼</div>
+                    <div class="plan-name">Enterprise</div>
+                    <div class="plan-price">
+                        <span class="price-currency">£</span><span class="price-amount monthly">49.99</span><span class="price-amount yearly" style="display:none;">41.58</span>
+                    </div>
+                    <div class="price-period">per month</div>
+                    <div class="plan-description">For power users & teams</div>
+                </div>
+                <ul class="features-list">
+                    <li>All Pro features</li>
+                    <li><strong>Unlimited AI processing</strong></li>
+                    <li>Dedicated account manager</li>
+                    <li>Priority processing queue</li>
+                    <li>Custom integrations</li>
+                    <li>SLA guarantees</li>
+                    <li>Full API access</li>
+                    <li>White-label options</li>
+                    <li>Team collaboration</li>
+                    <div class="feature-category">Limits</div>
+                    <li>Unlimited audio minutes</li>
+                    <li>Unlimited projects</li>
+                    <li>100 GB storage</li>
+                    <li>500 MB max file size</li>
+                    <li>£200 AI budget (~330 files)</li>
+                    <div class="feature-category">Support</div>
+                    <li>4-hour response time</li>
+                    <li>Phone & video support</li>
+                    <li>Custom onboarding</li>
+                </ul>
+                <button class="cta-button enterprise">Contact Sales</button>
+            </div>
+        </div>
+
+        <!-- Comparison Table -->
+        <div class="comparison-table">
+            <h2>📊 Detailed Feature Comparison</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Free Trial</th>
+                        <th>Starter</th>
+                        <th>Basic</th>
+                        <th>Pro</th>
+                        <th>Enterprise</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Monthly Price</strong></td>
+                        <td>£0 (7 days)</td>
+                        <td>£4.99</td>
+                        <td>£9.99</td>
+                        <td>£24.99</td>
+                        <td>£49.99</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Audio Minutes/Month</strong></td>
+                        <td>60</td>
+                        <td>300</td>
+                        <td>500</td>
+                        <td>2000</td>
+                        <td>Unlimited</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Projects</strong></td>
+                        <td>3</td>
+                        <td>10</td>
+                        <td>20</td>
+                        <td>Unlimited</td>
+                        <td>Unlimited</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Storage</strong></td>
+                        <td>0.5 GB</td>
+                        <td>2 GB</td>
+                        <td>5 GB</td>
+                        <td>20 GB</td>
+                        <td>100 GB</td>
+                    </tr>
+                    <tr>
+                        <td><strong>AI Duplicate Detection</strong></td>
+                        <td class="check-yes">1 test</td>
+                        <td class="check-no">✗</td>
+                        <td class="check-yes">✓</td>
+                        <td class="check-yes">✓</td>
+                        <td class="check-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td><strong>AI Transcription</strong></td>
+                        <td class="check-yes">1 test</td>
+                        <td class="check-no">✗</td>
+                        <td class="check-no">✗</td>
+                        <td class="check-yes">✓</td>
+                        <td class="check-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td><strong>AI PDF Comparison</strong></td>
+                        <td class="check-yes">1 test</td>
+                        <td class="check-no">✗</td>
+                        <td class="check-no">✗</td>
+                        <td class="check-yes">✓</td>
+                        <td class="check-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Algorithm Detection</strong></td>
+                        <td class="check-yes">✓</td>
+                        <td class="check-yes">✓</td>
+                        <td class="check-yes">✓</td>
+                        <td class="check-yes">✓</td>
+                        <td class="check-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Manual Transcription</strong></td>
+                        <td class="check-yes">✓</td>
+                        <td class="check-yes">✓</td>
+                        <td class="check-yes">✓</td>
+                        <td class="check-yes">✓</td>
+                        <td class="check-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td><strong>API Access</strong></td>
+                        <td class="check-no">✗</td>
+                        <td class="check-no">✗</td>
+                        <td class="check-no">✗</td>
+                        <td class="check-yes">✓ Beta</td>
+                        <td class="check-yes">✓ Full</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Priority Support</strong></td>
+                        <td class="check-no">✗</td>
+                        <td class="check-no">✗</td>
+                        <td class="check-yes">✓</td>
+                        <td class="check-yes">✓ 24h</td>
+                        <td class="check-yes">✓ 4h</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Dedicated Manager</strong></td>
+                        <td class="check-no">✗</td>
+                        <td class="check-no">✗</td>
+                        <td class="check-no">✗</td>
+                        <td class="check-no">✗</td>
+                        <td class="check-yes">✓</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- FAQ Section -->
+        <div class="faq-section">
+            <h2>❓ Frequently Asked Questions</h2>
+            
+            <div class="faq-item">
+                <div class="faq-question">What happens after my free trial ends?</div>
+                <div class="faq-answer">Your account remains active but you must upgrade to a paid plan to continue processing audio. Your data is preserved for 30 days.</div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">Can I change plans anytime?</div>
+                <div class="faq-answer">Yes! You can upgrade or downgrade anytime. Upgrades take effect immediately, and downgrades are prorated to your next billing cycle.</div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">What counts as "1 AI use"?</div>
+                <div class="faq-answer">Running AI duplicate detection, transcription, or PDF comparison on one audio file counts as 1 AI use (approximately £0.60-£1.20 depending on length).</div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">Do unused AI credits roll over?</div>
+                <div class="faq-answer">No, AI budgets reset monthly. However, Enterprise plans can request custom rollover options.</div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">Is there a money-back guarantee?</div>
+                <div class="faq-answer">Yes! We offer a 30-day money-back guarantee on all paid plans. No questions asked.</div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">Can I cancel anytime?</div>
+                <div class="faq-answer">Absolutely. Cancel anytime with one click. No cancellation fees. Your access continues until the end of your current billing period.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleBilling(period) {
+            const monthlyBtns = document.querySelectorAll('.toggle-btn');
+            const priceAmounts = document.querySelectorAll('.price-amount');
+            
+            monthlyBtns.forEach(btn => btn.classList.remove('active'));
+            
+            if (period === 'monthly') {
+                monthlyBtns[0].classList.add('active');
+                document.querySelectorAll('.monthly').forEach(el => el.style.display = 'inline');
+                document.querySelectorAll('.yearly').forEach(el => el.style.display = 'none');
+            } else {
+                monthlyBtns[1].classList.add('active');
+                document.querySelectorAll('.monthly').forEach(el => el.style.display = 'none');
+                document.querySelectorAll('.yearly').forEach(el => el.style.display = 'inline');
+            }
+        }
+    </script>
+</body>
+</html>

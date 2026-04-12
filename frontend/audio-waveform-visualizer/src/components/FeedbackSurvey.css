@@ -1,0 +1,296 @@
+.feedback-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.feedback-modal {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.feedback-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  font-size: 28px;
+  color: #666;
+  cursor: pointer;
+  padding: 5px 10px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.feedback-close:hover {
+  color: #333;
+}
+
+.feedback-title {
+  margin: 0 0 10px 0;
+  font-size: 24px;
+  color: #333;
+  text-align: center;
+}
+
+.feedback-subtitle {
+  margin: 0 0 25px 0;
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+}
+
+.feedback-form {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.feedback-question {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.feedback-question label {
+  font-weight: 600;
+  color: #333;
+  font-size: 15px;
+}
+
+.feedback-yes-no {
+  display: flex;
+  gap: 15px;
+}
+
+.btn-yes-no {
+  flex: 1;
+  padding: 12px 20px;
+  border: 2px solid #ddd;
+  background: white;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-yes-no:hover {
+  border-color: #4CAF50;
+  background: #f0f9f0;
+}
+
+.btn-yes-no.selected {
+  border-color: #4CAF50;
+  background: #4CAF50;
+  color: white;
+}
+
+.feedback-question textarea {
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+
+.feedback-question textarea:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.char-count {
+  text-align: right;
+  font-size: 12px;
+  color: #999;
+}
+
+.star-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.star {
+  background: none;
+  border: none;
+  font-size: 36px;
+  color: #ddd;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.star:hover {
+  transform: scale(1.2);
+}
+
+.star.filled {
+  color: #FFD700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.rating-text {
+  margin-left: 10px;
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.feedback-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.btn-skip {
+  flex: 1;
+  padding: 12px 20px;
+  border: 2px solid #ddd;
+  background: white;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-skip:hover {
+  border-color: #999;
+  background: #f5f5f5;
+}
+
+.btn-submit {
+  flex: 2;
+  padding: 12px 20px;
+  border: none;
+  background: #4CAF50;
+  color: white;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.btn-submit:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Success state */
+.feedback-success {
+  text-align: center;
+  padding: 60px 40px;
+}
+
+.success-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #4CAF50;
+  color: white;
+  font-size: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  animation: scaleIn 0.5s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.feedback-success h2 {
+  margin: 0 0 10px 0;
+  color: #333;
+}
+
+.feedback-success p {
+  margin: 5px 0;
+  color: #666;
+}
+
+.closing-message {
+  font-style: italic;
+  font-size: 13px;
+  margin-top: 15px !important;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .feedback-modal {
+    padding: 20px;
+    width: 95%;
+  }
+
+  .feedback-title {
+    font-size: 20px;
+  }
+
+  .star {
+    font-size: 28px;
+  }
+
+  .feedback-actions {
+    flex-direction: column;
+  }
+
+  .btn-skip,
+  .btn-submit {
+    flex: 1;
+  }
+}

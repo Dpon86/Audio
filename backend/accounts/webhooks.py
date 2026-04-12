@@ -97,7 +97,7 @@ def handle_checkout_completed(session):
             user_subscription.stripe_subscription_id = subscription_id
             user_subscription.save()
         
-        logger.info(f"Checkout completed for user {user.username} - Plan: {plan.display_name}")
+        logger.info(f"Checkout completed for user_id={user.id} - Plan: {plan.display_name}")
         
     except Exception as e:
         logger.error(f"Error handling checkout completion: {str(e)}")
@@ -125,7 +125,7 @@ def handle_subscription_created(subscription):
             )
             user_subscription.save()
             
-            logger.info(f"Subscription created for user {user_subscription.user.username}")
+            logger.info(f"Subscription created for user_id={user_subscription.user.id}")
         
     except Exception as e:
         logger.error(f"Error handling subscription creation: {str(e)}")
@@ -161,7 +161,7 @@ def handle_subscription_updated(subscription):
             )
             user_subscription.save()
             
-            logger.info(f"Subscription updated for user {user_subscription.user.username}")
+            logger.info(f"Subscription updated for user_id={user_subscription.user.id}")
         
     except Exception as e:
         logger.error(f"Error handling subscription update: {str(e)}")
@@ -180,7 +180,7 @@ def handle_subscription_cancelled(subscription):
             user_subscription.status = 'canceled'
             user_subscription.save()
             
-            logger.info(f"Subscription cancelled for user {user_subscription.user.username}")
+            logger.info(f"Subscription cancelled for user_id={user_subscription.user.id}")
         
     except Exception as e:
         logger.error(f"Error handling subscription cancellation: {str(e)}")
@@ -207,7 +207,7 @@ def handle_payment_succeeded(invoice):
                 description=f"Payment for {user_subscription.plan.display_name} subscription"
             )
             
-            logger.info(f"Payment succeeded for user {user_subscription.user.username}: ${amount}")
+            logger.info(f"Payment succeeded for user_id={user_subscription.user.id}: ${amount}")
         
     except Exception as e:
         logger.error(f"Error handling payment success: {str(e)}")
@@ -238,7 +238,7 @@ def handle_payment_failed(invoice):
                 description=f"Failed payment for {user_subscription.plan.display_name} subscription"
             )
             
-            logger.info(f"Payment failed for user {user_subscription.user.username}: ${amount}")
+            logger.info(f"Payment failed for user_id={user_subscription.user.id}: ${amount}")
         
     except Exception as e:
         logger.error(f"Error handling payment failure: {str(e)}")

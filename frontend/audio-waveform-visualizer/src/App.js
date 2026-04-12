@@ -15,6 +15,7 @@ import FrontPage from "./screens/frontpage";
 import ProjectPage from "./screens/ProjectPage";
 import ProjectDetailPageNew from "./screens/ProjectDetailPageNew"; // NEW: Tab-based UI
 import ProjectDetailPage from "./screens/ProjectDetailPage"; // LEGACY: Keep for backward compatibility
+import PrivacySecurityPage from "./components/PrivacySecurityPage";
 
 // Legacy pages (for backward compatibility)
 import AudioPage from "./screens/AudioPage";
@@ -32,6 +33,7 @@ function App() {
             <Route path="/" element={<FrontPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/privacy" element={<PrivacySecurityPage />} />
             
             {/* Protected Routes */}
             <Route 

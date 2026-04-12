@@ -110,42 +110,166 @@ This folder contains comprehensive planning and implementation documentation for
 
 ---
 
+### 6. [NEXT_STEPS.md](NEXT_STEPS.md) 📍 **START HERE FOR DEPLOYMENT**
+**Current status and deployment guide**
+
+**Contents:**
+- Current implementation status
+- What's already built (backend complete!)
+- AI duplicate detection deployment (15-30 min)
+- Transcription options (current vs AI upgrade)
+- Cost comparison and recommendations
+- Step-by-step server deployment
+- Testing procedures
+
+**Use this** to deploy AI features to production server.
+
+---
+
+### 7. [PAYMENT_AND_ACCESS_CONTROL.md](PAYMENT_AND_ACCESS_CONTROL.md) 💳
+**Complete guide to subscription-based access**
+
+**Contents:**
+- User authentication flow (registration & login)
+- Subscription plans structure (Free, Basic, Pro, Enterprise)
+- Stripe payment integration setup
+- AI feature access control implementation
+- Webhook configuration
+- Frontend payment UI
+- Testing payment flow
+- Troubleshooting common issues
+
+**Use this** to understand and implement paid subscription system.
+
+---
+
+### 8. [QUICK_START_PAYMENTS.md](QUICK_START_PAYMENTS.md) ⚡ **2-HOUR IMPLEMENTATION**
+**Fast-track guide to adding payment gating**
+
+**Contents:**
+- Phase 1: Add AI feature flags (30 min)
+- Phase 2: Add access control (30 min)
+- Phase 3: Set up Stripe (45 min)
+- Phase 4: Frontend updates (45 min)
+- Testing checklist
+- Deployment checklist
+- Common issues and fixes
+
+**Use this** to quickly gate AI features behind paid subscriptions.
+
+---
+
+### 9. [FLOW_DIAGRAM.md](FLOW_DIAGRAM.md) 🔄 **VISUAL GUIDE**
+**Complete user journey visualization**
+
+**Contents:**
+- Step-by-step flow from signup to AI access
+- Visual diagrams for each stage
+- Access control logic explained
+- Database schema overview
+- Security checkpoints
+- Data flow visualization
+
+**Use this** to understand the complete payment and access control system.
+
+---
+
+### 10. [FEEDBACK_SYSTEM.md](FEEDBACK_SYSTEM.md) 📝 **USER FEEDBACK**
+**Feature feedback and survey system**
+
+**Contents:**
+- 3-question survey implementation
+- When and how to show feedback prompts
+- Database models for feedback storage
+- Admin dashboard for viewing responses
+- Analytics and reporting
+- Integration with existing features
+
+**Use this** to collect user feedback and continuously improve features.
+
+---
+
+### 11. [PRICING_PLANS.md](PRICING_PLANS.md) 💳 **DETAILED PRICING**
+**Complete subscription plan comparison**
+
+**Contents:**
+- Card-style plan comparisons (Free Trial, Starter, Basic, Pro, Enterprise)
+- Detailed feature breakdown for each tier
+- Side-by-side comparison matrix
+- Pricing calculator and usage examples
+- Upgrade paths and recommendations
+- FAQ and plan selection quiz
+
+**Visual Version:** [pricing-page.html](pricing-page.html) - Interactive pricing page with card layouts
+
+**Use this** to understand all subscription options and choose the right plan.
+
+---
+
 ## 🎯 Quick Start Guide
 
+### 🚀 Ready to Deploy? (Recommended Path)
+
+**Your AI features are already built!** Follow this path:
+
+1. **Read [NEXT_STEPS.md](NEXT_STEPS.md)** (5 min) - Current status
+2. **Deploy AI Detection** (30 min) - Get Anthropic key, deploy to server
+3. **Test AI Features** (10 min) - Verify it works
+4. **Add Payment Gating** (2-3 hours) - Follow [QUICK_START_PAYMENTS.md](QUICK_START_PAYMENTS.md)
+
+**Total time:** ~3-4 hours to fully working paid AI features
+
+---
+
 ### For Project Managers
-1. Read [AI_DUPLICATE_DETECTION_PLAN.md](AI_DUPLICATE_DETECTION_PLAN.md) - Get overview
+1. Read [NEXT_STEPS.md](NEXT_STEPS.md) - What's done, what's next
 2. Read [SERVER_REQUIREMENTS.md](SERVER_REQUIREMENTS.md) - Understand costs
-3. Review [AI_DUPLICATE_DETECTION_TODO.md](AI_DUPLICATE_DETECTION_TODO.md) - Timeline
+3. Read [PAYMENT_AND_ACCESS_CONTROL.md](PAYMENT_AND_ACCESS_CONTROL.md) - Monetization strategy
 
 **Decision Points:**
-- Budget: $6-60/month for 100 hours/month
-- Timeline: 6-8 weeks total
-- Server: Keep 4GB + use external API (no upgrade needed)
+- AI already built: ✅ Just needs deployment
+- Cost: $6/month for 100 hours (very affordable)
+- Revenue potential: $500-2000/month with paid plans
+- Setup time: 3-4 hours total
 
 ---
 
 ### For Developers
-1. Read [AI_DUPLICATE_DETECTION_PLAN.md](AI_DUPLICATE_DETECTION_PLAN.md) - Architecture
-2. Read [TEXT_FORMAT_RECOMMENDATIONS.md](TEXT_FORMAT_RECOMMENDATIONS.md) - Data formats
-3. Follow [AI_DUPLICATE_DETECTION_TODO.md](AI_DUPLICATE_DETECTION_TODO.md) - Implementation
+1. **Start here:** [NEXT_STEPS.md](NEXT_STEPS.md) - Deployment guide
+2. **Then:** [QUICK_START_PAYMENTS.md](QUICK_START_PAYMENTS.md) - Add subscription gating
+3. **Reference:** [PAYMENT_AND_ACCESS_CONTROL.md](PAYMENT_AND_ACCESS_CONTROL.md) - Full implementation
 
-**Start with:**
-- Task 1.1: Project setup (API keys, dependencies)
-- Task 1.2: Database schema
-- Task 1.3: API client wrapper
+**Already Complete:**
+- ✅ Backend AI services (Anthropic API integration)
+- ✅ Database models (3 new tables)
+- ✅ Celery tasks (async processing)
+- ✅ API endpoints (6 REST endpoints)
+- ✅ Frontend UI (AI toggle in Tab3)
+- ✅ Payment models (Stripe integration)
+
+**To Do:**
+- [ ] Deploy to server (30 min)
+- [ ] Add AI feature flags (30 min)
+- [ ] Set up Stripe (1 hour)
+- [ ] Test payment flow (30 min)
 
 ---
 
 ### For Business/Finance
-1. Read [SERVER_REQUIREMENTS.md](SERVER_REQUIREMENTS.md) - Cost analysis
-2. Read [AUDIO_TO_AI_WORKFLOW.md](AUDIO_TO_AI_WORKFLOW.md) - Workflow options
-3. Review cost projections section
+1. Read [NEXT_STEPS.md](NEXT_STEPS.md) - Implementation status
+2. Read [PAYMENT_AND_ACCESS_CONTROL.md](PAYMENT_AND_ACCESS_CONTROL.md) - Pricing models
+3. Review [SERVER_REQUIREMENTS.md](SERVER_REQUIREMENTS.md) - Cost analysis
 
 **Key Numbers:**
-- Small usage (10 hrs/month): $0.60-1.60
-- Medium usage (100 hrs/month): $6-16
-- Large usage (1000 hrs/month): $60-160
-- Break-even point: 2,500 hours/month
+- **AI Cost:** £3-6/month per 100 hours of audio processed
+- **Recommended Pricing:**
+  - Free Trial: 7 days, 1 free AI use to test
+  - Starter: £4.99/month (manual transcript + algorithm detection, no AI)
+  - Basic: £9.99/month (AI duplicates, 500 min)
+  - Pro: £24.99/month (All AI, 2000 min)
+  - Enterprise: £49.99/month (Premium AI, unlimited)
+- **Profit Margin:** ~80-90% after AI costs
+- **Break-even:** ~20-25 paid users (£200-250 MRR)
 
 ---
 

@@ -32,7 +32,7 @@ class ProjectListCreateView(APIView):
                 'updated_at': project.updated_at.isoformat(),
             })
         
-        logger.info(f"Returning {len(project_data)} projects for user {request.user.username}")
+        logger.info(f"Returning {len(project_data)} projects for user_id={request.user.id}")
         return Response({'projects': project_data})
 
     def post(self, request):

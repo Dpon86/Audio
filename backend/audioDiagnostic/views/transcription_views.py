@@ -227,7 +227,7 @@ class AudioFileDetailView(APIView):
                 except Exception as e:
                     logger.warning(f"Could not delete physical file {file_path}: {str(e)}")
             
-            logger.info(f"Audio file '{filename}' (ID: {audio_file_id}) deleted from project {project_id} by user {request.user.username}")
+            logger.info(f"Audio file '{filename}' (ID: {audio_file_id}) deleted from project {project_id} by user_id={request.user.id}")
             
             return Response({
                 'message': f'Audio file "{filename}" and all associated data deleted successfully'
