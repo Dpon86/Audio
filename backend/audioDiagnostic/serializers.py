@@ -6,7 +6,8 @@ from rest_framework import serializers
 from .models import (
     AudioProject, AudioFile, TranscriptionSegment, TranscriptionWord, 
     ProcessingResult, Transcription, DuplicateGroup, ClientTranscription, 
-    DuplicateAnalysis, AIDuplicateDetectionResult, AIPDFComparisonResult
+    DuplicateAnalysis, AIDuplicateDetectionResult, AIPDFComparisonResult,
+    AIProcessingLog
 )
 
 
