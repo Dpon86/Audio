@@ -87,7 +87,7 @@ class ProjectUploadAudioView(APIView):
         if not any(audio_file.name.lower().endswith(ext) for ext in allowed_extensions):
             return Response({'error': 'Invalid audio file format'}, status=status.HTTP_400_BAD_REQUEST)
         if not _check_audio_magic(audio_file):
-            return Response({'error': 'File content does not match a valid audio format'}, status=status.HTTP_400_BAD_REQUEST) for the audio file
+            return Response({'error': 'File content does not match a valid audio format'}, status=status.HTTP_400_BAD_REQUEST)
         title = request.data.get('title', f"Audio File {project.audio_files.count() + 1}")
         order_index = project.audio_files.count()
         
