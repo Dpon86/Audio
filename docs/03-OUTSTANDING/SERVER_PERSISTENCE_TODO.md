@@ -1,6 +1,8 @@
 # Server Persistence Implementation TODO
 
-**Created:** March 10, 2026  
+**Created:** March 10, 2026 | **Completed:** April 2026 ✅
+**Status:** DONE — see [`/TODO.md`](/TODO.md) for current task list.
+
 **Objective:** Implement hybrid server/client storage for transcriptions and duplicate analysis  
 **Strategy:** Store lightweight JSON metadata (~160KB/project) on server while keeping audio files in IndexedDB
 
