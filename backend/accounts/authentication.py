@@ -26,3 +26,25 @@ class ExpiringTokenAuthentication(TokenAuthentication):
             )
 
         return user, token
+
+
+class CookieTokenAuthentication(ExpiringTokenAuthentication):
+    """
+    Extends ExpiringTokenAuthentication to also accept tokens from httpOnly cookies.
+    Checks the 'auth_token' cookie first, then falls back to the Authorization header.
+    This prevents token theft via XSS since httpOnly cookies are inaccessible to JavaScript.
+    """
+
+    def authenticate(self, request):
+        # Try cookie first (not readable by JavaScript)
+        token_key = request.COOKIES.get('auth_token')
+        if token_key:
+            return self.authenticate_credentials(token_key)
+        # Fall back to Authorization header (for API clients / backward compat)
+        return super().authenticate(request)
+
+
+# Make all views that import ExpiringTokenAuthentication automatically use
+# the cookie-aware version without needing to change any of those files.
+ExpiringTokenAuthentication = CookieTokenAuthentication
+

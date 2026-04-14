@@ -17,12 +17,9 @@ const ProjectPage = () => {
 
   const fetchProjects = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(getApiUrl("/api/projects/"), {
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json'
-        }
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
       });
       
       if (response.ok) {
@@ -59,16 +56,11 @@ const ProjectPage = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(getApiUrl("/api/projects/"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': `Token ${token}`
-        },
-        body: JSON.stringify({
-          title: newProjectTitle.trim()
-        })
+        credentials: 'include',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newProjectTitle.trim() })
       });
 
       if (response.ok) {
@@ -97,13 +89,10 @@ const ProjectPage = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(getApiUrl(`/api/projects/${projectId}/`), {
         method: "DELETE",
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json'
-        }
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
       });
 
       if (response.ok) {

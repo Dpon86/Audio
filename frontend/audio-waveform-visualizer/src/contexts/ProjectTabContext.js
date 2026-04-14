@@ -29,14 +29,12 @@ export const ProjectTabProvider = ({ children, projectId }) => {
 
   // Load project data including PDF
   const refreshProjectData = useCallback(async (token) => {
-    if (!projectId || !token) return;
+    if (!projectId) return;
     
     try {
       const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/`, {
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json'
-        }
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
       });
       
       if (response.ok) {
@@ -52,15 +50,13 @@ export const ProjectTabProvider = ({ children, projectId }) => {
 
   // Refresh audio files list (used by multiple tabs)
   const refreshAudioFiles = useCallback(async (token) => {
-    if (!projectId || !token) return;
+    if (!projectId) return;
     
     try {
       setLoading(true);
       const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/files/`, {
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json'
-        }
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
       });
       
       if (response.ok) {

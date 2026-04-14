@@ -41,13 +41,10 @@ const ProfilePage = () => {
     setMessage('');
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(getApiUrl('/api/auth/profile/'), {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Token ${token}`
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
@@ -80,13 +77,10 @@ const ProfilePage = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(getApiUrl('/api/auth/change-password/'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Token ${token}`
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           current_password: passwordData.current_password,
           new_password: passwordData.new_password

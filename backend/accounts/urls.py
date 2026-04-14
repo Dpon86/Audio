@@ -4,7 +4,7 @@ from .views import (
     UserRegistrationView, CustomAuthToken, UserProfileView,
     SubscriptionPlansView, UserSubscriptionView, UsageTrackingView,
     BillingHistoryView, create_checkout_session, cancel_subscription,
-    usage_limits_check
+    usage_limits_check, logout_view
 )
 from .webhooks import stripe_webhook
 
@@ -12,6 +12,7 @@ urlpatterns = [
     # Authentication
     path('register/', csrf_exempt(UserRegistrationView.as_view()), name='user_register'),
     path('login/', csrf_exempt(CustomAuthToken.as_view()), name='user_login'),
+    path('logout/', logout_view, name='logout'),
     path('profile/', UserProfileView.as_view(), name='user_profile'),
     
     # Subscription management

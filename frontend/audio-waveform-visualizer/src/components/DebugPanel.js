@@ -29,13 +29,10 @@ const DebugPanel = ({ isVisible, onToggle }) => {
     
     // Check backend connectivity
     try {
-      const token = localStorage.getItem('token');
       const backendResponse = await fetch(`${API_BASE_URL}/api/projects/`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json'
-        }
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
       });
       
       if (backendResponse.ok) {
@@ -52,13 +49,10 @@ const DebugPanel = ({ isVisible, onToggle }) => {
 
     // Check infrastructure status
     try {
-      const token = localStorage.getItem('token');
       const infraResponse = await fetch(`${API_BASE_URL}/api/infrastructure/status/`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json'
-        }
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
       });
       
       if (infraResponse.ok) {

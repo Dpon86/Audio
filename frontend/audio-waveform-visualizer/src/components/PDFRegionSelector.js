@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE_URL } from '../config/api';
-import { useAuth } from '../contexts/AuthContext';
 import './PDFRegionSelector.css';
 
 /**
@@ -34,8 +33,6 @@ const PDFRegionSelector = ({
   onPositionSelected, 
   onCancel 
 }) => {
-  const { token } = useAuth();
-  
   // PDF data
   const [pdfText, setPdfText] = useState('');
   const [pageBreaks, setPageBreaks] = useState([]);
@@ -116,9 +113,6 @@ const PDFRegionSelector = ({
       const response = await fetch(
         `${API_BASE_URL}/api/projects/${projectId}/pdf-text/`,
         {
-          headers: {
-            'Authorization': `Token ${token}`
-          },
           credentials: 'include'
         }
       );
@@ -183,7 +177,7 @@ const PDFRegionSelector = ({
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, token, type, transcriptText, mode]);
+  }, [projectId, type, transcriptText, mode]);
   
   useEffect(() => {
     loadPDFText();

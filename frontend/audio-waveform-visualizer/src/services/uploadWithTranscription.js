@@ -74,10 +74,6 @@ export async function uploadWithTranscription(
     throw new Error('projectId is required');
   }
 
-  if (!token) {
-    throw new Error('authentication token is required');
-  }
-
   // Create FormData for multipart upload
   const formData = new FormData();
 
@@ -177,8 +173,8 @@ export async function uploadWithTranscription(
       // Open connection
       xhr.open('POST', url);
 
-      // Set auth header
-      xhr.setRequestHeader('Authorization', `Token ${token}`);
+      // Use httpOnly cookie for auth (withCredentials sends cookies cross-origin)
+      xhr.withCredentials = true;
 
       // Set timeout (10 minutes for large files)
       xhr.timeout = 10 * 60 * 1000;

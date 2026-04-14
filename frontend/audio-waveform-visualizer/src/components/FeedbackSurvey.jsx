@@ -50,13 +50,12 @@ const FeedbackSurvey = ({
     };
 
     try {
-      const token = localStorage.getItem('authToken');
       const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
       
       const response = await fetch(`${API_BASE_URL}/api/feedback/submit/`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Authorization': `Token ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(feedbackData)

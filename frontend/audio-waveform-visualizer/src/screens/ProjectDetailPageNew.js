@@ -87,7 +87,7 @@ const ProjectDetailContent = ({ projectData, loading }) => {
 const ProjectDetailPageNew = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   const [projectData, setProjectData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -97,10 +97,8 @@ const ProjectDetailPageNew = () => {
     const fetchProject = async () => {
       try {
         const response = await fetch(getApiUrl(`/api/projects/${projectId}/`), {
-          headers: {
-            'Authorization': `Token ${token}`,
-            'Content-Type': 'application/json'
-          }
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
         });
         
         if (response.ok) {
@@ -117,10 +115,10 @@ const ProjectDetailPageNew = () => {
       }
     };
 
-    if (token && projectId) {
+    if (isAuthenticated && projectId) {
       fetchProject();
     }
-  }, [projectId, token, navigate]);
+  }, [projectId, isAuthenticated, navigate]);
 
   return (
     <ProjectTabProvider projectId={projectId}>

@@ -75,24 +75,17 @@ export const getBaseUrl = () => API_BASE_URL;
 export const apiFetch = async (endpoint, options = {}) => {
   const url = getApiUrl(endpoint);
   
-  // Get token from localStorage
-  const token = localStorage.getItem('token');
-  
   // Set Content-Type only when NOT sending FormData (browser sets it with multipart boundary)
   const headers = {
     ...(!(options.body instanceof FormData) && { 'Content-Type': 'application/json' }),
     ...options.headers,
   };
   
-  // Add authorization header if token exists
-  if (token) {
-    headers['Authorization'] = `Token ${token}`;
-  }
-  
-  // Make the request
+  // Make the request — auth is handled by the httpOnly cookie automatically
   const response = await fetch(url, {
     ...options,
     headers,
+    credentials: 'include',
   });
   
   return response;

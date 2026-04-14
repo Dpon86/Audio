@@ -33,6 +33,19 @@ class LoginRateThrottle(AnonRateThrottle):
     rate = '10/hour'
 
 
+def _set_auth_cookie(response, token):
+    """Set the auth token as a secure httpOnly cookie on the response."""
+    expiry_days = getattr(settings, 'TOKEN_EXPIRY_DAYS', 30)
+    response.set_cookie(
+        key='auth_token',
+        value=token.key,
+        max_age=expiry_days * 24 * 60 * 60,
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite='Lax',
+    )
+
+
 def _get_or_create_fresh_token(user):
     """Return a valid (non-expired) token, deleting and recreating if stale."""
     expiry_days = getattr(settings, 'TOKEN_EXPIRY_DAYS', 30)
@@ -78,8 +91,8 @@ class UserRegistrationView(generics.CreateAPIView):
         
         # Generate auth token
         token = _get_or_create_fresh_token(user)
-        
-        return Response({
+
+        response = Response({
             'user': {
                 'id': user.id,
                 'username': user.username,
@@ -91,6 +104,8 @@ class UserRegistrationView(generics.CreateAPIView):
             'subscription': UserSubscriptionSerializer(user.subscription).data,
             'message': 'Registration successful! Your 7-day free trial has started.'
         }, status=status.HTTP_201_CREATED)
+        _set_auth_cookie(response, token)
+        return response
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -111,7 +126,7 @@ class CustomAuthToken(ObtainAuthToken):
         # Get or create subscription for user
         subscription, created = UserSubscription.objects.get_or_create(user=user)
         
-        return Response({
+        response = Response({
             'token': token.key,
             'user': {
                 'id': user.id,
@@ -122,6 +137,8 @@ class CustomAuthToken(ObtainAuthToken):
             },
             'subscription': UserSubscriptionSerializer(subscription).data
         })
+        _set_auth_cookie(response, token)
+        return response
 
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
@@ -330,3 +347,18 @@ def usage_limits_check(request):
         'limits_exceeded': limits_exceeded,
         'trial_days_remaining': subscription.days_until_renewal if subscription.is_trial else None
     })
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def logout_view(request):
+    """
+    Logout: delete the auth token server-side and clear the httpOnly cookie.
+    """
+    try:
+        request.user.auth_token.delete()
+    except Exception:
+        pass
+    response = Response({'message': 'Logged out successfully'})
+    response.delete_cookie('auth_token')
+    return response

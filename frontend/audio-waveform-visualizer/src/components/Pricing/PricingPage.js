@@ -36,13 +36,10 @@ const PricingPage = ({ user, subscription }) => {
         setCheckoutLoading(planId);
         
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/api/auth/checkout/`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Token ${token}`,
-                },
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     plan_id: planId,
                     billing_cycle: billingCycle,
