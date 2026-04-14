@@ -218,8 +218,8 @@ class ProjectDetailView(APIView):
                 except PermissionError as e:
                     logger.warning(f"Permission denied deleting file {file_path}: {str(e)}")
             
-            username = request.user.username if hasattr(request, 'user') and request.user.is_authenticated else 'anonymous'
-            logger.info(f"Project '{project_title}' (ID: {project_id_str}) deleted by user {username}")
+            user_id = request.user.id if hasattr(request, 'user') and request.user.is_authenticated else 'anonymous'
+            logger.info(f"Project id={project_id_str} deleted by user_id={user_id}")
             logger.info(f"Cleaned up {len(deleted_files)} files")
             
             return Response({

@@ -3,6 +3,30 @@ import './PrivacySecurityPage.css';
 
 const PrivacySecurityPage = () => {
   const [activeTab, setActiveTab] = useState('privacy');
+  const [exportLoading, setExportLoading] = useState(false);
+
+  const handleDataExport = async () => {
+    setExportLoading(true);
+    try {
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+      const resp = await fetch(`${API_BASE_URL}/api/accounts/data-export/`, { credentials: 'include' });
+      if (!resp.ok) throw new Error('Export failed');
+      const data = await resp.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `my-data-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Export failed. Please try again.');
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   return (
     <div className="privacy-security-container">
@@ -33,9 +57,9 @@ const PrivacySecurityPage = () => {
       </div>
 
       <div className="tab-content">
-        {activeTab === 'privacy' && <PrivacyPolicy />}
+        {activeTab === 'privacy' && <PrivacyPolicy onDataExport={handleDataExport} exportLoading={exportLoading} />}
         {activeTab === 'security' && <SecurityMeasures />}
-        {activeTab === 'data' && <YourData />}
+        {activeTab === 'data' && <YourData onDataExport={handleDataExport} exportLoading={exportLoading} />}
       </div>
 
       <div className="trust-badges">
@@ -64,7 +88,7 @@ const PrivacySecurityPage = () => {
   );
 };
 
-const PrivacyPolicy = () => (
+const PrivacyPolicy = ({ onDataExport, exportLoading }) => (
   <div className="content-section">
     <h2>Privacy Policy</h2>
     <p className="last-updated">Last updated: April 12, 2026</p>
@@ -192,7 +216,9 @@ const PrivacyPolicy = () => (
         <div className="right-item">
           <h4>📥 Right to Access</h4>
           <p>You can request a copy of all your data at any time</p>
-          <button className="action-btn">Request My Data</button>
+          <button className="action-btn" onClick={onDataExport} disabled={exportLoading}>
+            {exportLoading ? 'Downloading...' : 'Request My Data'}
+          </button>
         </div>
         <div className="right-item">
           <h4>✏️ Right to Rectification</h4>
@@ -207,7 +233,9 @@ const PrivacyPolicy = () => (
         <div className="right-item">
           <h4>📤 Right to Portability</h4>
           <p>Export your data in a standard format</p>
-          <button className="action-btn">Export Data</button>
+          <button className="action-btn" onClick={onDataExport} disabled={exportLoading}>
+            {exportLoading ? 'Downloading...' : 'Export Data'}
+          </button>
         </div>
       </div>
     </section>
@@ -466,7 +494,7 @@ const SecurityMeasures = () => (
   </div>
 );
 
-const YourData = () => (
+const YourData = ({ onDataExport, exportLoading }) => (
   <div className="content-section">
     <h2>📊 Your Data</h2>
     <p className="subtitle">Complete transparency about what we collect and how it's stored</p>
@@ -618,8 +646,10 @@ const YourData = () => (
     <section className="data-section">
       <h3>📥 Export Your Data</h3>
       <p>Request a complete export of all your data in machine-readable format (JSON):</p>
-      <button className="action-btn">Request Data Export</button>
-      <p className="note">Export includes: Account info, projects, audio metadata, transcriptions, and usage history. We'll email you a download link within 72 hours.</p>
+      <button className="action-btn" onClick={onDataExport} disabled={exportLoading}>
+        {exportLoading ? 'Downloading...' : 'Request Data Export'}
+      </button>
+      <p className="note">Export includes: Account info, projects, audio metadata, transcriptions, and usage history. Your download will start immediately.</p>
     </section>
 
     <section className="data-section">

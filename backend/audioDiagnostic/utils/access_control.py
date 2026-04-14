@@ -46,7 +46,7 @@ def require_ai_feature(feature_name):
             
             # Check if user has a subscription
             if not hasattr(user, 'subscription'):
-                logger.warning(f"User {user.username} has no subscription")
+                logger.warning(f"User user_id={user.id} has no subscription")
                 return Response({
                     'success': False,
                     'error': 'No active subscription found',
@@ -116,7 +116,7 @@ def require_ai_feature(feature_name):
                 }, status=status.HTTP_402_PAYMENT_REQUIRED)
             
             # All checks passed - user has access to this feature
-            logger.debug(f"User {user.username} has access to {feature_name}")
+            logger.debug(f"User user_id={user.id} has access to {feature_name}")
             return view_func(request, *args, **kwargs)
         
         return wrapper
@@ -179,7 +179,7 @@ def check_ai_cost_limit(user, estimated_cost):
         )
         
     except AttributeError as e:
-        logger.error(f"Error checking AI cost limit for user {user.username}: {e}")
+        logger.error(f"Error checking AI cost limit for user_id={user.id}: {e}")
         return False, 0.0, "Unable to verify AI budget - subscription not found"
     except Exception as e:
         logger.error(f"Unexpected error in check_ai_cost_limit: {e}", exc_info=True)

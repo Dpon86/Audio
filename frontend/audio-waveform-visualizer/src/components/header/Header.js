@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import '../../static/CSS/HeaderNew.css';
 
@@ -302,6 +302,16 @@ const Menu = ({ isOpen, toggle, navigate, isAuthenticated }) => (
               <i className="icon-book"></i>
               User Manual
             </a>
+          </li>
+          <li>
+            <Link
+              to="/privacy"
+              onClick={toggle}
+              className="Hd-nav-item"
+            >
+              <i className="icon-shield"></i>
+              Privacy &amp; Security
+            </Link>
           </li>
         </ul>
       </div>

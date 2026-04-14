@@ -13,9 +13,13 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 import stripe
 import os
+import logging
 from datetime import timedelta
 
 from accounts.authentication import ExpiringTokenAuthentication
+
+logger = logging.getLogger(__name__)
+security_logger = logging.getLogger('security')
 
 from .models import SubscriptionPlan, UserSubscription, UsageTracking, BillingHistory, UserProfile
 from .serializers import (
@@ -87,7 +91,7 @@ class UserRegistrationView(generics.CreateAPIView):
             
         except Exception as e:
             # Log error but don't fail registration
-            print(f"Stripe customer creation failed: {e}")
+            logger.warning(f"Stripe customer creation failed for user_id={user.id}: {type(e).__name__}")
         
         # Generate auth token
         token = _get_or_create_fresh_token(user)
@@ -122,6 +126,10 @@ class CustomAuthToken(ObtainAuthToken):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         token = _get_or_create_fresh_token(user)
+        
+        security_logger.info(
+            f"login_success user_id={user.id} ip={request.META.get('REMOTE_ADDR', 'unknown')}"
+        )
         
         # Get or create subscription for user
         subscription, created = UserSubscription.objects.get_or_create(user=user)
@@ -359,6 +367,96 @@ def logout_view(request):
         request.user.auth_token.delete()
     except Exception:
         pass
+    security_logger.info(
+        f"logout user_id={request.user.id} ip={request.META.get('REMOTE_ADDR', 'unknown')}"
+    )
     response = Response({'message': 'Logged out successfully'})
     response.delete_cookie('auth_token')
     return response
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def data_export(request):
+    """
+    GDPR Article 20 - Right to data portability.
+    Returns a JSON export of all personal data held for the authenticated user.
+    """
+    user = request.user
+
+    # Account data (never include password hash)
+    account_data = {
+        'id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'date_joined': user.date_joined.isoformat(),
+        'last_login': user.last_login.isoformat() if user.last_login else None,
+    }
+
+    # Subscription
+    try:
+        sub = user.subscription
+        subscription_data = {
+            'plan': sub.plan.name if sub.plan else None,
+            'status': sub.status,
+            'trial_end': sub.trial_end.isoformat() if sub.trial_end else None,
+            'current_period_end': sub.current_period_end.isoformat() if sub.current_period_end else None,
+        }
+    except Exception:
+        subscription_data = None
+
+    # Projects + audio files + transcriptions
+    from audioDiagnostic.models import AudioProject, AudioFile, ClientTranscription, DuplicateAnalysis
+    projects = []
+    for project in AudioProject.objects.filter(user=user).prefetch_related('audio_files'):
+        files = []
+        for af in project.audio_files.all():
+            files.append({
+                'id': af.id,
+                'filename': af.filename,
+                'file_size': af.file_size,
+                'duration': af.duration,
+                'status': af.status,
+                'created_at': af.created_at.isoformat() if af.created_at else None,
+            })
+        projects.append({
+            'id': project.id,
+            'title': project.title,
+            'created_at': project.created_at.isoformat() if project.created_at else None,
+            'audio_files': files,
+        })
+
+    # Synced transcription metadata
+    transcriptions = list(
+        ClientTranscription.objects.filter(project__user=user).values(
+            'id', 'filename', 'processing_method', 'model_used', 'duration', 'language', 'timestamp'
+        )
+    )
+    for t in transcriptions:
+        if t.get('timestamp'):
+            t['timestamp'] = t['timestamp'].isoformat()
+
+    # Synced duplicate analyses
+    analyses = list(
+        DuplicateAnalysis.objects.filter(project__user=user).values(
+            'id', 'filename', 'algorithm', 'total_segments', 'duplicate_count', 'timestamp'
+        )
+    )
+    for a in analyses:
+        if a.get('timestamp'):
+            a['timestamp'] = a['timestamp'].isoformat()
+
+    export = {
+        'export_generated_at': timezone.now().isoformat(),
+        'account': account_data,
+        'subscription': subscription_data,
+        'projects': projects,
+        'transcription_metadata': transcriptions,
+        'duplicate_analyses': analyses,
+    }
+
+    security_logger.info(f"data_export user_id={user.id} ip={request.META.get('REMOTE_ADDR', 'unknown')}")
+
+    return Response(export)

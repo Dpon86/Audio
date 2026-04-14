@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-import os, json
+import os, json, logging.handlers
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -283,6 +283,14 @@ LOGGING = {
             'filename': os.path.join(LOG_DIR, 'error.log'),
             'formatter': 'verbose',
         },
+        'security_file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOG_DIR, 'security.log'),
+            'maxBytes': 10 * 1024 * 1024,  # 10 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
         'audioDiagnostic.tasks': {
@@ -294,6 +302,11 @@ LOGGING = {
             'handlers': ['debug_file', 'error_file'],
             'level': 'INFO',
             'propagate': True,
+        },
+        'security': {
+            'handlers': ['security_file'],
+            'level': 'INFO',
+            'propagate': False,
         },
     },
     'root': {

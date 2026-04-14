@@ -51,8 +51,8 @@ def submit_feedback(request):
     feedback = serializer.save()
     
     logger.info(
-        f"Feedback submitted by {request.user.username} for {feedback.feature} "
-        f"- Rating: {feedback.rating}/5, Worked as expected: {feedback.worked_as_expected}"
+        f"Feedback submitted by user_id={request.user.id} for feature={feedback.feature} "
+        f"rating={feedback.rating}/5 worked_as_expected={feedback.worked_as_expected}"
     )
     
     return Response({

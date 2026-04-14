@@ -4,7 +4,7 @@ from .views import (
     UserRegistrationView, CustomAuthToken, UserProfileView,
     SubscriptionPlansView, UserSubscriptionView, UsageTrackingView,
     BillingHistoryView, create_checkout_session, cancel_subscription,
-    usage_limits_check, logout_view
+    usage_limits_check, logout_view, data_export
 )
 from .webhooks import stripe_webhook
 
@@ -25,6 +25,7 @@ urlpatterns = [
     path('usage/', UsageTrackingView.as_view(), name='usage_tracking'),
     path('billing/', BillingHistoryView.as_view(), name='billing_history'),
     path('usage-limits/', usage_limits_check, name='usage_limits'),
+    path('data-export/', data_export, name='data_export'),
     
     # Webhooks
     path('stripe-webhook/', stripe_webhook, name='stripe_webhook'),
