@@ -184,11 +184,14 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/hour',      # Anonymous users: 100 requests per hour
-        'user': '1000/hour',     # Authenticated users: 1000 requests per hour
-        'upload': '50/hour',     # File uploads: 50 per hour
-        'transcribe': '10/hour', # Transcription tasks: 10 per hour (expensive)
-        'process': '20/hour',    # Processing tasks: 20 per hour
+        'anon': '100/hour',           # Anonymous users: 100 requests per hour
+        'user': '1000/hour',          # Authenticated users: 1000 requests per hour
+        'upload': '50/hour',          # File uploads: 50 per hour
+        'transcribe': '10/hour',      # Transcription tasks: 10 per hour (expensive)
+        'process': '20/hour',         # Processing tasks: 20 per hour
+        'login_burst': '5/minute',    # Login: max 5 attempts per minute per IP
+        'login_sustained': '20/hour', # Login: max 20 attempts per hour per IP
+        'register': '3/hour',         # Registration: max 3 new accounts per hour per IP
     }
 }
 

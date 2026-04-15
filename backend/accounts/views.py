@@ -32,9 +32,19 @@ from .serializers import (
 stripe.api_key = getattr(settings, 'STRIPE_SECRET_KEY', os.getenv('STRIPE_SECRET_KEY'))
 
 
-class LoginRateThrottle(AnonRateThrottle):
-    """Tighter rate limit on the login endpoint to slow brute-force attempts."""
-    rate = '10/hour'
+class LoginBurstThrottle(AnonRateThrottle):
+    """Burst limit: max 5 login attempts per minute per IP."""
+    scope = 'login_burst'
+
+
+class LoginSustainedThrottle(AnonRateThrottle):
+    """Sustained limit: max 20 login attempts per hour per IP."""
+    scope = 'login_sustained'
+
+
+class RegistrationRateThrottle(AnonRateThrottle):
+    """Limit account creation to prevent registration spam."""
+    scope = 'register'
 
 
 def _set_auth_cookie(response, token):
@@ -68,6 +78,7 @@ class UserRegistrationView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserRegistrationSerializer
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [RegistrationRateThrottle]
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -118,7 +129,7 @@ class CustomAuthToken(ObtainAuthToken):
     Custom login view that returns user info and subscription
     """
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [LoginRateThrottle]
+    throttle_classes = [LoginBurstThrottle, LoginSustainedThrottle]
     
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data,
