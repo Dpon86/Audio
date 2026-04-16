@@ -1,10 +1,10 @@
 ﻿# Master TODO â€” Audio App
 
-**Last Updated:** April 14, 2026
+**Last Updated:** April 16, 2026
 **Canonical source of truth** â€” all other TODO files are superseded by this one.
 
-**Overall Completion:** ~55% (29 of ~53 tracked items done)
-**Production Status:** â­â­â­â­ 4/5 â€” Running in production, security hardened
+**Overall Completion:** ~65% (35 of ~53 tracked items done)
+**Production Status:** ⭐⭐⭐⭐½ 4.7/5 — Running in production, S1–S6 security complete
 
 ---
 
@@ -54,62 +54,28 @@
 - [x] AI database models created (`AIDuplicateDetectionResult`, `AIPDFComparisonResult`, `AIProcessingLog`)
 - [x] AI service layer created (`services/ai/`: `anthropic_client.py`, `duplicate_detector.py`, `prompt_templates.py`, `cost_calculator.py`)
 - [x] Privacy & Security Page created (`PrivacySecurityPage.jsx` + CSS) and routed at `/privacy`
+### Security & GDPR (Phase 1B — completed April 14-16, 2026)
+- [x] **S1** — PII removed from all log statements (username/email -> user_id) in access_control.py, project_views.py, views_feedback.py, views.py
+- [x] **S2** — Security audit logger: RotatingFileHandler (10MB x 5 backups), login/logout/export events in views.py
+- [x] **S3** — Privacy & Security nav link added to Header.js Help section
+- [x] **S4** — GDPR data export: GET /api/accounts/data-export/ returns full JSON bundle; buttons wired in PrivacySecurityPage.jsx
+- [x] **S5** — CSP + security headers in nginx.conf and host nginx (/etc/nginx/sites-available/audioapp); all 6 headers live on https://audio.precisepouchtrack.com
+  - Note: host nginx serves React build directly — CSP must be maintained in BOTH places on server rebuild
+- [x] **S6** — Login throttle: burst (5/min) + sustained (20/hour); RegistrationRateThrottle at 3/hour
+
 
 ---
 
-## ðŸ”´ HIGH PRIORITY â€” Do Next
-
-### Security & GDPR
-
-**S1 â€” Review Application Logs for PII** *(~2 hours)*
-- Scan all `logger.*` calls for email addresses, names, phone numbers
-- Replace with user IDs: `logger.info(f'Login: user_id={user.id}')` not `user.email`
-- Key files: `accounts/views.py`, all `audioDiagnostic/views/` files
-- Impact: GDPR compliance
-
-**S2 â€” Add Security Audit Logging** *(~2 hours)*
-- Add dedicated `security` logger with `RotatingFileHandler` (10MB, 5 backups) in `settings.py`
-- Log in `accounts/views.py`: login success/fail (user_id + IP), logout, password change
-- Events: login, logout, password change, data export, account deletion, subscription change
-- Never log tokens, passwords, or PII â€” only user_id + IP
-- Impact: Enables incident investigation
-
-**S3 â€” Add Privacy Page Footer Link** *(~15 min)*
-- Route `/privacy` already exists and works
-- Add `<Link to="/privacy">Privacy & Security</Link>` in app footer/nav
-- Impact: GDPR user transparency
-
-**S4 â€” Implement GDPR Data Export Endpoint** *(~2â€“3 hours)*
-- `POST /api/accounts/data-export/` â†’ returns JSON of all user data
-- Bundle: account info, subscription, projects, audio files, transcriptions
-- Wire up "Request Data Export" button in `PrivacySecurityPage.jsx`
-- Configure SMTP or transactional email (SendGrid/Mailgun)
-- Impact: GDPR Article 20 â€” right to data portability
-
----
-
-## ðŸŸ¡ MEDIUM PRIORITY â€” Complete Within 2 Weeks
-
-### Security Enhancements
-
-**S5 â€” Add Content Security Policy (CSP)** *(~1 hour)*
-- `pip install django-csp`, add `csp.middleware.CSPMiddleware` to `MIDDLEWARE`
-- Allow: `'self'`, Stripe JS, Anthropic API
-- Impact: Defense-in-depth against XSS
-
-**S6 â€” Tighten Rate Limits for Production** *(~30 min)*
-- Add login-specific throttle class: `3/hour` (brute-force protection)
-- Consider `django-defender` for automatic IP blocking
-- Current limits are good baseline; login endpoint needs hardening
+## HIGH PRIORITY — Do Next
 
 ### Testing
 
-**T1 â€” Run Full Test Suite and Fix Failures** *(~1 day)*
+**T1 — Run Full Test Suite and Fix Failures** *(~1 day)*
 - `docker exec audioapp_backend python manage.py test audioDiagnostic.tests`
 - Expected: 51 tests pass (22 model + 17 API + 12 task tests)
 
-**T2 â€” Run Security Scan (Bandit)** *(~1 hour)*
-- `pip install bandit` â†’ `bandit -r backend/`
+**T2 — Run Security Scan (Bandit)** *(~1 hour)*
+- `pip install bandit` -> `bandit -r backend/`
 - Fix any HIGH or MEDIUM severity findings
 
 **T3 â€” Add Query Optimisation** *(~2 hours)*
@@ -202,29 +168,32 @@
 
 | Area | Done | Remaining |
 |------|------|-----------|
-| Security (Phase 1 + 1B) | 10 | 6 |
+| Security (Phase 1 + 1B) | 16 | 0 |
 | Architecture (Phase 2) | 7 | 0 |
 | Testing | 3 | 4 |
 | Client-side / Server Persistence | 9 | 0 |
 | AI Duplicate Detection | 2 | 1 |
-| Privacy page | 1 | 1 (footer link) |
+| Privacy / GDPR | 4 | 0 |
 | Performance / Infra | 3 | 7 |
 | Frontend Quality | 0 | 3 |
 | CI/CD & Monitoring | 0 | 4 |
-| **TOTAL** | **~35** | **~26** |
+| **TOTAL** | **~44** | **~19** |
 
 ---
 
 ## ðŸŽ¯ Recommended Next Actions
 
-1. **S1** â€” Review logs for PII *(quick win, GDPR compliance)*
-2. **S2** â€” Add security audit logging *(quick win, incident response)*
-3. **S3** â€” Add privacy page footer link *(15 min)*
-4. **T1** â€” Run full test suite *(validate production stability)*
-5. **T2** â€” Bandit security scan *(may catch remaining issues)*
-6. **S4** â€” GDPR data export endpoint *(legal requirement for EU users)*
-7. **AI1** â€” Complete AI duplicate detection wiring
-8. **P1** â€” PostgreSQL migration *(production database hardening)*
+1. **T1** — Run full test suite *(validate production stability)*
+2. **T2** — Bandit security scan *(may catch remaining issues)*
+3. **T3** — Add query optimisation (select_related/prefetch_related)
+4. **AI1** — Complete AI duplicate detection wiring
+5. **P1** — PostgreSQL migration *(production database hardening)*
+6. **P6** — File encryption at rest *(audio files unencrypted on disk)*
 
 
 ---
+
+
+
+
+
