@@ -361,11 +361,14 @@ class Command(BaseCommand):
         
         # Stop any Redis containers we might have started
         try:
-            subprocess.run(
-                ['docker', 'stop', '$(docker', 'ps', '-q', '--filter', 'ancestor=redis)'],
-                shell=True, capture_output=True
+            result = subprocess.run(
+                ['docker', 'ps', '-q', '--filter', 'ancestor=redis'],
+                capture_output=True, text=True
             )
-        except:
+            container_ids = result.stdout.strip().split()
+            if container_ids:
+                subprocess.run(['docker', 'stop'] + container_ids, capture_output=True)
+        except Exception:
             pass
         
         self.stdout.write(
