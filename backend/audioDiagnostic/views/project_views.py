@@ -15,17 +15,21 @@ class ProjectListCreateView(APIView):
 
     def get(self, request):
         # Get only projects belonging to the authenticated user
-        # Optimize query with select_related for user and prefetch for audio files
-        projects = AudioProject.objects.filter(user=request.user).select_related('user')
+        # prefetch_related avoids N+1 on audio_files_count / processed_files_count
+        projects = AudioProject.objects.filter(user=request.user).select_related('user').prefetch_related('audio_files')
         project_data = []
         for project in projects:
+            # Use the prefetched list directly to avoid extra DB hits per project
+            all_files = list(project.audio_files.all())
+            audio_files_count = len(all_files)
+            processed_files_count = sum(1 for f in all_files if f.status == 'completed')
             project_data.append({
                 'id': project.id,
                 'title': project.title,
                 'status': project.status,
                 'has_pdf': bool(project.pdf_file),
-                'audio_files_count': project.audio_files_count,
-                'processed_files_count': project.processed_files_count,
+                'audio_files_count': audio_files_count,
+                'processed_files_count': processed_files_count,
                 'description': project.description,
                 'total_chapters': project.total_chapters,
                 'created_at': project.created_at.isoformat(),
@@ -62,16 +66,20 @@ class ProjectDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, project_id):
-        # Optimize query with prefetch_related for audio files
+        # Optimize query with prefetch_related for audio files and select_related for parent
         project = get_object_or_404(
-            AudioProject.objects.prefetch_related('audio_files'),
+            AudioProject.objects.select_related('parent_project').prefetch_related('audio_files', 'iterations'),
             id=project_id,
             user=request.user
         )
-        
+
+        # Build a local list from the prefetch cache — all downstream counts/filters use this
+        # to avoid extra DB queries per field access
+        all_audio_files = sorted(project.audio_files.all(), key=lambda f: f.order_index)
+
         # Get audio files info
         audio_files_data = []
-        for audio_file in project.audio_files.all().order_by('order_index'):
+        for audio_file in all_audio_files:
             audio_files_data.append({
                 'id': audio_file.id,
                 'title': audio_file.title,
@@ -101,8 +109,12 @@ class ProjectDetailView(APIView):
             }
 
         # Determine what actions are available based on current status
+        # Use the prefetched list for all status checks to avoid extra DB queries
+        uploaded_files = [f for f in all_audio_files if f.status == 'uploaded']
+        transcribed_files = [f for f in all_audio_files if f.status == 'transcribed']
+
         available_actions = []
-        if project.status == 'setup' and project.pdf_file and project.audio_files.exists():
+        if project.status == 'setup' and project.pdf_file and all_audio_files:
             available_actions.append('transcribe')
         elif project.status == 'transcribed':
             available_actions.append('process')
@@ -115,10 +127,10 @@ class ProjectDetailView(APIView):
                 'title': project.title,
                 'status': project.status,
                 'has_pdf': bool(project.pdf_file),
-                'pdf_file': project.pdf_file.url if project.pdf_file else None,  # Add PDF URL
-                'audio_files_count': project.audio_files.count(),
-                'transcribed_files_count': project.audio_files.filter(status='transcribed').count(),
-                'uploaded_files_count': project.audio_files.filter(status='uploaded').count(),
+                'pdf_file': project.pdf_file.url if project.pdf_file else None,
+                'audio_files_count': len(all_audio_files),
+                'transcribed_files_count': len(transcribed_files),
+                'uploaded_files_count': len(uploaded_files),
                 'has_final_audio': bool(project.final_processed_audio),
                 'total_duplicates_found': project.total_duplicates_found,
                 'missing_content': project.missing_content,
@@ -130,7 +142,7 @@ class ProjectDetailView(APIView):
                 'available_actions': available_actions,
                 'workflow_status': {
                     'pdf_uploaded': bool(project.pdf_file),
-                    'audio_files_uploaded': project.audio_files.filter(status='uploaded').exists(),
+                    'audio_files_uploaded': bool(uploaded_files),
                     'transcription_complete': project.status in ['transcribed', 'processing', 'completed'],
                     'processing_complete': project.status == 'completed'
                 },
@@ -141,7 +153,7 @@ class ProjectDetailView(APIView):
                 'pdf_matched_section': project.pdf_matched_section,
                 # Only include pdf_text if explicitly requested (can be very large)
                 'pdf_text': project.pdf_text if request.GET.get('include_pdf_text') else None,
-                'pdf_match_start_char': getattr(project, 'pdf_match_start_char', None),  # Boundary positions
+                'pdf_match_start_char': getattr(project, 'pdf_match_start_char', None),
                 'pdf_match_end_char': getattr(project, 'pdf_match_end_char', None),
                 'combined_transcript': project.combined_transcript,
                 'duplicates_detection_completed': project.duplicates_detection_completed,
@@ -160,7 +172,7 @@ class ProjectDetailView(APIView):
                 # Iterative cleaning
                 'parent_project_id': project.parent_project.id if project.parent_project else None,
                 'iteration_number': project.iteration_number,
-                'has_iterations': project.iterations.exists() if hasattr(project, 'iterations') else False
+                'has_iterations': bool(list(project.iterations.all())) if hasattr(project, 'iterations') else False
             }
         })
     
@@ -332,14 +344,15 @@ class ProjectTranscriptView(APIView):
         
         # Get transcripts for all audio files in the project
         for audio_file in project.audio_files.all().order_by('order_index'):
-            segments = TranscriptionSegment.objects.filter(audio_file=audio_file).order_by('segment_index')
+            # Use the prefetched reverse relation (audio_file.segments) to avoid N+1
+            segments = sorted(audio_file.segments.all(), key=lambda s: s.segment_index)
             
             file_transcript = {
                 'audio_file_id': audio_file.id,
                 'filename': audio_file.filename,
                 'title': audio_file.title,
                 'status': audio_file.status,
-                'segments_count': segments.count(),
+                'segments_count': len(segments),
                 'segments': []
             }
             
@@ -354,7 +367,7 @@ class ProjectTranscriptView(APIView):
                     'segment_index': segment.segment_index
                 })
                 
-            total_segments += segments.count()
+            total_segments += len(segments)
             transcript_data.append(file_transcript)
         
         # Get full text transcript

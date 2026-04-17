@@ -144,7 +144,7 @@ class AudioFileListView(APIView):
     def get(self, request, project_id):
         project = get_object_or_404(AudioProject, id=project_id, user=request.user)
         from audioDiagnostic.models import AudioFile
-        audio_files = AudioFile.objects.filter(project=project).order_by('created_at')
+        audio_files = AudioFile.objects.filter(project=project).select_related('project').order_by('created_at')
         
         audio_files_data = []
         for audio_file in audio_files:
