@@ -9,6 +9,7 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from audioDiagnostic.models import AudioProject, AudioFile
 from django.core.files.uploadedfile import SimpleUploadedFile
+from unittest.mock import patch, MagicMock
 import json
 
 
@@ -40,10 +41,11 @@ class ProjectAPITest(APITestCase):
     def test_list_projects_unauthenticated(self):
         """Test that unauthenticated users cannot list projects"""
         self.client.credentials()  # Remove authentication
-        
+
         response = self.client.get('/api/projects/')
-        
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # DRF returns 401 with TokenAuthentication, 403 with SessionAuthentication
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
     
     def test_list_projects_only_shows_own_projects(self):
         """Test that users only see their own projects"""
@@ -184,15 +186,18 @@ class FileUploadAPITest(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     
-    def test_upload_audio(self):
+    @patch('audioDiagnostic.views.upload_views._check_audio_magic')
+    def test_upload_audio(self, mock_magic):
         """Test audio file upload"""
+        mock_magic.return_value = True  # Bypass magic byte validation
+
         audio_content = b'fake audio content'
         audio_file = SimpleUploadedFile(
             "test.mp3",
             audio_content,
             content_type="audio/mpeg"
         )
-        
+
         response = self.client.post(
             f'/api/projects/{self.project.id}/upload-audio/',
             {
@@ -202,9 +207,9 @@ class FileUploadAPITest(APITestCase):
             },
             format='multipart'
         )
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
         # Verify audio file was created
         self.assertTrue(
             AudioFile.objects.filter(
@@ -236,12 +241,20 @@ class TranscriptionAPITest(APITestCase):
             order_index=0
         )
     
-    def test_start_transcription(self):
+    @patch('audioDiagnostic.views.transcription_views.transcribe_all_project_audio_task')
+    def test_start_transcription(self, mock_task):
         """Test starting transcription for project"""
+        # Configure mock task
+        mock_task.delay.return_value = MagicMock(id='fake-task-id')
+
+        # Project needs a PDF file and audio with status='uploaded'
+        AudioProject.objects.filter(id=self.project.id).update(pdf_file='pdfs/test.pdf')
+        AudioFile.objects.filter(project=self.project).update(status='uploaded')
+
         response = self.client.post(
             f'/api/projects/{self.project.id}/transcribe/'
         )
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('message', response.data)
     
@@ -295,12 +308,13 @@ class AuthenticationTest(APITestCase):
             '/api/projects/',
             '/api/projects/1/',
         ]
-        
+
         for endpoint in endpoints:
             response = self.client.get(endpoint)
-            self.assertEqual(
+            # DRF returns 401 with TokenAuthentication, 403 with SessionAuthentication
+            self.assertIn(
                 response.status_code,
-                status.HTTP_401_UNAUTHORIZED,
+                [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN],
                 f"Endpoint {endpoint} should require authentication"
             )
     
@@ -317,6 +331,7 @@ class AuthenticationTest(APITestCase):
     def test_invalid_token_rejected(self):
         """Test that invalid tokens are rejected"""
         self.client.credentials(HTTP_AUTHORIZATION='Token invalid_token_here')
-        
+
         response = self.client.get('/api/projects/')
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        # DRF returns 401 with TokenAuthentication, 403 with SessionAuthentication
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])

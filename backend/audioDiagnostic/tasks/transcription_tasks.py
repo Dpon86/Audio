@@ -328,6 +328,8 @@ def transcribe_audio_file_task(self, audio_file_id):
         audio_file.status = 'transcribed'
         audio_file.save()
         
+        segments_count = len(aligned_segments)
+
         # Clean up memory
         del model
         del result
@@ -342,7 +344,7 @@ def transcribe_audio_file_task(self, audio_file_id):
             'status': 'completed',
             'message': 'Audio transcription completed successfully',
             'transcript_text': transcript_text,
-            'segments_count': len(aligned_segments),
+            'segments_count': segments_count,
             'quality_metrics': quality_metrics
         }
         

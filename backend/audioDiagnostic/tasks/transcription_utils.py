@@ -307,6 +307,7 @@ def calculate_transcription_quality_metrics(segments: List[Dict]) -> Dict:
             'high_confidence_count': 0,
             'avg_segment_length': 0,
             'total_segments': 0,
+            'estimated_accuracy': 'N/A',
         }
     
     confidences = []
