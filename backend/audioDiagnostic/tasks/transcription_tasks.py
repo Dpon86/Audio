@@ -41,7 +41,7 @@ def transcribe_all_project_audio_task(self, project_id):
     
     try:
         # Get project and all its audio files
-        from audioDiagnostic.models import AudioProject, AudioFile
+        from audioDiagnostic.models import AudioProject, AudioFile, Transcription
         project = AudioProject.objects.get(id=project_id)
         audio_files = project.audio_files.filter(status='uploaded').order_by('order_index')
         
