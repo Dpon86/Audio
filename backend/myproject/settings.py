@@ -11,7 +11,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-import os, json, logging.handlers
+import os, sys, json, logging.handlers
+
+# Detect when running the test suite so security redirects don't break Django's HTTP test client
+_RUNNING_TESTS = len(sys.argv) > 1 and sys.argv[1] == 'test'
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -390,7 +393,7 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
 # HTTPS and Security Headers (enable in production)
-if not DEBUG:
+if not DEBUG and not _RUNNING_TESTS:
     SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 31536000  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True

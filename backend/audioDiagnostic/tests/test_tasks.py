@@ -32,7 +32,7 @@ class TranscriptionTaskTest(TestCase):
             order_index=0
         )
     
-    @patch('audioDiagnostic.tasks.whisper.load_model')
+    @patch('audioDiagnostic.tasks.transcription_tasks.whisper.load_model')
     @patch('audioDiagnostic.tasks.ensure_ffmpeg_in_path')
     def test_transcribe_audio_file_task(self, mock_ffmpeg, mock_whisper):
         """Test transcribing a single audio file"""
@@ -92,7 +92,7 @@ class TranscriptionTaskTest(TestCase):
         self.project.refresh_from_db()
         self.assertEqual(self.project.status, 'transcribing')
     
-    @patch('audioDiagnostic.tasks.whisper.load_model')
+    @patch('audioDiagnostic.tasks.transcription_tasks.whisper.load_model')
     @patch('audioDiagnostic.tasks.ensure_ffmpeg_in_path')
     def test_transcription_error_handling(self, mock_ffmpeg, mock_whisper):
         """Test transcription task handles errors gracefully"""
@@ -150,31 +150,18 @@ class ProcessingTaskTest(TestCase):
             segment_index=2
         )
     
-    @patch('audioDiagnostic.tasks.pdfplumber.open')
-    def test_process_project_duplicates_task(self, mock_pdf):
+    def test_process_project_duplicates_task(self):
         """Test duplicate detection task"""
-        # Mock PDF reading
-        mock_pdf_obj = MagicMock()
-        mock_pdf_obj.pages = [MagicMock()]
-        mock_pdf_obj.pages[0].extract_text.return_value = "PDF text content"
-        mock_pdf.__enter__.return_value = mock_pdf_obj
-        
-        # Run task
+        # Run task (no PDF file on project, so PDF code path is skipped)
         result = process_project_duplicates_task(self.project.id)
         
         # Verify project status was updated
         self.project.refresh_from_db()
         self.assertEqual(self.project.status, 'processing')
     
-    @patch('audioDiagnostic.tasks.AudioSegment.from_file')
-    def test_audio_assembly_task(self, mock_audio_segment):
+    def test_audio_assembly_task(self):
         """Test assembling final audio from segments"""
-        # Mock AudioSegment
-        mock_segment = MagicMock()
-        mock_audio_segment.return_value = mock_segment
-        
-        # This would test the audio assembly logic
-        # Actual implementation depends on your task structure
+        # Placeholder - actual assembly tested via integration tests
         pass
 
 
@@ -219,7 +206,7 @@ class TaskRetryTest(TestCase):
             order_index=0
         )
     
-    @patch('audioDiagnostic.tasks.whisper.load_model')
+    @patch('audioDiagnostic.tasks.transcription_tasks.whisper.load_model')
     @patch('audioDiagnostic.tasks.ensure_ffmpeg_in_path')
     def test_task_retries_on_transient_error(self, mock_ffmpeg, mock_whisper):
         """Test that tasks retry on transient errors"""
@@ -237,8 +224,8 @@ class TaskRetryTest(TestCase):
 class FFmpegIntegrationTest(TestCase):
     """Test FFmpeg path configuration"""
     
-    @patch('audioDiagnostic.tasks.os.path.exists')
-    @patch('audioDiagnostic.tasks.os.environ')
+    @patch('audioDiagnostic.tasks.transcription_tasks.os.path.exists')
+    @patch('audioDiagnostic.tasks.transcription_tasks.os.environ')
     def test_ensure_ffmpeg_in_path(self, mock_environ, mock_exists):
         """Test FFmpeg path setup"""
         from audioDiagnostic.tasks import ensure_ffmpeg_in_path
@@ -248,7 +235,7 @@ class FFmpegIntegrationTest(TestCase):
         mock_environ.__setitem__ = MagicMock()
         
         # Test with environment variable
-        with patch('audioDiagnostic.tasks.os.getenv') as mock_getenv:
+        with patch('audioDiagnostic.tasks.transcription_tasks.os.getenv') as mock_getenv:
             mock_getenv.return_value = 'C:\\ffmpeg\\bin'
             ensure_ffmpeg_in_path()
             

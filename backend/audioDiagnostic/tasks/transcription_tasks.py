@@ -18,7 +18,7 @@ _whisper_model = None
 def _get_whisper_model():
     global _whisper_model
     if _whisper_model is None:
-        _whisper_model = _get_whisper_model()
+        _whisper_model = whisper.load_model("base")
     return _whisper_model
 
 @shared_task(bind=True)
