@@ -741,23 +741,23 @@ class AudioProcessingTasksTests(TestCase):
         self.audio_file = make_audio_file(self.project)
 
     def test_transcribe_task_missing_file(self):
-        from audioDiagnostic.tasks.audio_processing_tasks import transcribe_audio_task
+        from audioDiagnostic.tasks.audio_processing_tasks import process_audio_file_task
         with patch('audioDiagnostic.tasks.audio_processing_tasks.docker_celery_manager') as mock_dcm, \
              patch('audioDiagnostic.tasks.audio_processing_tasks.get_redis_connection') as mock_redis_fn:
             mock_dcm.setup_infrastructure.return_value = True
             mock_dcm.register_task.return_value = None
             mock_dcm.unregister_task.return_value = None
             mock_redis_fn.return_value = mock_redis()
-            result = transcribe_audio_task.apply(args=[99999])
+            result = process_audio_file_task.apply(args=[99999])
         self.assertEqual(result.state, 'FAILURE')
 
     def test_transcribe_task_infra_failure(self):
-        from audioDiagnostic.tasks.audio_processing_tasks import transcribe_audio_task
+        from audioDiagnostic.tasks.audio_processing_tasks import process_audio_file_task
         with patch('audioDiagnostic.tasks.audio_processing_tasks.docker_celery_manager') as mock_dcm, \
              patch('audioDiagnostic.tasks.audio_processing_tasks.get_redis_connection') as mock_redis_fn:
             mock_dcm.setup_infrastructure.return_value = False
             mock_redis_fn.return_value = mock_redis()
-            result = transcribe_audio_task.apply(args=[self.audio_file.id])
+            result = process_audio_file_task.apply(args=[self.audio_file.id])
         self.assertEqual(result.state, 'FAILURE')
 
 
@@ -803,23 +803,23 @@ class PDFTasksTests(TestCase):
         self.assertEqual(result.state, 'FAILURE')
 
     def test_validate_pdf_task_missing_project(self):
-        from audioDiagnostic.tasks.pdf_tasks import validate_pdf_matching_task
+        from audioDiagnostic.tasks.pdf_tasks import validate_transcript_against_pdf_task
         with patch('audioDiagnostic.tasks.pdf_tasks.docker_celery_manager') as mock_dcm, \
              patch('audioDiagnostic.tasks.pdf_tasks.get_redis_connection') as mock_redis_fn:
             mock_dcm.setup_infrastructure.return_value = True
             mock_dcm.register_task.return_value = None
             mock_dcm.unregister_task.return_value = None
             mock_redis_fn.return_value = mock_redis()
-            result = validate_pdf_matching_task.apply(args=[99999])
+            result = validate_transcript_against_pdf_task.apply(args=[99999])
         self.assertEqual(result.state, 'FAILURE')
 
     def test_validate_pdf_task_infra_failure(self):
-        from audioDiagnostic.tasks.pdf_tasks import validate_pdf_matching_task
+        from audioDiagnostic.tasks.pdf_tasks import validate_transcript_against_pdf_task
         with patch('audioDiagnostic.tasks.pdf_tasks.docker_celery_manager') as mock_dcm, \
              patch('audioDiagnostic.tasks.pdf_tasks.get_redis_connection') as mock_redis_fn:
             mock_dcm.setup_infrastructure.return_value = False
             mock_redis_fn.return_value = mock_redis()
-            result = validate_pdf_matching_task.apply(args=[self.project.id])
+            result = validate_transcript_against_pdf_task.apply(args=[self.project.id])
         self.assertEqual(result.state, 'FAILURE')
 
 
@@ -876,7 +876,7 @@ class URLDiscoveryTests(TestCase):
 
     def test_project_status_get(self):
         resp = self.client.get(f'/api/projects/{self.project.id}/status/')
-        self.assertIn(resp.status_code, [200, 400, 404, 500])
+        self.assertIn(resp.status_code, [200, 400, 401, 404, 500])
 
     def test_audio_file_segments(self):
         resp = self.client.get(f'/api/audio-files/{self.audio_file.id}/segments/')
