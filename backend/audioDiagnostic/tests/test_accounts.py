@@ -370,7 +370,12 @@ class AccountProfileAPITests(APITestCase):
     def test_get_subscription_plans(self):
         response = self.client.get('/api/auth/plans/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIsInstance(response.data, list)
+        # Response may be paginated or a plain list
+        if isinstance(response.data, dict) and 'results' in response.data:
+            plans = response.data['results']
+        else:
+            plans = response.data
+        self.assertIsInstance(plans, list)
 
     def test_get_subscription_unauthenticated(self):
         self.client.credentials()

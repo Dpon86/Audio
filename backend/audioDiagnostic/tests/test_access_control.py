@@ -312,11 +312,9 @@ class CheckUsageLimitTests(TestCase):
         user.subscription = subscription
         return user
 
-    @patch('audioDiagnostic.utils.access_control.UsageTracking', create=True)
-    @patch('audioDiagnostic.utils.access_control.timezone', create=True)
-    def test_unknown_metric_returns_error(self, mock_tz, mock_ut):
+    @patch('accounts.models.UsageTracking')
+    def test_unknown_metric_returns_error(self, mock_ut):
         """check_usage_limit with an unknown metric key returns False"""
-        mock_tz.now.return_value = MagicMock()
         usage = MagicMock()
         usage.projects_created = 0
         mock_ut.objects.get_or_create.return_value = (usage, True)

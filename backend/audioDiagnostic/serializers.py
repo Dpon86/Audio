@@ -20,7 +20,7 @@ class AudioProjectSerializer(serializers.ModelSerializer):
         model = AudioProject
         fields = [
             'id', 'title', 'description', 'status', 'created_at', 'updated_at',
-            'pdf_file', 'pdf_text', 'pdf_section_matched', 'combined_transcript',
+            'pdf_file', 'pdf_text', 'pdf_matched_section', 'combined_transcript',
             'duplicates_detected', 'duplicates_confirmed_for_deletion',
             'processing_summary', 'verification_results', 'parent_project',
             'audio_files_count'
@@ -28,7 +28,8 @@ class AudioProjectSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'status', 'created_at', 'updated_at', 'combined_transcript',
             'duplicates_detected', 'duplicates_confirmed_for_deletion',
-            'processing_summary', 'verification_results', 'audio_files_count'
+            'processing_summary', 'verification_results', 'pdf_matched_section',
+            'audio_files_count'
         ]
     
     def get_audio_files_count(self, obj):
@@ -57,13 +58,13 @@ class AudioFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = AudioFile
         fields = [
-            'id', 'project', 'audio_file', 'title', 'order_index', 'duration',
+            'id', 'project', 'file', 'title', 'order_index',
             'status', 'transcription', 'created_at', 'updated_at', 'filename',
             'file_size_bytes', 'duration_seconds', 'error_message',
             'transcript_text', 'transcript_adjusted', 'transcript_source',
             'retranscription_status', 'processed_audio', 'processed_duration_seconds'
         ]
-        read_only_fields = ['id', 'duration', 'status', 'transcription', 'created_at', 'updated_at', 
+        read_only_fields = ['id', 'status', 'transcription', 'created_at', 'updated_at', 
                             'transcript_adjusted', 'transcript_source', 'retranscription_status']
     
     def get_transcription(self, obj):
@@ -102,9 +103,9 @@ class TranscriptionSegmentSerializer(serializers.ModelSerializer):
         model = TranscriptionSegment
         fields = [
             'id', 'audio_file', 'start_time', 'end_time', 'text',
-            'is_duplicate', 'duplicate_group_id', 'keep_segment', 'created_at'
+            'is_duplicate', 'duplicate_group_id', 'is_kept', 'segment_index'
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id']
     
     def validate(self, data):
         """Validate segment timing"""
@@ -125,9 +126,9 @@ class TranscriptionWordSerializer(serializers.ModelSerializer):
         model = TranscriptionWord
         fields = [
             'id', 'segment', 'word', 'start_time', 'end_time',
-            'confidence', 'created_at'
+            'confidence', 'word_index'
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id']
     
     def validate_confidence(self, value):
         """Validate confidence is between 0 and 1"""
@@ -142,26 +143,22 @@ class ProcessingResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProcessingResult
         fields = [
-            'id', 'project', 'total_segments', 'duplicate_segments',
-            'unique_segments', 'total_duration', 'duplicate_duration',
-            'unique_duration', 'created_at'
+            'id', 'project', 'total_segments_processed', 'duplicates_removed',
+            'words_removed', 'sentences_removed', 'paragraphs_removed',
+            'original_total_duration', 'final_duration', 'time_saved',
+            'pdf_coverage_percentage', 'missing_content_count', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
     
     def validate(self, data):
         """Validate processing result counts and durations"""
-        if 'total_segments' in data and data['total_segments'] < 0:
-            raise serializers.ValidationError("Total segments cannot be negative")
-        if 'duplicate_segments' in data and data['duplicate_segments'] < 0:
-            raise serializers.ValidationError("Duplicate segments cannot be negative")
-        if 'unique_segments' in data and data['unique_segments'] < 0:
-            raise serializers.ValidationError("Unique segments cannot be negative")
-        
-        # Validate durations are non-negative
-        for field in ['total_duration', 'duplicate_duration', 'unique_duration']:
-            if field in data and data[field] is not None and data[field] < 0:
-                raise serializers.ValidationError(f"{field.replace('_', ' ').title()} cannot be negative")
-        
+        for int_field in ['total_segments_processed', 'duplicates_removed', 'words_removed',
+                          'sentences_removed', 'paragraphs_removed', 'missing_content_count']:
+            if int_field in data and data[int_field] < 0:
+                raise serializers.ValidationError(f"{int_field} cannot be negative")
+        for float_field in ['original_total_duration', 'final_duration', 'time_saved']:
+            if float_field in data and data[float_field] is not None and data[float_field] < 0:
+                raise serializers.ValidationError(f"{float_field} cannot be negative")
         return data
 
 

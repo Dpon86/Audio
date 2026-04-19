@@ -132,6 +132,7 @@ class TranscriptionSegmentSerializerTests(TestCase):
             'start_time': 5.0,
             'end_time': 3.0,
             'text': 'hello',
+            'segment_index': 0,
         })
         self.assertFalse(s.is_valid())
 
@@ -141,6 +142,7 @@ class TranscriptionSegmentSerializerTests(TestCase):
             'start_time': -1.0,
             'end_time': 3.0,
             'text': 'hello',
+            'segment_index': 0,
         })
         self.assertFalse(s.is_valid())
 
@@ -150,6 +152,7 @@ class TranscriptionSegmentSerializerTests(TestCase):
             'start_time': 1.0,
             'end_time': -1.0,
             'text': 'hello',
+            'segment_index': 0,
         })
         self.assertFalse(s.is_valid())
 
@@ -159,6 +162,7 @@ class TranscriptionSegmentSerializerTests(TestCase):
             'start_time': 0.0,
             'end_time': 5.0,
             'text': 'hello world',
+            'segment_index': 0,
         })
         self.assertTrue(s.is_valid(), s.errors)
 
@@ -193,6 +197,7 @@ class TranscriptionWordSerializerTests(TestCase):
             'start_time': 0.0,
             'end_time': 1.0,
             'confidence': 1.5,
+            'word_index': 0,
         })
         self.assertFalse(s.is_valid())
         self.assertIn('confidence', s.errors)
@@ -204,6 +209,7 @@ class TranscriptionWordSerializerTests(TestCase):
             'start_time': 0.0,
             'end_time': 1.0,
             'confidence': -0.1,
+            'word_index': 0,
         })
         self.assertFalse(s.is_valid())
 
@@ -214,6 +220,7 @@ class TranscriptionWordSerializerTests(TestCase):
             'start_time': 0.0,
             'end_time': 1.0,
             'confidence': 0.95,
+            'word_index': 0,
         })
         self.assertTrue(s.is_valid(), s.errors)
 
@@ -224,13 +231,14 @@ class TranscriptionWordSerializerTests(TestCase):
             'start_time': 0.0,
             'end_time': 1.0,
             'confidence': None,
+            'word_index': 0,
         })
         self.assertTrue(s.is_valid(), s.errors)
 
     def test_read_existing_word(self):
         w = TranscriptionWord.objects.create(
             segment=self.segment, word='hello',
-            start_time=0.0, end_time=0.5, confidence=0.9,
+            start_time=0.0, end_time=0.5, confidence=0.9, word_index=0,
         )
         s = TranscriptionWordSerializer(w)
         self.assertEqual(s.data['word'], 'hello')
@@ -244,59 +252,55 @@ class ProcessingResultSerializerTests(TestCase):
     def test_validate_negative_total_segments(self):
         s = ProcessingResultSerializer(data={
             'project': self.project.id,
-            'total_segments': -1,
+            'total_segments_processed': -1,
         })
         self.assertFalse(s.is_valid())
 
     def test_validate_negative_duplicate_segments(self):
         s = ProcessingResultSerializer(data={
             'project': self.project.id,
-            'total_segments': 5,
-            'duplicate_segments': -1,
+            'total_segments_processed': 5,
+            'duplicates_removed': -1,
         })
         self.assertFalse(s.is_valid())
 
     def test_validate_negative_unique_segments(self):
         s = ProcessingResultSerializer(data={
             'project': self.project.id,
-            'total_segments': 5,
-            'unique_segments': -1,
+            'total_segments_processed': 5,
+            'words_removed': -1,
         })
         self.assertFalse(s.is_valid())
 
     def test_validate_negative_total_duration(self):
         s = ProcessingResultSerializer(data={
             'project': self.project.id,
-            'total_segments': 5,
-            'total_duration': -1.0,
+            'original_total_duration': -1.0,
         })
         self.assertFalse(s.is_valid())
 
     def test_validate_negative_duplicate_duration(self):
         s = ProcessingResultSerializer(data={
             'project': self.project.id,
-            'total_segments': 5,
-            'duplicate_duration': -1.0,
+            'final_duration': -1.0,
         })
         self.assertFalse(s.is_valid())
 
     def test_validate_negative_unique_duration(self):
         s = ProcessingResultSerializer(data={
             'project': self.project.id,
-            'total_segments': 5,
-            'unique_duration': -1.0,
+            'time_saved': -1.0,
         })
         self.assertFalse(s.is_valid())
 
     def test_validate_valid_data(self):
         s = ProcessingResultSerializer(data={
             'project': self.project.id,
-            'total_segments': 10,
-            'duplicate_segments': 3,
-            'unique_segments': 7,
-            'total_duration': 120.0,
-            'duplicate_duration': 30.0,
-            'unique_duration': 90.0,
+            'total_segments_processed': 10,
+            'duplicates_removed': 3,
+            'original_total_duration': 120.0,
+            'final_duration': 90.0,
+            'time_saved': 30.0,
         })
         self.assertTrue(s.is_valid(), s.errors)
 

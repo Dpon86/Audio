@@ -442,22 +442,22 @@ def data_export(request):
     # Synced transcription metadata
     transcriptions = list(
         ClientTranscription.objects.filter(project__user=user).values(
-            'id', 'filename', 'processing_method', 'model_used', 'duration', 'language', 'timestamp'
+            'id', 'filename', 'processing_method', 'model_used', 'duration_seconds', 'language', 'created_at'
         )
     )
     for t in transcriptions:
-        if t.get('timestamp'):
-            t['timestamp'] = t['timestamp'].isoformat()
+        if t.get('created_at'):
+            t['created_at'] = t['created_at'].isoformat()
 
     # Synced duplicate analyses
     analyses = list(
         DuplicateAnalysis.objects.filter(project__user=user).values(
-            'id', 'filename', 'algorithm', 'total_segments', 'duplicate_count', 'timestamp'
+            'id', 'filename', 'algorithm', 'total_segments', 'duplicate_count', 'created_at'
         )
     )
     for a in analyses:
-        if a.get('timestamp'):
-            a['timestamp'] = a['timestamp'].isoformat()
+        if a.get('created_at'):
+            a['created_at'] = a['created_at'].isoformat()
 
     export = {
         'export_generated_at': timezone.now().isoformat(),
