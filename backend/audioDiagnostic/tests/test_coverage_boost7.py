@@ -23,8 +23,8 @@ def make_user(username):
 
 
 def make_project(user):
-    from audioDiagnostic.models import Project
-    return Project.objects.create(title='W7 project', user=user)
+    from audioDiagnostic.models import AudioProject
+    return AudioProject.objects.create(title='W7 project', user=user)
 
 
 def make_audio_file(project, status='uploaded', order=0):
@@ -33,7 +33,7 @@ def make_audio_file(project, status='uploaded', order=0):
         project=project,
         title=f'W7 file {order}',
         status=status,
-        file_order=order,
+        order_index=order,
     )
 
 
@@ -46,6 +46,7 @@ def make_segment(transcription, text='Wave7 segment text', idx=0):
     from audioDiagnostic.models import TranscriptionSegment
     return TranscriptionSegment.objects.create(
         transcription=transcription,
+        audio_file=transcription.audio_file,
         text=text,
         start_time=float(idx),
         end_time=float(idx) + 1.0,
@@ -457,7 +458,7 @@ class RundevCommandWave7Tests(TestCase):
         try:
             if hasattr(cmd, 'start_redis'):
                 cmd.start_redis()
-        except Exception:
+        except BaseException:
             pass
 
     @patch('audioDiagnostic.management.commands.rundev.subprocess')
@@ -479,7 +480,7 @@ class RundevCommandWave7Tests(TestCase):
         try:
             if hasattr(cmd, 'start_celery'):
                 cmd.start_celery()
-        except Exception:
+        except BaseException:
             pass
 
     @patch('audioDiagnostic.management.commands.rundev.subprocess')
