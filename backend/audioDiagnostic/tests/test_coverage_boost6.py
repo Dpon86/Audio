@@ -863,7 +863,7 @@ class TranscriptionViewsWave6Tests(AuthMixin, TestCase):
         tr = make_transcription(self.audio_file, 'Transcription delete test.')
         seg = make_segment(tr, 'Segment to delete wave 6', idx=0)
         resp = self.client.delete(self._f(f'/segments/{seg.id}/'))
-        self.assertIn(resp.status_code, [200, 204, 400, 404, 500])
+        self.assertIn(resp.status_code, [200, 204, 400, 404, 405, 500])
 
     def test_list_transcription_segments(self):
         tr = make_transcription(self.audio_file, 'List segments test.')

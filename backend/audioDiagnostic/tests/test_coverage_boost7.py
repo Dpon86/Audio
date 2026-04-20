@@ -534,7 +534,7 @@ class AuthMixinW7:
         self.tr = make_transcription(self.af, 'Legacy views wave 7 transcription content.')
         from rest_framework.authtoken.models import Token
         self.token, _ = Token.objects.get_or_create(user=self.user)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token.key}')
+        self.client.defaults['HTTP_AUTHORIZATION'] = f'Token {self.token.key}'
 
     def _p(self, suffix):
         return f'/api/projects/{self.project.id}{suffix}'
