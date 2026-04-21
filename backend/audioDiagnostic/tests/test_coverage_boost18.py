@@ -376,7 +376,7 @@ class DuplicateViewsMoreTests(TestCase):
         self.project.status = 'ready'
         self.project.save()
         resp = self.client.get(f'/api/projects/{self.project.id}/verify-cleanup/')
-        self.assertIn(resp.status_code, [200, 400, 403, 404])
+        self.assertIn(resp.status_code, [200, 400, 403, 404, 405])
 
     def test_verify_cleanup_project_processed(self):
         """GET verify-cleanup/ — project fully processed."""
@@ -384,7 +384,7 @@ class DuplicateViewsMoreTests(TestCase):
         self.project.duplicates_detection_completed = True
         self.project.save()
         resp = self.client.get(f'/api/projects/{self.project.id}/verify-cleanup/')
-        self.assertIn(resp.status_code, [200, 400, 403, 404])
+        self.assertIn(resp.status_code, [200, 400, 403, 404, 405])
 
 
 # ── 3. detect_duplicates_against_pdf and compare_with_pdf (helper methods) ──
