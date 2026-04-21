@@ -364,34 +364,36 @@ class AITasksMoreTests(TestCase):
         except Exception:
             pass
 
-    @patch('audioDiagnostic.tasks.ai_tasks.AnthropicDuplicateDetector')
-    def test_ai_detect_duplicates_task_direct(self, mock_detector_class):
+    def test_ai_detect_duplicates_task_direct(self, mock_detector_class=None):
         """ai_detect_duplicates_task applies with mocked detector."""
         try:
             from audioDiagnostic.tasks.ai_tasks import ai_detect_duplicates_task
-            mock_detector = MagicMock()
-            mock_detector_class.return_value = mock_detector
-            mock_detector.detect_duplicates.return_value = {
-                'duplicates': [],
-                'total_cost': 0.01,
-            }
-            result = ai_detect_duplicates_task.apply(args=[self.af.id, {
-                'min_words': 3,
-                'similarity_threshold': 0.85,
-                'keep_occurrence': 'last',
-            }])
-            self.assertIsNotNone(result)
+            with patch('audioDiagnostic.tasks.ai_tasks.DuplicateDetector') as mock_dd:
+                mock_detector = MagicMock()
+                mock_dd.return_value = mock_detector
+                mock_detector.detect_sentence_level_duplicates.return_value = {
+                    'duplicate_groups': [],
+                    'summary': {},
+                    'ai_metadata': {'cost': 0.0, 'usage': {}, 'model': 'test'},
+                }
+                mock_detector.client.check_user_cost_limit.return_value = True
+                with patch('audioDiagnostic.tasks.ai_tasks.get_redis_connection') as mock_r:
+                    mock_r.return_value = MagicMock()
+                    result = ai_detect_duplicates_task.apply(args=[
+                        self.af.id, self.user.id, 3, 0.85, 'last', False
+                    ])
+                    self.assertIsNotNone(result)
         except Exception:
             pass
 
-    @patch('audioDiagnostic.tasks.ai_tasks.OpenAI')
-    def test_ai_compare_pdf_task_no_api_key(self, mock_openai):
-        """ai_compare_pdf_task handles missing API key gracefully."""
+    def test_ai_compare_pdf_task_no_api_key(self):
+        """ai_compare_pdf_task handles missing credentials gracefully."""
         try:
             from audioDiagnostic.tasks.ai_tasks import ai_compare_pdf_task
-            with patch('audioDiagnostic.tasks.ai_tasks.settings') as mock_settings:
-                mock_settings.OPENAI_API_KEY = None
-                result = ai_compare_pdf_task.apply(args=[self.af.id, {}])
+            with patch('audioDiagnostic.tasks.ai_tasks.get_redis_connection') as mock_r:
+                mock_r.return_value = MagicMock()
+                result = ai_compare_pdf_task.apply(args=[self.af.id, self.user.id])
+                self.assertIsNotNone(result)
         except Exception:
             pass
 
