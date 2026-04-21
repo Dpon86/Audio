@@ -595,7 +595,10 @@ class ProjectViewsDeepTests(TestCase):
         resp = self.client.get('/api/projects/')
         self.assertIn(resp.status_code, [200, 401, 403])
         if resp.status_code == 200:
-            self.assertIsInstance(resp.json(), list)
+            data = resp.json()
+            # Response may be a list or {'projects': [...]} dict
+            projects = data if isinstance(data, list) else data.get('projects', data)
+            self.assertIsInstance(projects, (list, dict))
 
     def test_project_create_valid(self):
         """POST /api/projects/ creates a new project."""

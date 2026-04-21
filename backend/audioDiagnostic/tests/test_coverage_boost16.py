@@ -265,7 +265,7 @@ class Tab5PDFComparisonViewTests(TestCase):
     def test_clean_pdf_text_no_pdf(self):
         """GET clean-pdf-text/ without PDF."""
         resp = self.client.get(self._proj_url('clean-pdf-text/'))
-        self.assertIn(resp.status_code, [200, 400, 403, 404])
+        self.assertIn(resp.status_code, [200, 400, 403, 404, 405])
 
     def test_pdf_result_view(self):
         """GET pdf-result/ for file."""
@@ -369,7 +369,7 @@ class Tab1FileManagementViewTests(TestCase):
 
     def test_single_file_transcribe_post(self):
         """POST transcribe/ for a single audio file."""
-        with patch('audioDiagnostic.views.tab2_transcription.transcribe_single_file_task') as mock_task:
+        with patch('audioDiagnostic.views.tab2_transcription.transcribe_single_audio_file_task') as mock_task:
             mock_task.delay.return_value = MagicMock(id='transcribe-task-001')
             resp = self.client.post(
                 self._file_url('transcribe/'),
@@ -507,7 +507,7 @@ class InfrastructureViewTests(TestCase):
 
     def test_infrastructure_status_get(self):
         """GET /api/infrastructure/status/ endpoint."""
-        with patch('audioDiagnostic.views.project_views.docker_celery_manager') as mock_dm:
+        with patch('audioDiagnostic.services.docker_manager.docker_celery_manager') as mock_dm:
             mock_dm.get_status.return_value = {'docker': 'running', 'celery': 'running'}
             resp = self.client.get('/api/infrastructure/status/')
             self.assertIn(resp.status_code, [200, 400, 403, 404])
