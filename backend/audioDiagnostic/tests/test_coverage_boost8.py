@@ -42,7 +42,7 @@ def make_audio_file(project, title='W8 File', status='transcribed', order=0):
 def make_transcription(audio_file, content='Test transcription wave 8.'):
     return Transcription.objects.create(
         audio_file=audio_file,
-        content=content,
+        full_text=content,
     )
 
 

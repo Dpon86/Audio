@@ -38,7 +38,7 @@ def make_audio_file(project, title='Test.wav', status='uploaded', order=0):
         project=project, title=title, status=status, order_index=order)
 
 def make_transcription(af, text='Hello world.'):
-    return Transcription.objects.create(audio_file=af, transcript_text=text)
+    return Transcription.objects.create(audio_file=af, full_text=text)
 
 def make_segment(tr, text='Seg text', idx=0):
     return TranscriptionSegment.objects.create(
