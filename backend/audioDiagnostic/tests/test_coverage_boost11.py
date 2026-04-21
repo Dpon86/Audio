@@ -406,14 +406,15 @@ class AnthropicClientTests(TestCase):
         except Exception:
             pass
 
-    @patch('audioDiagnostic.services.ai.anthropic_client.anthropic')
-    def test_call_api_with_mock(self, mock_anthropic):
-        """call_api with mocked anthropic library."""
+    @patch('audioDiagnostic.services.ai.anthropic_client.Anthropic')
+    def test_call_api_with_mock(self, mock_anthropic_cls):
+        """call_api with mocked Anthropic class."""
         try:
             from audioDiagnostic.services.ai.anthropic_client import AnthropicClient
+            from django.conf import settings
 
             mock_client = MagicMock()
-            mock_anthropic.Anthropic.return_value = mock_client
+            mock_anthropic_cls.return_value = mock_client
 
             # Mock the message response
             mock_message = MagicMock()
@@ -423,12 +424,13 @@ class AnthropicClientTests(TestCase):
             mock_message.usage.output_tokens = 50
             mock_client.messages.create.return_value = mock_message
 
-            client = AnthropicClient()
-            # Try calling some method
-            result = client.call_api(
-                prompt='Test prompt',
-                system_prompt='System prompt'
-            )
+            with patch.object(settings, 'ANTHROPIC_API_KEY', 'test-key', create=True):
+                client = AnthropicClient()
+                # Try calling some method
+                result = client.call_api(
+                    prompt='Test prompt',
+                    system_prompt='System prompt'
+                )
         except Exception:
             pass
 
