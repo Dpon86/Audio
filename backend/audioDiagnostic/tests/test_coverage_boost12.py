@@ -228,7 +228,7 @@ class AIPDFComparisonHelperTests(TestCase):
         except Exception:
             pass
 
-    @patch('audioDiagnostic.tasks.ai_pdf_comparison_task.AnthropicClient')
+    @patch('audioDiagnostic.tasks.ai_pdf_comparison_task.OpenAI')
     def test_ai_find_start_position_mocked(self, MockClient):
         """ai_find_start_position with mocked client."""
         try:
@@ -254,7 +254,7 @@ class AIPDFComparisonHelperTests(TestCase):
         except Exception:
             pass
 
-    @patch('audioDiagnostic.tasks.ai_pdf_comparison_task.AnthropicClient')
+    @patch('audioDiagnostic.tasks.ai_pdf_comparison_task.OpenAI')
     def test_ai_detailed_comparison_mocked(self, MockClient):
         """ai_detailed_comparison with mocked client."""
         try:

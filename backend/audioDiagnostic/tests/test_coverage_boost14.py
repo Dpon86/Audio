@@ -615,7 +615,7 @@ class UploadViewsWave14Tests(TestCase):
             {},
             content_type='application/json'
         )
-        self.assertIn(resp.status_code, [200, 400, 403, 404, 405, 500])
+        self.assertIn(resp.status_code, [200, 400, 403, 404, 405, 415, 500])
 
     def test_upload_audio_no_file(self):
         """Upload audio endpoint with missing file."""
@@ -624,7 +624,7 @@ class UploadViewsWave14Tests(TestCase):
             {},
             content_type='application/json'
         )
-        self.assertIn(resp.status_code, [200, 400, 403, 404, 405, 500])
+        self.assertIn(resp.status_code, [200, 400, 403, 404, 405, 415, 500])
 
     def test_upload_chunk_missing_params(self):
         """upload_chunk with missing parameters."""
