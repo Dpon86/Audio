@@ -140,7 +140,7 @@ class Tab3RemainingViewsTests(TestCase):
 
     def test_update_segment_times_not_found(self):
         resp = self.client.patch(
-            f'/api/api/projects/{self.project.id}/files/{self.af.id}/segments/99999/times/',
+            f'/api/api/projects/{self.project.id}/files/{self.af.id}/segments/99999/',
             data={'start_time': 1.0, 'end_time': 2.0},
             content_type='application/json'
         )
@@ -150,7 +150,7 @@ class Tab3RemainingViewsTests(TestCase):
         tr = make_transcription(self.af)
         seg = make_segment(self.af, tr, idx=0, start=0.0, end=5.0)
         resp = self.client.patch(
-            f'/api/api/projects/{self.project.id}/files/{self.af.id}/segments/{seg.id}/times/',
+            f'/api/api/projects/{self.project.id}/files/{self.af.id}/segments/{seg.id}/',
             data={'start_time': 1.0, 'end_time': 4.0},
             content_type='application/json'
         )
@@ -160,7 +160,7 @@ class Tab3RemainingViewsTests(TestCase):
         tr = make_transcription(self.af)
         seg = make_segment(self.af, tr, idx=0, start=0.0, end=5.0)
         resp = self.client.patch(
-            f'/api/api/projects/{self.project.id}/files/{self.af.id}/segments/{seg.id}/times/',
+            f'/api/api/projects/{self.project.id}/files/{self.af.id}/segments/{seg.id}/',
             data={},
             content_type='application/json'
         )
@@ -170,7 +170,7 @@ class Tab3RemainingViewsTests(TestCase):
         tr = make_transcription(self.af)
         seg = make_segment(self.af, tr, idx=0, start=0.0, end=5.0)
         resp = self.client.patch(
-            f'/api/api/projects/{self.project.id}/files/{self.af.id}/segments/{seg.id}/times/',
+            f'/api/api/projects/{self.project.id}/files/{self.af.id}/segments/{seg.id}/',
             data={'start_time': 4.0, 'end_time': 1.0},
             content_type='application/json'
         )
@@ -180,7 +180,7 @@ class Tab3RemainingViewsTests(TestCase):
         tr = make_transcription(self.af)
         seg = make_segment(self.af, tr, idx=0, start=0.0, end=5.0)
         resp = self.client.patch(
-            f'/api/api/projects/{self.project.id}/files/{self.af.id}/segments/{seg.id}/times/',
+            f'/api/api/projects/{self.project.id}/files/{self.af.id}/segments/{seg.id}/',
             data={'start_time': 'not-a-number', 'end_time': 2.0},
             content_type='application/json'
         )
@@ -222,20 +222,20 @@ class Tab5RemainingViewsTests(TestCase):
 
     def test_mark_ignored_sections_empty(self):
         resp = self.client.post(
-            f'/api/api/projects/{self.project.id}/files/{self.af.id}/mark-ignored/',
+            f'/api/api/projects/{self.project.id}/files/{self.af.id}/ignored-sections/',
             data={'sections': []}, content_type='application/json'
         )
         self.assertIn(resp.status_code, [200, 400, 404])
 
     def test_get_ignored_sections(self):
-        resp = self.client.get(f'/api/api/projects/{self.project.id}/files/{self.af.id}/mark-ignored/')
+        resp = self.client.get(f'/api/api/projects/{self.project.id}/files/{self.af.id}/ignored-sections/')
         self.assertIn(resp.status_code, [200, 400, 404])
 
     # ─── ResetPDFComparisonView ───────────────────────────────────────────────
 
     def test_reset_pdf_comparison(self):
         resp = self.client.post(
-            f'/api/api/projects/{self.project.id}/files/{self.af.id}/reset-pdf-comparison/',
+            f'/api/api/projects/{self.project.id}/files/{self.af.id}/reset-comparison/',
             data={}, content_type='application/json'
         )
         self.assertIn(resp.status_code, [200, 400, 404])
