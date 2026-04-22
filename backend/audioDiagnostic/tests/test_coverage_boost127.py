@@ -12,15 +12,13 @@ class FindSilenceBoundaryTests(TestCase):
 
         mock_audio = MagicMock()
         mock_audio.__len__ = MagicMock(return_value=2000)
-        # Slicing returns another mock audio object
         mock_slice = MagicMock()
         mock_audio.__getitem__ = MagicMock(return_value=mock_slice)
 
-        with patch('audioDiagnostic.tasks.duplicate_tasks.silence') as mock_silence_mod:
-            if silent_ranges is None:
-                mock_silence_mod.detect_silence.return_value = []
-            else:
-                mock_silence_mod.detect_silence.return_value = silent_ranges
+        if silent_ranges is None:
+            silent_ranges = []
+
+        with patch('pydub.silence.detect_silence', return_value=silent_ranges):
             return find_silence_boundary(mock_audio, target_time_ms)
 
     def test_no_silence_returns_original(self):
