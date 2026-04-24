@@ -12,6 +12,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from audioDiagnostic.models import (
+from rest_framework.test import force_authenticate
     AudioProject, AudioFile, Transcription, TranscriptionSegment,
 )
 
@@ -600,7 +601,6 @@ class ProjectDetectDuplicatesViewTests(TestCase):
 
     def setUp(self):
         from rest_framework.test import APIRequestFactory, force_authenticate
-from rest_framework.test import force_authenticate
         self.factory = APIRequestFactory()
         self.force_auth = force_authenticate
         self.user = make_user('w20_detect_dup_user')

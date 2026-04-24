@@ -7,6 +7,7 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
+from rest_framework.test import force_authenticate
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 def make_user(username='w22user', password='pass1234!'):

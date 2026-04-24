@@ -9,6 +9,7 @@ Targets:
 from django.test import TestCase
 from django.contrib.auth.models import User
 from unittest.mock import patch, MagicMock
+from rest_framework.test import force_authenticate
 
 
 # ─── estimate_ai_cost_task tests ──────────────────────────────────────────────

@@ -10,6 +10,7 @@ Wave 139: precise_pdf_comparison_task.py utility functions
 - calculate_statistics
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 class TokenizeTextTests(TestCase):

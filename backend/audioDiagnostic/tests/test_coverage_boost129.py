@@ -3,6 +3,7 @@ Wave 129: word_by_word_comparison from precise_pdf_comparison_task.py
 Pure Python function - no external deps needed.
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 def _import():

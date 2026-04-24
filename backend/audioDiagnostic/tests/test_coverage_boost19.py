@@ -13,6 +13,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from audioDiagnostic.models import (
+from rest_framework.test import force_authenticate
     AudioProject, AudioFile, Transcription, TranscriptionSegment,
 )
 
@@ -71,7 +72,6 @@ class FeedbackViewsTests(TestCase):
         self.factory = __import__('rest_framework.test', fromlist=['APIRequestFactory']).APIRequestFactory()
 
     def _auth_req(self, req):
-        from rest_framework.test import force_authenticate
         force_authenticate(req, user=self.user)
         return req
 

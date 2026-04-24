@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 import json
 import tempfile
 import os
+from rest_framework.test import force_authenticate
 
 User = get_user_model()
 

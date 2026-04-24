@@ -8,6 +8,7 @@ from rest_framework.test import APIRequestFactory
 from rest_framework import status
 
 from audioDiagnostic.utils.access_control import (
+from rest_framework.test import force_authenticate
     require_ai_feature,
     check_ai_cost_limit,
     track_ai_cost,

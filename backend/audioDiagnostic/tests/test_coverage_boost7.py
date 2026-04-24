@@ -12,6 +12,7 @@ import sys
 from unittest.mock import MagicMock, patch, PropertyMock, call
 from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
+from rest_framework.test import force_authenticate
 
 User = get_user_model()
 

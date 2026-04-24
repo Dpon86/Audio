@@ -4,6 +4,7 @@ Wave 126: pdf_tasks.py utility functions:
   calculate_comprehensive_similarity_task, extract_chapter_title_task
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 class IdentifyPdfBasedDuplicatesTests(TestCase):

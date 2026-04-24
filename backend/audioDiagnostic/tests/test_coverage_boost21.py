@@ -8,6 +8,7 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
+from rest_framework.test import force_authenticate
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 def make_user(username='w21user', password='pass1234!'):
@@ -306,7 +307,6 @@ class FeedbackViewsBranchTests(TestCase):
         from accounts.views_feedback import FeedbackView
         from rest_framework.permissions import IsAuthenticated
         from rest_framework.authentication import TokenAuthentication
-from rest_framework.test import force_authenticate
         request.META['HTTP_AUTHORIZATION'] = f'Token {self.token.key}'
 
     def test_feedback_list_authenticated(self):

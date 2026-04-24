@@ -6,6 +6,7 @@ Wave 137: Pure Python utility functions from pdf_tasks.py
 - extract_chapter_title_task
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 class FindTextInPdfTests(TestCase):

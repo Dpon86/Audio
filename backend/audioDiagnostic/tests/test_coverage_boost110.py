@@ -6,6 +6,7 @@ Targets:
      save_matched_region, save_abnormal_region, get_segment_ids, calculate_statistics)
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 # ─── precise_pdf_comparison_task.py pure utilities ───────────────────────────

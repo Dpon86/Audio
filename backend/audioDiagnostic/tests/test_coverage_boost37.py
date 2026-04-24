@@ -8,6 +8,7 @@ Wave 37 coverage boost:
 from django.test import TestCase
 from django.contrib.auth.models import User
 from unittest.mock import MagicMock, patch
+from rest_framework.test import force_authenticate
 
 
 def make_user(username='w37user', password='pass1234!'):

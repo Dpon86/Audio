@@ -11,6 +11,7 @@ Wave 157: Target 12 missed statements
   - Chapter N pattern pass
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 # ---------------------------------------------------------------------------

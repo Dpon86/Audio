@@ -9,6 +9,7 @@ Targets:
 """
 from django.test import TestCase
 from difflib import SequenceMatcher
+from rest_framework.test import force_authenticate
 
 
 # ─── tokenize_text tests ─────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ from rest_framework.test import APIRequestFactory
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from django.core.files.uploadedfile import SimpleUploadedFile
+from rest_framework.test import force_authenticate
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 def make_user(username='w24user', password='pass1234!'):
@@ -398,7 +399,6 @@ class Tab3ReviewDeletionsTests(TestCase):
                 {'segment_ids': []}, format='json')
             force_authenticate(request, user=self.user)
             from rest_framework.request import Request
-from rest_framework.test import force_authenticate
             drf_request = Request(request)
             force_authenticate(drf_request, user=self.user)
             resp = restore_segments(drf_request, self.project.id, self.af.id)

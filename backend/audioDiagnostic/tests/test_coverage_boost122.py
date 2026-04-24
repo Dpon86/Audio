@@ -3,6 +3,7 @@ Wave 122: pdf_tasks.py pure utility functions (195 miss, 60%)
 All pure functions, no infrastructure/DB needed.
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 class PdfTasksUtilsTests(TestCase):

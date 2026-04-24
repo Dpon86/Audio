@@ -8,6 +8,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIRequestFactory
+from rest_framework.test import force_authenticate
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -584,7 +585,6 @@ class AudioFileStatusViewFixTests(TestCase):
                 f'/projects/{self.project.id}/files/{self.af.id}/transcription/status/')
             force_authenticate(request, user=self.user)
             from rest_framework.request import Request as DRFRequest
-from rest_framework.test import force_authenticate
             drf_req = DRFRequest(request)
             force_authenticate(drf_req, user=self.user)
             view = SingleFileTranscriptionStatusView.as_view()

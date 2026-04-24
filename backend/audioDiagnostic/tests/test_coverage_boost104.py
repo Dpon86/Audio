@@ -9,6 +9,7 @@ from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from unittest.mock import patch, MagicMock
 import json
+from rest_framework.test import force_authenticate
 
 
 class LegacyViewsTests(TestCase):

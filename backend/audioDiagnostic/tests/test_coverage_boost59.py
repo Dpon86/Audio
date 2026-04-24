@@ -17,6 +17,7 @@ from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from io import StringIO
 import json
+from rest_framework.test import force_authenticate
 
 
 def make_user(username='w59user', password='pass1234!'):

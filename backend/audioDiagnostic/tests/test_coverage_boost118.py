@@ -7,6 +7,7 @@ Targets:
 from django.test import TestCase
 from unittest.mock import patch, MagicMock, call
 import subprocess
+from rest_framework.test import force_authenticate
 
 
 def make_manager():

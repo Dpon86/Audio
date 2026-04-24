@@ -3,6 +3,7 @@ Wave 125: find_pdf_section_match + find_pdf_section_match_task (pure functions w
 """
 from django.test import TestCase
 from unittest.mock import MagicMock
+from rest_framework.test import force_authenticate
 
 
 class FindPdfSectionMatchTests(TestCase):

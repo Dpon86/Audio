@@ -5,6 +5,7 @@ Targets pure utility classes in:
     (TimestampAligner, TranscriptionPostProcessor, MemoryManager)
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 # ══════════════════════════════════════════════════════════════════

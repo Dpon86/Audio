@@ -9,6 +9,7 @@ from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 import tempfile
 import os
+from rest_framework.test import force_authenticate
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────

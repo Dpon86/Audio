@@ -5,6 +5,7 @@ Targets:
     — all major branches: exact match, mismatch+recovery, mismatch+PDF advance, extra content, missing, ends
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 class WordByWordComparisonTests(TestCase):

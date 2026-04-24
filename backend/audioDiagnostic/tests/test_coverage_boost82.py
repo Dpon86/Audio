@@ -5,6 +5,7 @@ Targets pure utility functions in:
   - audioDiagnostic/utils/repetition_detector.py (WordTimestamp, Occurrence, Repetition classes)
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 # ══════════════════════════════════════════════════════════════════

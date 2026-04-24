@@ -10,6 +10,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APIRequestFactory
 import json
 import io
+from rest_framework.test import force_authenticate
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────

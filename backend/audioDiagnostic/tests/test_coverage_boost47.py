@@ -7,6 +7,7 @@ from unittest.mock import patch, MagicMock, call
 from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
+from rest_framework.test import force_authenticate
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -391,7 +392,6 @@ class ClientStorageExtendedTests(TestCase):
         try:
             from audioDiagnostic.views.client_storage import ClientTranscriptionListCreateView
             from rest_framework.test import APIRequestFactory
-from rest_framework.test import force_authenticate
             import json
             factory = APIRequestFactory()
             data = {'segments': [{'text': 'Test', 'start_time': 0.0, 'end_time': 1.0}]}

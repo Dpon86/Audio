@@ -8,6 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from unittest.mock import patch, MagicMock, call
 from audioDiagnostic.models import AudioProject, AudioFile, TranscriptionSegment
 from audioDiagnostic.tasks import (
+from rest_framework.test import force_authenticate
     transcribe_all_project_audio_task,
     transcribe_audio_file_task,
     process_project_duplicates_task

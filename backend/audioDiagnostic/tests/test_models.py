@@ -10,6 +10,7 @@ from audioDiagnostic.models import (
     TranscriptionWord, ProcessingResult
 )
 import json
+from rest_framework.test import force_authenticate
 
 
 class AudioProjectModelTest(TestCase):

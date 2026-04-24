@@ -4,6 +4,7 @@ with mocked pydub and Django ORM
 """
 from django.test import TestCase
 from unittest.mock import MagicMock, patch, PropertyMock
+from rest_framework.test import force_authenticate
 
 
 class GenerateProcessedAudioTests(TestCase):

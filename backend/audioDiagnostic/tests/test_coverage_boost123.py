@@ -5,6 +5,7 @@ identify_all_duplicates, mark_duplicates_for_removal, find_text_in_pdf
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from unittest.mock import MagicMock
+from rest_framework.test import force_authenticate
 
 User = get_user_model()
 

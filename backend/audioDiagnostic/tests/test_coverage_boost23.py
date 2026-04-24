@@ -9,6 +9,7 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
+from rest_framework.test import force_authenticate
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 def make_user(username='w23user', password='pass1234!'):
@@ -337,7 +338,6 @@ class AccountsFeedbackViewsTests(TestCase):
             request = self.factory.get('/feedback/')
             force_authenticate(request, user=self.user)
             from rest_framework.authtoken.models import Token as T
-from rest_framework.test import force_authenticate
             request.auth = self.token
             resp = view(request)
             self.assertIn(resp.status_code, [200, 400, 404])

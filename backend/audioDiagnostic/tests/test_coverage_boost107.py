@@ -12,6 +12,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from unittest.mock import patch, MagicMock
 import json
+from rest_framework.test import force_authenticate
 
 
 # ─── AnthropicClient methods ─────────────────────────────────────────────────

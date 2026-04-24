@@ -2,6 +2,7 @@
 Wave 138: identify_pdf_based_duplicates and find_pdf_section_match from pdf_tasks.py
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 class IdentifyPdfBasedDuplicatesTests(TestCase):

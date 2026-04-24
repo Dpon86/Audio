@@ -3,6 +3,7 @@ Wave 121: precise_pdf_comparison_task.py utility functions (89 miss, 65%)
 All pure functions, no infrastructure needed.
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 class PrecisePdfComparisonUtilsTests(TestCase):

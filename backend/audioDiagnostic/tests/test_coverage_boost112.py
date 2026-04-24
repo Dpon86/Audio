@@ -10,6 +10,7 @@ from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from unittest.mock import patch, MagicMock, call
 from io import BytesIO
+from rest_framework.test import force_authenticate
 
 
 # ─── tasks/utils.py remaining ────────────────────────────────────────────────

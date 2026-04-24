@@ -6,6 +6,7 @@ Targets:
 """
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from rest_framework.test import force_authenticate
 
 User = get_user_model()
 

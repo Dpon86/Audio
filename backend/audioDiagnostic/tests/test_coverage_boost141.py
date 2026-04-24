@@ -7,6 +7,7 @@ from rest_framework.test import APIClient
 from unittest.mock import MagicMock, patch
 from audioDiagnostic.models import AudioProject, AudioFile, TranscriptionSegment, Transcription
 from rest_framework.authtoken.models import Token
+from rest_framework.test import force_authenticate
 
 User = get_user_model()
 

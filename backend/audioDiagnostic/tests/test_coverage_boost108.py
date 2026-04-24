@@ -9,6 +9,7 @@ Targets:
 """
 from django.test import TestCase
 from unittest.mock import MagicMock
+from rest_framework.test import force_authenticate
 
 
 # ─── pdf_tasks.py pure utility functions ─────────────────────────────────────

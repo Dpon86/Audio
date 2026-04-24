@@ -3,6 +3,7 @@ Wave 124: duplicate_tasks.py detect_duplicates_against_pdf_task (pure, uses mock
 """
 from django.test import TestCase
 from unittest.mock import MagicMock
+from rest_framework.test import force_authenticate
 
 
 def _make_seg(text, start, end, idx=None, file_id=1):

@@ -12,6 +12,7 @@ Targets pure utility classes/functions in:
     (ChecklistItem, ProductionReport, format_timestamp, format_timestamp_range)
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 # ══════════════════════════════════════════════════════════════════

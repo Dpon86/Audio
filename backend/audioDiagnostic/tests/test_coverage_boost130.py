@@ -13,6 +13,7 @@ from audioDiagnostic.models import (
     AudioProject, AudioFile, TranscriptionSegment, Transcription
 )
 import datetime
+from rest_framework.test import force_authenticate
 
 User = get_user_model()
 

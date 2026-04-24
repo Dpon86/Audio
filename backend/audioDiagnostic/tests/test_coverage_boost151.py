@@ -4,6 +4,7 @@ Wave 151: ai_pdf_comparison_task.py utility functions - ai_find_start_position, 
 from django.test import TestCase
 from unittest.mock import MagicMock, patch, PropertyMock
 from django.contrib.auth import get_user_model
+from rest_framework.test import force_authenticate
 
 User = get_user_model()
 

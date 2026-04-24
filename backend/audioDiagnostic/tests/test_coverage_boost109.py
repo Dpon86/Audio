@@ -9,6 +9,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from unittest.mock import MagicMock, patch
+from rest_framework.test import force_authenticate
 
 
 # ─── pdf_tasks.find_pdf_section_match_task ───────────────────────────────────

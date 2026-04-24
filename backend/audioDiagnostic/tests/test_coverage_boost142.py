@@ -7,6 +7,7 @@ from rest_framework.test import APIClient
 from rest_framework.authtoken.models import Token
 from unittest.mock import MagicMock, patch
 from accounts.models import SubscriptionPlan, UserSubscription
+from rest_framework.test import force_authenticate
 
 User = get_user_model()
 

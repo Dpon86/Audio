@@ -10,6 +10,7 @@ from django.test import TestCase, RequestFactory
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from audioDiagnostic.models import (
+from rest_framework.test import force_authenticate
     AudioProject, AudioFile, Transcription, TranscriptionSegment,
 )
 

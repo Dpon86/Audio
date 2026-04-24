@@ -15,6 +15,7 @@ from datetime import timedelta
 
 from accounts.models import SubscriptionPlan, UserSubscription, UsageTracking, BillingHistory, UserProfile
 from accounts.serializers import (
+from rest_framework.test import force_authenticate
     UserRegistrationSerializer, UserProfileSerializer,
     SubscriptionPlanSerializer, UserSubscriptionSerializer,
     UsageTrackingSerializer, BillingHistorySerializer,

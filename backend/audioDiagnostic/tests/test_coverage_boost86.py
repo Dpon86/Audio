@@ -5,6 +5,7 @@ Targets:
   - audioDiagnostic/utils/gap_detector.py (find_missing_sections, calculate_completeness_percentage)
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 # ══════════════════════════════════════════════════════════════════

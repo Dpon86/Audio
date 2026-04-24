@@ -10,6 +10,7 @@ Wave 36 coverage boost:
 - tasks/duplicate_tasks.py — identify_all_duplicates (pure function)
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 # ── 1. text_normalizer.py ─────────────────────────────────────────────────────

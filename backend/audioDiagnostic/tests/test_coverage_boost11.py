@@ -9,6 +9,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from audioDiagnostic.models import (
+from rest_framework.test import force_authenticate
     AudioProject, AudioFile, Transcription, TranscriptionSegment,
 )
 
@@ -673,7 +674,6 @@ class Tab3ReviewDeletionsDeepWave11Tests(AuthClientMixinW11, TestCase):
         )
         from rest_framework.authtoken.models import Token as DRFToken
         token, _ = DRFToken.objects.get_or_create(user=self.user)
-        from rest_framework.test import force_authenticate
         force_authenticate(req, user=self.user, token=token)
         try:
             resp = preview_deletions(req, self.project.id, self.af.id)

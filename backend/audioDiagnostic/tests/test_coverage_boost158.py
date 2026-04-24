@@ -9,6 +9,7 @@ reaching lines 105/133. Using lowercase bypasses Pattern 1 (requires [A-Z] start
 while still matching the re.IGNORECASE patterns at lines 104 and 128.
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 class PDFTextCleanerLine105Tests(TestCase):

@@ -12,6 +12,7 @@ from unittest.mock import patch, MagicMock, mock_open
 from io import StringIO
 
 from accounts.models import SubscriptionPlan, UserProfile, UserSubscription
+from rest_framework.test import force_authenticate
 
 
 def make_user(username='mgmtuser', password='pass123'):

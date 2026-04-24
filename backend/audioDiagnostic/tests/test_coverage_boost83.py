@@ -7,6 +7,7 @@ Targets pure utility functions in:
   - audioDiagnostic/utils/production_report.py (if exists)
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 # ══════════════════════════════════════════════════════════════════

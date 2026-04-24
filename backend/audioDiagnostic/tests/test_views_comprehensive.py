@@ -12,6 +12,7 @@ from unittest.mock import patch, MagicMock, PropertyMock
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from audioDiagnostic.models import (
+from rest_framework.test import force_authenticate
     AudioProject, AudioFile, Transcription, TranscriptionSegment,
     ClientTranscription, DuplicateAnalysis, DuplicateGroup,
     AIDuplicateDetectionResult, AIPDFComparisonResult

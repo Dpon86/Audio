@@ -3,6 +3,7 @@ Wave 127: duplicate_tasks.py - find_silence_boundary (mocked pydub)
 """
 from django.test import TestCase
 from unittest.mock import MagicMock, patch
+from rest_framework.test import force_authenticate
 
 
 class FindSilenceBoundaryTests(TestCase):

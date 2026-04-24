@@ -10,6 +10,7 @@ from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIRequestFactory
 from unittest.mock import patch, MagicMock
+from rest_framework.test import force_authenticate
 
 
 def make_project(user, **kw):
@@ -37,7 +38,6 @@ class Tab3ReviewDeletionsTests(TestCase):
     def _req(self, view_func, method, url, data=None, **kwargs):
         from rest_framework.authtoken.models import Token
         from rest_framework.authentication import TokenAuthentication
-from rest_framework.test import force_authenticate
         token = Token.objects.get(user=self.user)
         if method == 'get':
             request = self.factory.get(url, **kwargs)

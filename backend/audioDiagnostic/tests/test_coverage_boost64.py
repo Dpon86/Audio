@@ -19,6 +19,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from audioDiagnostic.models import (
+from rest_framework.test import force_authenticate
     AudioFile, AudioProject, Transcription, TranscriptionSegment,
 )
 

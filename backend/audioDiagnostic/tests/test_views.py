@@ -11,6 +11,7 @@ from audioDiagnostic.models import AudioProject, AudioFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from unittest.mock import patch, MagicMock
 import json
+from rest_framework.test import force_authenticate
 
 
 class ProjectAPITest(APITestCase):

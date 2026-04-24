@@ -7,6 +7,7 @@ from unittest.mock import patch, MagicMock
 from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
+from rest_framework.test import force_authenticate
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -502,7 +503,6 @@ class Tab2TranscriptionMoreTests(TestCase):
 
     def test_start_transcription(self):
         from rest_framework.test import APIRequestFactory
-from rest_framework.test import force_authenticate
         try:
             from audioDiagnostic.views.tab2_transcription import StartTranscriptionView
             factory = APIRequestFactory()

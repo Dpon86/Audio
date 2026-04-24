@@ -7,6 +7,7 @@ Targets:
   - audioDiagnostic/utils/pdf_text_cleaner.py remaining branches
 """
 from django.test import TestCase
+from rest_framework.test import force_authenticate
 
 
 # ─── normalize_and_tokenize tests ────────────────────────────────────────────
