@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIRequestFactory
+from rest_framework.test import force_authenticate
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -59,7 +60,7 @@ class ProjectRefinePDFBoundariesViewTests(TestCase):
             {'start_char': 0, 'end_char': 100},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = ProjectRefinePDFBoundariesView.as_view()
         response = view(request, project_id=self.project.id)
         self.assertIn(response.status_code, [200, 201, 400, 404, 500])
@@ -72,7 +73,7 @@ class ProjectRefinePDFBoundariesViewTests(TestCase):
             {'end_char': 100},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = ProjectRefinePDFBoundariesView.as_view()
         response = view(request, project_id=self.project.id)
         self.assertEqual(response.status_code, 400)
@@ -85,7 +86,7 @@ class ProjectRefinePDFBoundariesViewTests(TestCase):
             {'start_char': 0},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = ProjectRefinePDFBoundariesView.as_view()
         response = view(request, project_id=self.project.id)
         self.assertEqual(response.status_code, 400)
@@ -98,7 +99,7 @@ class ProjectRefinePDFBoundariesViewTests(TestCase):
             {'start_char': 200, 'end_char': 100},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = ProjectRefinePDFBoundariesView.as_view()
         response = view(request, project_id=self.project.id)
         self.assertEqual(response.status_code, 400)
@@ -111,7 +112,7 @@ class ProjectRefinePDFBoundariesViewTests(TestCase):
             {'start_char': 'abc', 'end_char': 'xyz'},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = ProjectRefinePDFBoundariesView.as_view()
         response = view(request, project_id=self.project.id)
         self.assertEqual(response.status_code, 400)
@@ -125,7 +126,7 @@ class ProjectRefinePDFBoundariesViewTests(TestCase):
             {'start_char': 0, 'end_char': 100},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = ProjectRefinePDFBoundariesView.as_view()
         response = view(request, project_id=project2.id)
         self.assertEqual(response.status_code, 400)
@@ -139,7 +140,7 @@ class ProjectRefinePDFBoundariesViewTests(TestCase):
             {'start_char': 0, 'end_char': 100},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = ProjectRefinePDFBoundariesView.as_view()
         response = view(request, project_id=project3.id)
         self.assertEqual(response.status_code, 400)
@@ -152,7 +153,7 @@ class ProjectRefinePDFBoundariesViewTests(TestCase):
             {'start_char': 0, 'end_char': 999999},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = ProjectRefinePDFBoundariesView.as_view()
         response = view(request, project_id=self.project.id)
         self.assertEqual(response.status_code, 400)
@@ -258,7 +259,7 @@ class ProjectDetectDuplicatesViewPostTests(TestCase):
             {},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         with patch('audioDiagnostic.views.duplicate_views.detect_duplicates_task') as mock_task:
             mock_task.delay.return_value = MagicMock(id='task-w49-001')
             view = ProjectDetectDuplicatesView.as_view()
@@ -274,7 +275,7 @@ class ProjectDetectDuplicatesViewPostTests(TestCase):
             {},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = ProjectDetectDuplicatesView.as_view()
         response = view(request, project_id=project2.id)
         self.assertEqual(response.status_code, 400)
@@ -289,7 +290,7 @@ class ProjectDetectDuplicatesViewPostTests(TestCase):
             {},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = ProjectDetectDuplicatesView.as_view()
         response = view(request, project_id=self.project.id)
         self.assertEqual(response.status_code, 400)
@@ -315,7 +316,7 @@ class Tab5PDFComparisonViewTests(TestCase):
             f'/api/projects/{self.project.id}/files/{self.af.id}/compare-pdf/',
             {}, format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = StartPDFComparisonView.as_view()
         response = view(request, project_id=self.project.id, audio_file_id=self.af.id)
         self.assertEqual(response.status_code, 400)
@@ -327,7 +328,7 @@ class Tab5PDFComparisonViewTests(TestCase):
             f'/api/projects/{self.project.id}/files/{self.af.id}/precise-compare/',
             {}, format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = StartPrecisePDFComparisonView.as_view()
         response = view(request, project_id=self.project.id, audio_file_id=self.af.id)
         self.assertEqual(response.status_code, 400)
@@ -338,7 +339,7 @@ class Tab5PDFComparisonViewTests(TestCase):
         request = self.factory.get(
             f'/api/projects/{self.project.id}/pdf-text/'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = GetPDFTextView.as_view()
         response = view(request, project_id=self.project.id)
         self.assertEqual(response.status_code, 400)
@@ -349,7 +350,7 @@ class Tab5PDFComparisonViewTests(TestCase):
         request = self.factory.get(
             f'/api/projects/{self.project.id}/files/{self.af.id}/pdf-status/'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = PDFComparisonStatusView.as_view()
         response = view(request, project_id=self.project.id, audio_file_id=self.af.id)
         self.assertIn(response.status_code, [200, 400, 404])
@@ -361,7 +362,7 @@ class Tab5PDFComparisonViewTests(TestCase):
         request = self.factory.get(
             f'/api/projects/{self.project.id}/files/{af2.id}/pdf-result/'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = PDFComparisonResultView.as_view()
         response = view(request, project_id=self.project.id, audio_file_id=af2.id)
         self.assertIn(response.status_code, [200, 400, 404])
@@ -373,7 +374,7 @@ class Tab5PDFComparisonViewTests(TestCase):
             f'/api/projects/{self.project.id}/files/{self.af.id}/reset-comparison/',
             {}, format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = ResetPDFComparisonView.as_view()
         response = view(request, project_id=self.project.id, audio_file_id=self.af.id)
         self.assertIn(response.status_code, [200, 201, 400, 404])
@@ -385,7 +386,7 @@ class Tab5PDFComparisonViewTests(TestCase):
             f'/api/projects/{self.project.id}/files/{self.af.id}/mark-for-deletion/',
             {'segment_ids': [1, 2]}, format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = MarkContentForDeletionView.as_view()
         response = view(request, project_id=self.project.id, audio_file_id=self.af.id)
         self.assertIn(response.status_code, [200, 201, 400, 404])
@@ -396,7 +397,7 @@ class Tab5PDFComparisonViewTests(TestCase):
         request = self.factory.get(
             f'/api/projects/{self.project.id}/files/{self.af.id}/side-by-side/'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = SideBySideComparisonView.as_view()
         response = view(request, project_id=self.project.id, audio_file_id=self.af.id)
         self.assertIn(response.status_code, [200, 400, 404])
@@ -407,7 +408,7 @@ class Tab5PDFComparisonViewTests(TestCase):
         with patch('audioDiagnostic.views.tab5_pdf_comparison.get_audiobook_analysis_progress') as mock_prog:
             mock_prog.return_value = {'progress': 50, 'status': 'running'}
             request = self.factory.get('/api/audiobook-analysis/fake-task-id/progress/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             view = AudiobookAnalysisProgressView.as_view()
             response = view(request, task_id='fake-task-id')
             self.assertIn(response.status_code, [200, 400, 404])
@@ -421,7 +422,7 @@ class Tab5PDFComparisonViewTests(TestCase):
             mock_result.result = {'success': True, 'report': {}}
             mock_async.return_value = mock_result
             request = self.factory.get('/api/audiobook-analysis/fake-task-id/result/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             view = AudiobookAnalysisResultView.as_view()
             response = view(request, task_id='fake-task-id')
             self.assertIn(response.status_code, [200, 400, 404])

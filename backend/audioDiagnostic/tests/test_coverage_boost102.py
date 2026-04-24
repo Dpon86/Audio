@@ -9,6 +9,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIRequestFactory
+from rest_framework.test import force_authenticate
 from unittest.mock import patch, MagicMock
 
 
@@ -29,13 +30,13 @@ class Tab3ReviewDeletionsTests(TestCase):
         )
 
     def _authenticate(self, request):
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         return request
 
     def test_get_deletion_preview_no_preview(self):
         from audioDiagnostic.views.tab3_review_deletions import get_deletion_preview
         request = self.factory.get('/')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = get_deletion_preview(request, self.project.id, self.audio_file.id)
         self.assertIn(resp.status_code, [200, 202, 400, 500])
 
@@ -46,7 +47,7 @@ class Tab3ReviewDeletionsTests(TestCase):
         self.audio_file.preview_metadata = {'original_duration': 100, 'preview_duration': 80, 'segments_deleted': 5, 'time_saved': 20, 'deletion_regions': [], 'kept_regions': []}
         self.audio_file.save()
         request = self.factory.get('/')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = get_deletion_preview(request, self.project.id, self.audio_file.id)
         self.assertIn(resp.status_code, [200, 202, 400, 500])
 
@@ -56,14 +57,14 @@ class Tab3ReviewDeletionsTests(TestCase):
         self.audio_file.error_message = 'Processing failed'
         self.audio_file.save()
         request = self.factory.get('/')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = get_deletion_preview(request, self.project.id, self.audio_file.id)
         self.assertIn(resp.status_code, [200, 202, 400, 500])
 
     def test_preview_deletions_no_segment_ids(self):
         from audioDiagnostic.views.tab3_review_deletions import preview_deletions
         request = self.factory.post('/', data={}, format='json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = preview_deletions(request, self.project.id, self.audio_file.id)
         self.assertEqual(resp.status_code, 400)
 
@@ -74,14 +75,14 @@ class Tab3ReviewDeletionsTests(TestCase):
             project=self.project, filename='no_trans.mp3', order_index=2
         )
         request = self.factory.post('/', data={'segment_ids': [1, 2]}, format='json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = preview_deletions(request, self.project.id, af2.id)
         self.assertIn(resp.status_code, [400, 500])
 
     def test_restore_segments_no_data(self):
         from audioDiagnostic.views.tab3_review_deletions import restore_segments
         request = self.factory.post('/', data={}, format='json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = restore_segments(request, self.project.id, self.audio_file.id)
         self.assertIn(resp.status_code, [200, 400, 500])
 
@@ -96,14 +97,14 @@ class Tab3ReviewDeletionsTests(TestCase):
         request = self.factory.post(
             '/', data={'segment_ids': [seg.id], 'regenerate_preview': False}, format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = restore_segments(request, self.project.id, self.audio_file.id)
         self.assertIn(resp.status_code, [200, 202, 400, 500])
 
     def test_preview_deletions_wrong_project(self):
         from audioDiagnostic.views.tab3_review_deletions import preview_deletions
         request = self.factory.post('/', data={'segment_ids': [1]}, format='json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = preview_deletions(request, 999999, self.audio_file.id)
         self.assertIn(resp.status_code, [400, 404, 500])
 

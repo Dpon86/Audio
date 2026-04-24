@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIRequestFactory
+from rest_framework.test import force_authenticate
 import io
 
 
@@ -228,7 +229,7 @@ class Tab3DuplicateDetectionBranchTests(TestCase):
             {'algorithm': 'invalid_algo'},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = SingleFileDetectDuplicatesView.as_view()
         response = view(request, project_id=self.project.id, audio_file_id=self.af.id)
         self.assertEqual(response.status_code, 400)
@@ -242,7 +243,7 @@ class Tab3DuplicateDetectionBranchTests(TestCase):
             {'algorithm': 'tfidf_cosine'},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = SingleFileDetectDuplicatesView.as_view()
         response = view(request, project_id=self.project.id, audio_file_id=af2.id)
         self.assertEqual(response.status_code, 400)
@@ -257,7 +258,7 @@ class Tab3DuplicateDetectionBranchTests(TestCase):
             {'algorithm': 'tfidf_cosine'},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = SingleFileDetectDuplicatesView.as_view()
         response = view(request, project_id=self.project.id, audio_file_id=af3.id)
         self.assertEqual(response.status_code, 400)
@@ -270,7 +271,7 @@ class Tab3DuplicateDetectionBranchTests(TestCase):
             {'algorithm': 'tfidf_cosine'},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         with patch('audioDiagnostic.views.tab3_duplicate_detection.detect_duplicates_single_file_task') as mock_task:
             mock_task.delay.return_value = MagicMock(id='task-tab3-w50-001')
             view = SingleFileDetectDuplicatesView.as_view()
@@ -285,7 +286,7 @@ class Tab3DuplicateDetectionBranchTests(TestCase):
             {'algorithm': 'windowed_retry'},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         with patch('audioDiagnostic.views.tab3_duplicate_detection.detect_duplicates_single_file_task') as mock_task:
             mock_task.delay.return_value = MagicMock(id='task-tab3-w50-002')
             view = SingleFileDetectDuplicatesView.as_view()
@@ -298,7 +299,7 @@ class Tab3DuplicateDetectionBranchTests(TestCase):
         request = self.factory.get(
             f'/api/projects/{self.project.id}/files/{self.af.id}/duplicates/'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = SingleFileDuplicatesReviewView.as_view()
         response = view(request, project_id=self.project.id, audio_file_id=self.af.id)
         self.assertIn(response.status_code, [200])
@@ -311,7 +312,7 @@ class Tab3DuplicateDetectionBranchTests(TestCase):
         request = self.factory.get(
             f'/api/projects/{self.project.id}/files/{af4.id}/statistics/'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = SingleFileStatisticsView.as_view()
         response = view(request, project_id=self.project.id, audio_file_id=af4.id)
         self.assertIn(response.status_code, [200, 400, 404])
@@ -322,7 +323,7 @@ class Tab3DuplicateDetectionBranchTests(TestCase):
         request = self.factory.get(
             f'/api/projects/{self.project.id}/files/{self.af.id}/statistics/'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         view = SingleFileStatisticsView.as_view()
         response = view(request, project_id=self.project.id, audio_file_id=self.af.id)
         self.assertIn(response.status_code, [200, 400, 404])
@@ -333,7 +334,7 @@ class Tab3DuplicateDetectionBranchTests(TestCase):
         request = self.factory.get(
             f'/api/projects/{self.project.id}/files/{self.af.id}/processing-status/'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         with patch('audioDiagnostic.views.tab3_duplicate_detection.get_redis_connection') as mock_redis:
             r = MagicMock()
             r.get.return_value = None

@@ -21,6 +21,7 @@ from django.test import TestCase, override_settings
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from rest_framework.authtoken.models import Token
+from rest_framework.test import force_authenticate
 
 from audioDiagnostic.models import (
     AudioProject, AudioFile, Transcription, TranscriptionSegment,
@@ -1323,7 +1324,7 @@ class AccountsFeedbackViewsWave4Tests(TestCase):
             }),
             content_type='application/json',
         )
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         try:
             resp = submit_feedback(req)
             self.assertIn(resp.status_code, [200, 201, 400])
@@ -1335,7 +1336,7 @@ class AccountsFeedbackViewsWave4Tests(TestCase):
         from django.test import RequestFactory
         rf = RequestFactory()
         req = rf.post('/api/feedback/submit/', data='{}', content_type='application/json')
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         try:
             resp = submit_feedback(req)
             self.assertIn(resp.status_code, [200, 201, 400])
@@ -1348,7 +1349,7 @@ class AccountsFeedbackViewsWave4Tests(TestCase):
             from django.test import RequestFactory
             rf = RequestFactory()
             req = rf.get('/api/feedback/history/')
-            req.user = self.user
+            force_authenticate(req, user=self.user)
             resp = user_feedback_history(req)
             self.assertIn(resp.status_code, [200, 400, 401, 403])
         except (ImportError, AttributeError):
@@ -1360,7 +1361,7 @@ class AccountsFeedbackViewsWave4Tests(TestCase):
             from django.test import RequestFactory
             rf = RequestFactory()
             req = rf.get('/api/feedback/summary/')
-            req.user = self.user
+            force_authenticate(req, user=self.user)
             resp = feedback_summary(req)
             self.assertIn(resp.status_code, [200, 400, 403])
         except (ImportError, AttributeError):

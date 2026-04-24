@@ -174,7 +174,7 @@ class ProjectRefinePDFBoundariesViewTests(TestCase):
         request = self.factory.post(f'/projects/{project.id}/refine-pdf-boundaries/', {
             'start_char': 0, 'end_char': 100
         }, format='json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         request.auth = self.token
         resp = view(request, project_id=project.id)
         # pdf_match_completed=False -> 400
@@ -190,7 +190,7 @@ class ProjectRefinePDFBoundariesViewTests(TestCase):
         request = self.factory.post(f'/projects/{project.id}/refine-pdf-boundaries/', {
             'start_char': 0, 'end_char': 100
         }, format='json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = view(request, project_id=project.id)
         self.assertEqual(resp.status_code, 400)
 
@@ -202,7 +202,7 @@ class ProjectRefinePDFBoundariesViewTests(TestCase):
             pdf_match_completed=True, pdf_text='Sample PDF text content here.')
         view = ProjectRefinePDFBoundariesView.as_view()
         request = self.factory.post(f'/projects/{project.id}/refine-pdf-boundaries/', {}, format='json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = view(request, project_id=project.id)
         self.assertEqual(resp.status_code, 400)
 
@@ -216,7 +216,7 @@ class ProjectRefinePDFBoundariesViewTests(TestCase):
         request = self.factory.post(f'/projects/{project.id}/refine-pdf-boundaries/', {
             'start_char': 50, 'end_char': 10  # start > end
         }, format='json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = view(request, project_id=project.id)
         self.assertEqual(resp.status_code, 400)
 
@@ -231,7 +231,7 @@ class ProjectRefinePDFBoundariesViewTests(TestCase):
         request = self.factory.post(f'/projects/{project.id}/refine-pdf-boundaries/', {
             'start_char': 0, 'end_char': 20
         }, format='json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = view(request, project_id=project.id)
         self.assertEqual(resp.status_code, 200)
 
@@ -367,10 +367,10 @@ class Tab3ReviewDeletionsTests(TestCase):
             request = self.factory.post(
                 f'/projects/{self.project.id}/files/{self.af.id}/preview-deletions/',
                 {'segment_ids': []}, format='json')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             from rest_framework.request import Request
             drf_request = Request(request)
-            drf_request.user = self.user
+            force_authenticate(drf_request, user=self.user)
             resp = preview_deletions(drf_request, self.project.id, self.af.id)
             self.assertIn(resp.status_code, [200, 400, 404])
         except Exception:
@@ -381,10 +381,10 @@ class Tab3ReviewDeletionsTests(TestCase):
             from audioDiagnostic.views.tab3_review_deletions import get_deletion_preview
             request = self.factory.get(
                 f'/projects/{self.project.id}/files/{self.af.id}/deletion-preview/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             from rest_framework.request import Request
             drf_request = Request(request)
-            drf_request.user = self.user
+            force_authenticate(drf_request, user=self.user)
             resp = get_deletion_preview(drf_request, self.project.id, self.af.id)
             self.assertIn(resp.status_code, [200, 400, 404])
         except Exception:
@@ -396,10 +396,11 @@ class Tab3ReviewDeletionsTests(TestCase):
             request = self.factory.post(
                 f'/projects/{self.project.id}/files/{self.af.id}/restore/',
                 {'segment_ids': []}, format='json')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             from rest_framework.request import Request
+from rest_framework.test import force_authenticate
             drf_request = Request(request)
-            drf_request.user = self.user
+            force_authenticate(drf_request, user=self.user)
             resp = restore_segments(drf_request, self.project.id, self.af.id)
             self.assertIn(resp.status_code, [200, 400, 404])
         except Exception:

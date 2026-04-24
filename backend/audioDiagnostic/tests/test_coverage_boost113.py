@@ -78,7 +78,7 @@ class Tab3RemainingViewsTests(TestCase):
         self.af.status = 'processing'
         self.af.task_id = 'fake-task-123'
         self.af.save()
-        with patch('audioDiagnostic.views.tab3_duplicate_detection.AsyncResult') as mock_ar:
+        with patch('celery.result.AsyncResult') as mock_ar:
             mock_task = MagicMock()
             mock_task.state = 'PROGRESS'
             mock_task.info = {'progress': 50, 'message': 'Working...'}
@@ -90,7 +90,7 @@ class Tab3RemainingViewsTests(TestCase):
         self.af.status = 'processing'
         self.af.task_id = 'fake-task-456'
         self.af.save()
-        with patch('audioDiagnostic.views.tab3_duplicate_detection.AsyncResult') as mock_ar:
+        with patch('celery.result.AsyncResult') as mock_ar:
             mock_task = MagicMock()
             mock_task.state = 'SUCCESS'
             mock_task.info = {}
@@ -102,7 +102,7 @@ class Tab3RemainingViewsTests(TestCase):
         self.af.status = 'processing'
         self.af.task_id = 'fake-task-789'
         self.af.save()
-        with patch('audioDiagnostic.views.tab3_duplicate_detection.AsyncResult') as mock_ar:
+        with patch('celery.result.AsyncResult') as mock_ar:
             mock_task = MagicMock()
             mock_task.state = 'FAILURE'
             mock_task.info = Exception('Task failed')

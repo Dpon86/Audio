@@ -6,6 +6,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.authtoken.models import Token
+from rest_framework.test import force_authenticate
 from accounts.views_feedback import (
     submit_feedback, user_feedback_history, feature_summary,
     all_feature_summaries, quick_feedback
@@ -29,14 +30,14 @@ class SubmitFeedbackViewTests(TestCase):
             'what_to_improve': 'Faster would be nice',
             'rating': 5,
         }, format='json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = submit_feedback(request)
         self.assertIn(response.status_code, [201, 400])
 
     def test_submit_invalid_feedback(self):
         """Missing required field should return 400."""
         request = self.factory.post('/feedback/submit/', {}, format='json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = submit_feedback(request)
         self.assertEqual(response.status_code, 400)
 
@@ -48,7 +49,7 @@ class SubmitFeedbackViewTests(TestCase):
                 'worked_as_expected': False,
                 'rating': rating,
             }, format='json')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             response = submit_feedback(request)
             self.assertIn(response.status_code, [201, 400])
 
@@ -62,7 +63,7 @@ class UserFeedbackHistoryTests(TestCase):
 
     def test_get_user_feedback_history(self):
         request = self.factory.get('/feedback/my-feedback/')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = user_feedback_history(request)
         self.assertEqual(response.status_code, 200)
         self.assertIn('feedback', response.data)
@@ -120,13 +121,13 @@ class QuickFeedbackTests(TestCase):
             'what_you_like': 'Works well!',
             'rating': 4,
         }, format='json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = quick_feedback(request)
         self.assertIn(response.status_code, [201, 400])
 
     def test_quick_feedback_invalid(self):
         """Missing data returns 400."""
         request = self.factory.post('/feedback/quick/', {}, format='json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = quick_feedback(request)
         self.assertEqual(response.status_code, 400)

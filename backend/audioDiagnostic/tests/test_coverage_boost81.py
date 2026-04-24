@@ -10,6 +10,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase, RequestFactory
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIRequestFactory
+from rest_framework.test import force_authenticate
 
 from audioDiagnostic.models import AudioProject, AudioFile, Transcription, TranscriptionSegment
 
@@ -286,7 +287,7 @@ class PreviewDeletionsViewTests(TestCase):
             {'segment_ids': [1, 2]},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = preview_deletions(request, self.project.id, self.af.id)
         self.assertIn(resp.status_code, [400, 404])
 
@@ -300,7 +301,7 @@ class PreviewDeletionsViewTests(TestCase):
             {'segment_ids': []},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = preview_deletions(request, self.project.id, self.af.id)
         self.assertIn(resp.status_code, [400])
 
@@ -326,7 +327,7 @@ class GetDeletionPreviewTests(TestCase):
         request = factory.get(
             f'/api/projects/{self.project.id}/files/{self.af.id}/deletion-preview/'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = get_deletion_preview(request, self.project.id, self.af.id)
         self.assertIn(resp.status_code, [200, 400, 404])
 
@@ -347,7 +348,7 @@ class GetDeletionPreviewTests(TestCase):
         request = factory.get(
             f'/api/projects/{self.project.id}/files/{self.af.id}/deletion-preview/'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = get_deletion_preview(request, self.project.id, self.af.id)
         self.assertIn(resp.status_code, [200])
 
@@ -361,7 +362,7 @@ class GetDeletionPreviewTests(TestCase):
         request = factory.get(
             f'/api/projects/{self.project.id}/files/{self.af.id}/deletion-preview/'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = get_deletion_preview(request, self.project.id, self.af.id)
         self.assertIn(resp.status_code, [200])
 
@@ -388,7 +389,7 @@ class RestoreSegmentsViewTests(TestCase):
             {'segment_ids': []},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = restore_segments(request, self.project.id, self.af.id)
         self.assertIn(resp.status_code, [400])
 
@@ -401,7 +402,7 @@ class RestoreSegmentsViewTests(TestCase):
             {'segment_ids': [1, 2]},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = restore_segments(request, self.project.id, self.af.id)
         self.assertIn(resp.status_code, [400])
 
@@ -422,6 +423,6 @@ class RestoreSegmentsViewTests(TestCase):
             {'segment_ids': [10], 'regenerate_preview': False},
             format='json'
         )
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         resp = restore_segments(request, self.project.id, self.af.id)
         self.assertIn(resp.status_code, [200])

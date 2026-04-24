@@ -110,6 +110,7 @@ class FeedbackSerializerTests(TestCase):
     def test_validate_rating_out_of_range(self):
         from accounts.serializers_feedback import FeatureFeedbackSerializer
         from rest_framework import serializers
+from rest_framework.test import force_authenticate
         s = FeatureFeedbackSerializer()
         with self.assertRaises(serializers.ValidationError):
             s.validate_rating(0)
@@ -118,7 +119,7 @@ class FeedbackSerializerTests(TestCase):
         from accounts.serializers_feedback import FeatureFeedbackSerializer
         from unittest.mock import MagicMock
         request = MagicMock()
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         s = FeatureFeedbackSerializer(data={
             'feature': 'ai_duplicate_detection',
             'worked_as_expected': True,
@@ -167,7 +168,7 @@ class FeedbackViewsTests(TestCase):
             'rating': 5,
             'what_you_like': 'Great',
         }, format='json', **self._auth_header())
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = submit_feedback(request)
         self.assertIn(response.status_code, [200, 201, 400])
 
@@ -178,21 +179,21 @@ class FeedbackViewsTests(TestCase):
             'worked_as_expected': True,
             'rating': 9,  # invalid
         }, format='json', **self._auth_header())
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = submit_feedback(request)
         self.assertIn(response.status_code, [400, 200])
 
     def test_user_feedback_history(self):
         from accounts.views_feedback import user_feedback_history
         request = self.factory.get('/api/auth/feedback/my-feedback/', **self._auth_header())
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = user_feedback_history(request)
         self.assertEqual(response.status_code, 200)
 
     def test_feature_summary_not_found(self):
         from accounts.views_feedback import feature_summary
         request = self.factory.get('/api/auth/feedback/summary/nonexistent_feature/')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = feature_summary(request, 'nonexistent_feature')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['summary']['total_responses'], 0)
@@ -206,13 +207,13 @@ class FeedbackViewsTests(TestCase):
             average_rating=4.0,
         )
         request = self.factory.get('/api/auth/feedback/summary/ai_pdf_comparison/')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = feature_summary(request, 'ai_pdf_comparison')
         self.assertEqual(response.status_code, 200)
 
     def test_all_feature_summaries(self):
         from accounts.views_feedback import all_feature_summaries
         request = self.factory.get('/api/auth/feedback/summaries/')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = all_feature_summaries(request)
         self.assertEqual(response.status_code, 200)

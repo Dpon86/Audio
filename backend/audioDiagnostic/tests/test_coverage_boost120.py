@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory
 from rest_framework.authtoken.models import Token
+from rest_framework.test import force_authenticate
 
 User = get_user_model()
 
@@ -31,13 +32,13 @@ class FeedbackViewsTests(TestCase):
         self.FeatureFeedbackSummary = FeatureFeedbackSummary
 
     def _auth_request(self, req):
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         return req
 
     def test_submit_feedback_invalid(self):
         from accounts.views_feedback import submit_feedback
         req = self.factory.post('/feedback/submit/', {}, format='json')
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         resp = submit_feedback(req)
         self.assertIn(resp.status_code, [400, 200])
 
@@ -49,21 +50,21 @@ class FeedbackViewsTests(TestCase):
             'rating': 5,
         }
         req = self.factory.post('/feedback/submit/', data, format='json')
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         resp = submit_feedback(req)
         self.assertIn(resp.status_code, [201, 400, 500])
 
     def test_user_feedback_history(self):
         from accounts.views_feedback import user_feedback_history
         req = self.factory.get('/feedback/my-feedback/')
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         resp = user_feedback_history(req)
         self.assertIn(resp.status_code, [200])
 
     def test_feature_summary_not_found(self):
         from accounts.views_feedback import feature_summary
         req = self.factory.get('/feedback/summary/nonexistent/')
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         resp = feature_summary(req, feature_name='nonexistent_feature_xyz')
         self.assertIn(resp.status_code, [200])
 
@@ -75,21 +76,21 @@ class FeedbackViewsTests(TestCase):
             average_rating=4.5,
         )
         req = self.factory.get('/feedback/summary/ai_duplicate_detection/')
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         resp = feature_summary(req, feature_name='ai_duplicate_detection')
         self.assertIn(resp.status_code, [200])
 
     def test_all_feature_summaries(self):
         from accounts.views_feedback import all_feature_summaries
         req = self.factory.get('/feedback/summaries/')
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         resp = all_feature_summaries(req)
         self.assertIn(resp.status_code, [200])
 
     def test_quick_feedback_invalid(self):
         from accounts.views_feedback import quick_feedback
         req = self.factory.post('/feedback/quick/', {}, format='json')
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         resp = quick_feedback(req)
         self.assertIn(resp.status_code, [400])
 
@@ -102,7 +103,7 @@ class FeedbackViewsTests(TestCase):
             'what_you_like': 'Great!',
         }
         req = self.factory.post('/feedback/quick/', data, format='json')
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         resp = quick_feedback(req)
         self.assertIn(resp.status_code, [200, 201, 400])
 
@@ -133,7 +134,7 @@ class AIDetectionViewsTests(TestCase):
         )
 
     def _auth(self, req):
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         return req
 
     # --- ai_detect_duplicates_view ---
@@ -141,7 +142,7 @@ class AIDetectionViewsTests(TestCase):
     def test_detect_invalid_serializer(self):
         from audioDiagnostic.views.ai_detection_views import ai_detect_duplicates_view
         req = self.factory.post('/api/ai-detection/detect/', {}, format='json')
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         resp = ai_detect_duplicates_view(req)
         self.assertEqual(resp.status_code, 400)
 
@@ -149,7 +150,7 @@ class AIDetectionViewsTests(TestCase):
         from audioDiagnostic.views.ai_detection_views import ai_detect_duplicates_view
         req = self.factory.post('/api/ai-detection/detect/',
                                 {'audio_file_id': self.audio_file.id}, format='json')
-        req.user = self.other_user
+        force_authenticate(req, user=self.other_user)
         resp = ai_detect_duplicates_view(req)
         self.assertIn(resp.status_code, [403, 400, 500])
 
@@ -162,7 +163,7 @@ class AIDetectionViewsTests(TestCase):
             with patch('audioDiagnostic.services.ai.DuplicateDetector', return_value=mock_detector):
                 req = self.factory.post('/api/ai-detection/detect/',
                                         {'audio_file_id': self.audio_file.id}, format='json')
-                req.user = self.user
+                force_authenticate(req, user=self.user)
                 try:
                     resp = ai_detect_duplicates_view(req)
                     self.assertIn(resp.status_code, [402, 202, 400, 500])
@@ -180,7 +181,7 @@ class AIDetectionViewsTests(TestCase):
             with patch('audioDiagnostic.services.ai.DuplicateDetector', return_value=mock_detector):
                 req = self.factory.post('/api/ai-detection/detect/',
                                         {'audio_file_id': self.audio_file.id}, format='json')
-                req.user = self.user
+                force_authenticate(req, user=self.user)
                 try:
                     resp = ai_detect_duplicates_view(req)
                     self.assertIn(resp.status_code, [202, 400, 500])
@@ -200,7 +201,7 @@ class AIDetectionViewsTests(TestCase):
             with patch('audioDiagnostic.views.ai_detection_views.cache') as mock_cache:
                 mock_cache._cache.get_client.return_value = mock_redis
                 req = self.factory.get('/api/ai-detection/status/fake-id/')
-                req.user = self.user
+                force_authenticate(req, user=self.user)
                 try:
                     resp = ai_task_status_view(req, task_id='fake-id')
                     self.assertIn(resp.status_code, [200, 500])
@@ -218,7 +219,7 @@ class AIDetectionViewsTests(TestCase):
             with patch('audioDiagnostic.views.ai_detection_views.cache') as mock_cache:
                 mock_cache._cache.get_client.return_value = mock_redis
                 req = self.factory.get('/api/ai-detection/status/fake-id/')
-                req.user = self.user
+                force_authenticate(req, user=self.user)
                 try:
                     resp = ai_task_status_view(req, task_id='fake-id')
                     self.assertIn(resp.status_code, [200, 500])
@@ -236,7 +237,7 @@ class AIDetectionViewsTests(TestCase):
             with patch('audioDiagnostic.views.ai_detection_views.cache') as mock_cache:
                 mock_cache._cache.get_client.return_value = mock_redis
                 req = self.factory.get('/api/ai-detection/status/fake-id/')
-                req.user = self.user
+                force_authenticate(req, user=self.user)
                 try:
                     resp = ai_task_status_view(req, task_id='fake-id')
                     self.assertIn(resp.status_code, [200, 500])
@@ -248,7 +249,7 @@ class AIDetectionViewsTests(TestCase):
     def test_compare_pdf_invalid(self):
         from audioDiagnostic.views.ai_detection_views import ai_compare_pdf_view
         req = self.factory.post('/api/ai-detection/compare-pdf/', {}, format='json')
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         resp = ai_compare_pdf_view(req)
         self.assertIn(resp.status_code, [400])
 
@@ -256,7 +257,7 @@ class AIDetectionViewsTests(TestCase):
         from audioDiagnostic.views.ai_detection_views import ai_compare_pdf_view
         req = self.factory.post('/api/ai-detection/compare-pdf/',
                                 {'audio_file_id': self.audio_file.id}, format='json')
-        req.user = self.other_user
+        force_authenticate(req, user=self.other_user)
         resp = ai_compare_pdf_view(req)
         self.assertIn(resp.status_code, [403, 400, 500])
 
@@ -267,7 +268,7 @@ class AIDetectionViewsTests(TestCase):
         with patch('audioDiagnostic.services.ai.DuplicateDetector', return_value=mock_detector):
             req = self.factory.post('/api/ai-detection/compare-pdf/',
                                     {'audio_file_id': self.audio_file.id}, format='json')
-            req.user = self.user
+            force_authenticate(req, user=self.user)
             try:
                 resp = ai_compare_pdf_view(req)
                 self.assertIn(resp.status_code, [402, 202, 400, 500])
@@ -285,7 +286,7 @@ class AIDetectionViewsTests(TestCase):
             with patch('audioDiagnostic.services.ai.DuplicateDetector', return_value=mock_detector):
                 req = self.factory.post('/api/ai-detection/compare-pdf/',
                                         {'audio_file_id': self.audio_file.id}, format='json')
-                req.user = self.user
+                force_authenticate(req, user=self.user)
                 try:
                     resp = ai_compare_pdf_view(req)
                     self.assertIn(resp.status_code, [202, 400, 500])
@@ -297,7 +298,7 @@ class AIDetectionViewsTests(TestCase):
     def test_estimate_cost_invalid(self):
         from audioDiagnostic.views.ai_detection_views import ai_estimate_cost_view
         req = self.factory.post('/api/ai-detection/estimate-cost/', {}, format='json')
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         resp = ai_estimate_cost_view(req)
         self.assertIn(resp.status_code, [400])
 
@@ -310,7 +311,7 @@ class AIDetectionViewsTests(TestCase):
             req = self.factory.post('/api/ai-detection/estimate-cost/',
                                     {'audio_duration_seconds': 3600, 'task_type': 'duplicate_detection'},
                                     format='json')
-            req.user = self.user
+            force_authenticate(req, user=self.user)
             try:
                 resp = ai_estimate_cost_view(req)
                 self.assertIn(resp.status_code, [200, 500])
@@ -322,14 +323,14 @@ class AIDetectionViewsTests(TestCase):
     def test_results_permission_denied(self):
         from audioDiagnostic.views.ai_detection_views import ai_detection_results_view
         req = self.factory.get(f'/api/ai-detection/results/{self.audio_file.id}/')
-        req.user = self.other_user
+        force_authenticate(req, user=self.other_user)
         resp = ai_detection_results_view(req, audio_file_id=self.audio_file.id)
         self.assertIn(resp.status_code, [403, 500])
 
     def test_results_success(self):
         from audioDiagnostic.views.ai_detection_views import ai_detection_results_view
         req = self.factory.get(f'/api/ai-detection/results/{self.audio_file.id}/')
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         try:
             resp = ai_detection_results_view(req, audio_file_id=self.audio_file.id)
             self.assertIn(resp.status_code, [200, 500])
@@ -343,7 +344,7 @@ class AIDetectionViewsTests(TestCase):
         with patch('audioDiagnostic.views.ai_detection_views.cache') as mock_cache:
             mock_cache.get.return_value = 12.5
             req = self.factory.get('/api/ai-detection/user-cost/')
-            req.user = self.user
+            force_authenticate(req, user=self.user)
             try:
                 resp = ai_user_cost_view(req)
                 self.assertIn(resp.status_code, [200, 500])

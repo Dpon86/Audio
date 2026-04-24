@@ -401,6 +401,7 @@ class AIDetectionViewsWave12Tests(TestCase):
 
     def _make_request(self, method='post', data=None, url='/'):
         from rest_framework.test import APIRequestFactory, force_authenticate
+from rest_framework.test import force_authenticate
         factory = APIRequestFactory()
         if method == 'post':
             req = factory.post(url, data or {}, format='json')

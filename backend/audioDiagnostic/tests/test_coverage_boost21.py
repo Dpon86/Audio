@@ -306,6 +306,7 @@ class FeedbackViewsBranchTests(TestCase):
         from accounts.views_feedback import FeedbackView
         from rest_framework.permissions import IsAuthenticated
         from rest_framework.authentication import TokenAuthentication
+from rest_framework.test import force_authenticate
         request.META['HTTP_AUTHORIZATION'] = f'Token {self.token.key}'
 
     def test_feedback_list_authenticated(self):
@@ -313,7 +314,7 @@ class FeedbackViewsBranchTests(TestCase):
         try:
             from accounts.views_feedback import FeedbackView
             request = self.factory.get('/feedback/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             view = FeedbackView.as_view()
             resp = view(request)
             self.assertIn(resp.status_code, [200, 201, 400, 404, 405])
@@ -399,7 +400,7 @@ class Tab4PDFComparisonTests(TestCase):
             request = self.factory.post(
                 f'/api/projects/{self.project.id}/files/{self.af.id}/pdf-compare/',
                 {}, format='json')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             view = SingleTranscriptionPDFCompareView.as_view()
             resp = view(request, project_id=self.project.id, audio_file_id=self.af.id)
             self.assertIn(resp.status_code, [400, 404])
@@ -411,7 +412,7 @@ class Tab4PDFComparisonTests(TestCase):
         try:
             from audioDiagnostic.views.tab4_pdf_comparison import SingleTranscriptionPDFStatusView
             request = self.factory.get(f'/api/projects/{self.project.id}/files/{self.af.id}/pdf-status/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             view = SingleTranscriptionPDFStatusView.as_view()
             resp = view(request, project_id=self.project.id, audio_file_id=self.af.id)
             self.assertIn(resp.status_code, [200, 400, 404])
@@ -423,7 +424,7 @@ class Tab4PDFComparisonTests(TestCase):
         try:
             from audioDiagnostic.views.tab4_pdf_comparison import SingleTranscriptionSideBySideView
             request = self.factory.get(f'/api/projects/{self.project.id}/files/{self.af.id}/pdf-sbs/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             view = SingleTranscriptionSideBySideView.as_view()
             resp = view(request, project_id=self.project.id, audio_file_id=self.af.id)
             self.assertIn(resp.status_code, [200, 400, 404])
@@ -437,7 +438,7 @@ class Tab4PDFComparisonTests(TestCase):
             request = self.factory.post(
                 f'/api/projects/{self.project.id}/files/{self.af.id}/pdf-retry/',
                 {}, format='json')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             view = SingleTranscriptionRetryComparisonView.as_view()
             resp = view(request, project_id=self.project.id, audio_file_id=self.af.id)
             self.assertIn(resp.status_code, [400, 404])

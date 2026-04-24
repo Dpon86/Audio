@@ -335,8 +335,9 @@ class AccountsFeedbackViewsTests(TestCase):
             from accounts.views_feedback import FeedbackListCreateView
             view = FeedbackListCreateView.as_view()
             request = self.factory.get('/feedback/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             from rest_framework.authtoken.models import Token as T
+from rest_framework.test import force_authenticate
             request.auth = self.token
             resp = view(request)
             self.assertIn(resp.status_code, [200, 400, 404])
@@ -353,7 +354,7 @@ class AccountsFeedbackViewsTests(TestCase):
                 'message': 'This is test feedback message.',
                 'feedback_type': 'bug'
             }, format='json')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             resp = view(request)
             self.assertIn(resp.status_code, [200, 201, 400, 404])
         except (ImportError, AttributeError, Exception):

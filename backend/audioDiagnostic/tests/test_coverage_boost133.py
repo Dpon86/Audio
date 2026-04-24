@@ -9,6 +9,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory
 from rest_framework.authtoken.models import Token
+from rest_framework.test import force_authenticate
 from unittest.mock import MagicMock, patch
 from audioDiagnostic.models import AudioProject, AudioFile, Transcription, TranscriptionSegment
 
@@ -41,7 +42,7 @@ class Tab4PDFComparisonViewsTests(TestCase):
             req = self.factory.get('/')
         else:
             req = self.factory.post('/', data=data or {}, format='json')
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         return req
 
     # --- SingleTranscriptionPDFCompareView ---
@@ -227,7 +228,7 @@ class SingleTranscriptionRetryViewTests(TestCase):
             req = self.factory.post('/', {}, format='json')
         else:
             req = self.factory.get('/')
-        req.user = self.user
+        force_authenticate(req, user=self.user)
         return req
 
     def test_retry_no_transcription(self):

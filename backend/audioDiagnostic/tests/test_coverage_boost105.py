@@ -125,7 +125,7 @@ class Tab2TranscriptionAdditionalTests(TestCase):
     def test_transcription_status_with_task_id(self):
         self.audio_file.task_id = 'fake-task-id'
         self.audio_file.save()
-        with patch('audioDiagnostic.views.tab2_transcription.AsyncResult') as mock_ar:
+        with patch('celery.result.AsyncResult') as mock_ar:
             mock_ar.return_value.state = 'PENDING'
             resp = self.client.get(
                 f'/api/api/projects/{self.project.id}/files/{self.audio_file.id}/transcription-status/'
@@ -135,7 +135,7 @@ class Tab2TranscriptionAdditionalTests(TestCase):
     def test_transcription_status_with_task_success(self):
         self.audio_file.task_id = 'fake-task-success'
         self.audio_file.save()
-        with patch('audioDiagnostic.views.tab2_transcription.AsyncResult') as mock_ar:
+        with patch('celery.result.AsyncResult') as mock_ar:
             mock_ar.return_value.state = 'SUCCESS'
             mock_ar.return_value.result = {'status': 'completed'}
             resp = self.client.get(

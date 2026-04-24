@@ -365,7 +365,7 @@ class ClientStorageExtendedTests(TestCase):
             from audioDiagnostic.views.client_storage import ClientTranscriptionListCreateView
             factory = APIRequestFactory()
             request = factory.get(f'/api/api/projects/{self.project.id}/files/{self.af.id}/client-transcriptions/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             view = ClientTranscriptionListCreateView.as_view()
             response = view(request, project_id=self.project.id, audio_file_id=self.af.id)
             self.assertIn(response.status_code, [200, 201, 400, 404, 405])
@@ -379,7 +379,7 @@ class ClientStorageExtendedTests(TestCase):
             from rest_framework.test import APIRequestFactory
             factory = APIRequestFactory()
             request = factory.get(f'/api/api/projects/{self.project.id}/files/{self.af.id}/client-duplicate-analyses/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             view = DuplicateAnalysisListCreateView.as_view()
             response = view(request, project_id=self.project.id, audio_file_id=self.af.id)
             self.assertIn(response.status_code, [200, 201, 400, 404, 405])
@@ -391,13 +391,14 @@ class ClientStorageExtendedTests(TestCase):
         try:
             from audioDiagnostic.views.client_storage import ClientTranscriptionListCreateView
             from rest_framework.test import APIRequestFactory
+from rest_framework.test import force_authenticate
             import json
             factory = APIRequestFactory()
             data = {'segments': [{'text': 'Test', 'start_time': 0.0, 'end_time': 1.0}]}
             request = factory.post(
                 f'/api/api/projects/{self.project.id}/files/{self.af.id}/client-transcriptions/',
                 data=json.dumps(data), content_type='application/json')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             view = ClientTranscriptionListCreateView.as_view()
             response = view(request, project_id=self.project.id, audio_file_id=self.af.id)
             self.assertIn(response.status_code, [200, 201, 400, 404, 405])

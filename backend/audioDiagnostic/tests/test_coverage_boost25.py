@@ -8,6 +8,7 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
+from rest_framework.test import force_authenticate
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 def make_user(username='w25user', password='pass1234!'):
@@ -254,7 +255,7 @@ class Tab4PDFComparisonMoreTests(TestCase):
             from audioDiagnostic.views.tab4_pdf_comparison import PDFComparisonResultView
             view = PDFComparisonResultView.as_view()
             request = self.factory.get(f'/projects/{self.project.id}/files/{self.af.id}/pdf-result/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             resp = view(request, project_id=self.project.id, audio_file_id=self.af.id)
             self.assertIn(resp.status_code, [200, 400, 404])
         except Exception:
@@ -265,7 +266,7 @@ class Tab4PDFComparisonMoreTests(TestCase):
             from audioDiagnostic.views.tab4_pdf_comparison import PDFComparisonStatusView
             view = PDFComparisonStatusView.as_view()
             request = self.factory.get(f'/projects/{self.project.id}/files/{self.af.id}/pdf-status/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             resp = view(request, project_id=self.project.id, audio_file_id=self.af.id)
             self.assertIn(resp.status_code, [200, 400, 404])
         except Exception:
@@ -276,7 +277,7 @@ class Tab4PDFComparisonMoreTests(TestCase):
             from audioDiagnostic.views.tab4_pdf_comparison import RetryPDFComparisonView
             view = RetryPDFComparisonView.as_view()
             request = self.factory.post(f'/projects/{self.project.id}/files/{self.af.id}/retry-comparison/', {}, format='json')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             resp = view(request, project_id=self.project.id, audio_file_id=self.af.id)
             self.assertIn(resp.status_code, [200, 400, 404, 500])
         except Exception:

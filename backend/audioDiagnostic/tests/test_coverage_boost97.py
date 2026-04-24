@@ -178,11 +178,9 @@ class HandleSubscriptionCancelledTests(TestCase):
     def setUp(self):
         from accounts.models import SubscriptionPlan, UserSubscription
         self.user = User.objects.create_user(username='subcancelled', password='pass123')
-        self.plan = SubscriptionPlan.objects.create(
+        self.plan, _ = SubscriptionPlan.objects.get_or_create(
             name='free',
-            display_name='Free Plan',
-            description='Free',
-            price_monthly=0.00,
+            defaults={'display_name': 'Free Plan', 'description': 'Free', 'price_monthly': 0.00},
         )
         self.sub = UserSubscription.objects.create(
             user=self.user,

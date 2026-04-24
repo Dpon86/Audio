@@ -582,10 +582,11 @@ class AudioFileStatusViewFixTests(TestCase):
             from audioDiagnostic.views.tab2_transcription import SingleFileTranscriptionStatusView
             request = self.factory.get(
                 f'/projects/{self.project.id}/files/{self.af.id}/transcription/status/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             from rest_framework.request import Request as DRFRequest
+from rest_framework.test import force_authenticate
             drf_req = DRFRequest(request)
-            drf_req.user = self.user
+            force_authenticate(drf_req, user=self.user)
             view = SingleFileTranscriptionStatusView.as_view()
             resp = view(drf_req, project_id=self.project.id, audio_file_id=self.af.id)
             self.assertIn(resp.status_code, [200, 400, 404, 500])

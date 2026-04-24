@@ -74,14 +74,17 @@
 - `docker exec audioapp_backend python manage.py test audioDiagnostic.tests`
 - Expected: 51 tests pass (22 model + 17 API + 12 task tests)
 
-**T2 — Run Security Scan (Bandit)** *(~1 hour)*
-- `pip install bandit` -> `bandit -r backend/`
-- Fix any HIGH or MEDIUM severity findings
+**T2 — Run Security Scan (Bandit)** ✅ *Completed April 17, 2026*
+- Ran `bandit -r /app --severity-level medium` → 1 HIGH found and fixed
+- `B602` in `rundev.py`: `shell=True` with command substitution — replaced with two-step safe `subprocess.run` calls
+- Result: **0 HIGH, 0 MEDIUM** findings
 
-**T3 â€” Add Query Optimisation** *(~2 hours)*
-- Add `select_related` / `prefetch_related` to views accessing related models
-- Example: `AudioProject.objects.select_related('user').prefetch_related('audio_files')`
-- Impact: Eliminates N+1 queries
+**T3 — Add Query Optimisation** ✅ *Completed April 17, 2026*
+- `ProjectListCreateView`: added `prefetch_related('audio_files')` + replaced per-project `.count()` calls with Python list comprehensions over prefetch cache
+- `ProjectDetailView`: added `select_related('parent_project')` + `prefetch_related('audio_files', 'iterations')`, replaced 5 separate `.count()`/`.filter().count()` DB hits with local list variables
+- `ProjectTranscriptView`: was prefetching `audio_files__segments` but then bypassing it with explicit `TranscriptionSegment.objects.filter()`; fixed to use `audio_file.segments.all()` from cache
+- `AudioFileListView` (transcription_views): added `select_related('project')`
+- Result: GET /api/projects/ went from 2N+1 queries → 2 queries; GET /api/projects/<id>/ went from ~8 queries → 3 queries
 
 **T4 â€” Verify Test Coverage** *(~1 hour)*
 - `coverage run --source='.' manage.py test audioDiagnostic.tests` â†’ `coverage report`

@@ -18,6 +18,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, RequestFactory
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIRequestFactory, force_authenticate
+from rest_framework.test import force_authenticate
 
 from audioDiagnostic.models import (
     AudioProject, AudioFile, Transcription, TranscriptionSegment,
@@ -234,7 +235,7 @@ class Tab3ReviewDeletionsMoreWave9Tests(AuthMixinW9, TestCase):
         AudioFile.objects.filter(id=self.af.id).update(preview_status='ready')
         factory = RequestFactory()
         request = factory.get('/')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         try:
             resp = get_deletion_preview(request, self.project.id, self.af.id)
             self.assertIn(resp.status_code, [200, 400, 403, 404, 500])
@@ -248,7 +249,7 @@ class Tab3ReviewDeletionsMoreWave9Tests(AuthMixinW9, TestCase):
             AudioFile.objects.filter(id=self.af.id).update(preview_status='failed')
             factory = RequestFactory()
             request = factory.get('/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             resp = get_deletion_preview(request, self.project.id, self.af.id)
             self.assertIn(resp.status_code, [200, 400, 403, 404, 500])
         except (AttributeError, ImportError, Exception):
@@ -260,7 +261,7 @@ class Tab3ReviewDeletionsMoreWave9Tests(AuthMixinW9, TestCase):
             from audioDiagnostic.views.tab3_review_deletions import restore_segments
             factory = RequestFactory()
             request = factory.post('/', data='{"segment_ids":[]}', content_type='application/json')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             request.data = {'segment_ids': []}
             resp = restore_segments(request, 99999, 99999)
             self.assertIn(resp.status_code, [200, 400, 403, 404, 405, 500])
@@ -273,7 +274,7 @@ class Tab3ReviewDeletionsMoreWave9Tests(AuthMixinW9, TestCase):
             from audioDiagnostic.views.tab3_review_deletions import stream_preview_audio
             factory = RequestFactory()
             request = factory.get('/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             resp = stream_preview_audio(request, self.project.id, self.af.id)
             self.assertIn(resp.status_code, [200, 400, 403, 404, 405, 500])
         except (AttributeError, ImportError, Exception):
@@ -285,7 +286,7 @@ class Tab3ReviewDeletionsMoreWave9Tests(AuthMixinW9, TestCase):
             from audioDiagnostic.views.tab3_review_deletions import cancel_preview
             factory = RequestFactory()
             request = factory.post('/', data='{}', content_type='application/json')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             request.data = {}
             resp = cancel_preview(request, self.project.id, self.af.id)
             self.assertIn(resp.status_code, [200, 400, 403, 404, 405, 500])
@@ -299,7 +300,7 @@ class Tab3ReviewDeletionsMoreWave9Tests(AuthMixinW9, TestCase):
         factory = RequestFactory()
         request = factory.post('/', data=json.dumps({'segment_ids': [seg.id]}),
                                content_type='application/json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         request.data = {'segment_ids': [seg.id]}
         try:
             resp = preview_deletions(request, self.project.id, self.af.id)

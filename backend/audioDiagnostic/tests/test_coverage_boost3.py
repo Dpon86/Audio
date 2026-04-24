@@ -25,6 +25,7 @@ from django.test import TestCase, RequestFactory, override_settings
 from django.contrib.auth.models import User
 from rest_framework.test import APITestCase, APIClient, APIRequestFactory, force_authenticate
 from rest_framework.authtoken.models import Token
+from rest_framework.test import force_authenticate
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 

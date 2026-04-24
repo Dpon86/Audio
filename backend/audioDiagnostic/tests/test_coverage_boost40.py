@@ -480,7 +480,7 @@ class Tab2TranscriptionMoreTests(TestCase):
             from audioDiagnostic.views.tab2_transcription import TranscriptionListView
             factory = APIRequestFactory()
             request = factory.get(f'/projects/{self.project.id}/files/{self.af.id}/transcriptions/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             view = TranscriptionListView.as_view()
             resp = view(request, project_id=self.project.id, audio_file_id=self.af.id)
             self.assertIn(resp.status_code, [200, 400, 404, 500])
@@ -493,7 +493,7 @@ class Tab2TranscriptionMoreTests(TestCase):
             from audioDiagnostic.views.tab2_transcription import TranscriptionSegmentListView
             factory = APIRequestFactory()
             request = factory.get(f'/projects/{self.project.id}/files/{self.af.id}/segments/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             view = TranscriptionSegmentListView.as_view()
             resp = view(request, project_id=self.project.id, audio_file_id=self.af.id)
             self.assertIn(resp.status_code, [200, 400, 404, 500])
@@ -502,12 +502,13 @@ class Tab2TranscriptionMoreTests(TestCase):
 
     def test_start_transcription(self):
         from rest_framework.test import APIRequestFactory
+from rest_framework.test import force_authenticate
         try:
             from audioDiagnostic.views.tab2_transcription import StartTranscriptionView
             factory = APIRequestFactory()
             request = factory.post(f'/projects/{self.project.id}/files/{self.af.id}/transcribe/',
                                    {}, format='json')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             with patch('audioDiagnostic.views.tab2_transcription.transcribe_audio_task') as mock_task:
                 mock_task.delay.return_value = MagicMock(id='trans-task-001')
                 view = StartTranscriptionView.as_view()

@@ -10,6 +10,7 @@ from unittest.mock import patch, MagicMock
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory
 from rest_framework.authtoken.models import Token
+from rest_framework.test import force_authenticate
 
 User = get_user_model()
 
@@ -86,21 +87,21 @@ class AccountsViewTests(TestCase):
     def test_logout_view(self):
         from accounts.views import logout_view
         request = self.factory.post('/api/auth/logout/', **self._auth_header())
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = logout_view(request)
         self.assertIn(response.status_code, [200, 204, 405])
 
     def test_usage_limits_check(self):
         from accounts.views import usage_limits_check
         request = self.factory.get('/api/auth/usage-limits/', **self._auth_header())
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = usage_limits_check(request)
         self.assertIn(response.status_code, [200, 400, 404, 500])
 
     def test_data_export(self):
         from accounts.views import data_export
         request = self.factory.get('/api/auth/data-export/', **self._auth_header())
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = data_export(request)
         self.assertIn(response.status_code, [200, 400, 404, 500])
 
@@ -108,7 +109,7 @@ class AccountsViewTests(TestCase):
         from accounts.views import UsageTrackingView
         view = UsageTrackingView.as_view()
         request = self.factory.get('/api/auth/usage/', **self._auth_header())
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = view(request)
         self.assertIn(response.status_code, [200, 400, 404])
 
@@ -116,7 +117,7 @@ class AccountsViewTests(TestCase):
         from accounts.views import BillingHistoryView
         view = BillingHistoryView.as_view()
         request = self.factory.get('/api/auth/billing/', **self._auth_header())
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = view(request)
         self.assertIn(response.status_code, [200, 400, 404])
 
@@ -124,7 +125,7 @@ class AccountsViewTests(TestCase):
         from accounts.views import SubscriptionPlansView
         view = SubscriptionPlansView.as_view()
         request = self.factory.get('/api/auth/plans/')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = view(request)
         self.assertIn(response.status_code, [200, 400])
 
@@ -132,7 +133,7 @@ class AccountsViewTests(TestCase):
         from accounts.views import UserSubscriptionView
         view = UserSubscriptionView.as_view()
         request = self.factory.get('/api/auth/subscription/', **self._auth_header())
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = view(request)
         self.assertIn(response.status_code, [200, 400, 404])
 
@@ -140,7 +141,7 @@ class AccountsViewTests(TestCase):
         from accounts.views import UserProfileView
         view = UserProfileView.as_view()
         request = self.factory.get('/api/auth/profile/', **self._auth_header())
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         response = view(request)
         self.assertIn(response.status_code, [200, 400, 404])
 

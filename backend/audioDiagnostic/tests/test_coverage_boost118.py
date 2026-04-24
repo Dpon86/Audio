@@ -141,7 +141,7 @@ class DockerManagerMethodsTests(TestCase):
             order_index=0, status='transcribing', task_id='fake-task-dm118'
         )
         mgr = make_manager()
-        with patch('audioDiagnostic.services.docker_manager.AsyncResult') as mock_ar:
+        with patch('celery.result.AsyncResult') as mock_ar:
             mock_instance = MagicMock()
             mock_instance.state = 'PENDING'
             mock_ar.return_value = mock_instance

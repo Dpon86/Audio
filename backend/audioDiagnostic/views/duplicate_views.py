@@ -195,7 +195,7 @@ class ProjectDetectDuplicatesView(APIView):
                     'normalized_text': normalized_text,
                     'original_text': sorted_occurrences[0]['text'],
                     'occurrences': len(sorted_occurrences),
-                    'segments': [seg['segment_id'] for seg in sorted_occurrences]
+                    'segments': [seg['id'] for seg in sorted_occurrences]
                 }
                 group_id += 1
         

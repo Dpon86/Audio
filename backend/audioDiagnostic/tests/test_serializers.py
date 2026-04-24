@@ -6,6 +6,7 @@ from django.test import TestCase, RequestFactory
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIRequestFactory
+from rest_framework.test import force_authenticate
 from unittest.mock import MagicMock, patch
 
 from audioDiagnostic.models import (
@@ -328,7 +329,7 @@ class ProjectCreateSerializerTests(TestCase):
 
     def test_create_sets_user_and_status(self):
         request = self.factory.post('/')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         s = ProjectCreateSerializer(data={'title': 'Created Project'}, context={'request': request})
         self.assertTrue(s.is_valid(), s.errors)
         project = s.save()

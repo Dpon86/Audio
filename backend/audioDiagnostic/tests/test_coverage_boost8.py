@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase, override_settings
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
+from rest_framework.test import force_authenticate
 from audioDiagnostic.models import (
     AudioProject, AudioFile, Transcription, TranscriptionSegment,
     AIDuplicateDetectionResult, AIPDFComparisonResult, AIProcessingLog,
@@ -301,7 +302,7 @@ class Tab3ReviewDeletionsWave8Tests(AuthClientMixinW8, TestCase):
         from django.test import RequestFactory
         factory = RequestFactory()
         request = factory.post('/', data='{}', content_type='application/json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         request.data = {}
         self.client.raise_request_exception = False
         # Via HTTP for coverage
@@ -318,7 +319,7 @@ class Tab3ReviewDeletionsWave8Tests(AuthClientMixinW8, TestCase):
         seg = make_segment(self.tr, 'Preview seg', idx=0)
         factory = RequestFactory()
         request = factory.post('/', data=json.dumps({'segment_ids': [seg.id]}), content_type='application/json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         request.data = {'segment_ids': [seg.id]}
         try:
             resp = preview_deletions(request, self.project.id, self.af.id)
@@ -332,7 +333,7 @@ class Tab3ReviewDeletionsWave8Tests(AuthClientMixinW8, TestCase):
         af2 = make_audio_file(self.project, title='NoTrans2', status='uploaded', order=1)
         factory = RequestFactory()
         request = factory.post('/', data='{"segment_ids": []}', content_type='application/json')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         request.data = {'segment_ids': []}
         try:
             resp = preview_deletions(request, self.project.id, af2.id)
@@ -347,7 +348,7 @@ class Tab3ReviewDeletionsWave8Tests(AuthClientMixinW8, TestCase):
             from django.test import RequestFactory
             factory = RequestFactory()
             request = factory.get('/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             resp = get_preview_status(request, self.project.id, self.af.id)
             self.assertIn(resp.status_code, [200, 400, 403, 404, 405, 500])
         except (ImportError, AttributeError, Exception):
@@ -360,7 +361,7 @@ class Tab3ReviewDeletionsWave8Tests(AuthClientMixinW8, TestCase):
             from django.test import RequestFactory
             factory = RequestFactory()
             request = factory.get('/')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             resp = download_preview_audio(request, self.project.id, self.af.id)
             self.assertIn(resp.status_code, [200, 400, 403, 404, 405, 500])
         except (ImportError, AttributeError, Exception):
@@ -373,7 +374,7 @@ class Tab3ReviewDeletionsWave8Tests(AuthClientMixinW8, TestCase):
             from django.test import RequestFactory
             factory = RequestFactory()
             request = factory.post('/', data='{"segment_ids": []}', content_type='application/json')
-            request.user = self.user
+            force_authenticate(request, user=self.user)
             request.data = {'segment_ids': []}
             resp = apply_deletions(request, self.project.id, self.af.id)
             self.assertIn(resp.status_code, [200, 202, 400, 403, 404, 405, 500])
@@ -707,7 +708,7 @@ class AccountsFeedbackViewsWave8Tests(TestCase):
         from django.test import RequestFactory
         factory = RequestFactory()
         request = factory.get('/')
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         try:
             view = FeatureFeedbackListView.as_view()
             resp = view(request)

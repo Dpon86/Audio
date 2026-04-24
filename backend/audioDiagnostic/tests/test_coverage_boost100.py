@@ -77,7 +77,7 @@ class DockerCeleryManagerTests(TestCase):
         user = User.objects.create_user(username='dockertest100', password='pass')
         project = AudioProject.objects.create(user=user, title='Stuck Project', status='processing')
         mgr = self._make_manager()
-        with patch('audioDiagnostic.services.docker_manager.AsyncResult') as mock_ar:
+        with patch('celery.result.AsyncResult') as mock_ar:
             mock_ar.return_value.state = 'PENDING'
             mgr._reset_stuck_tasks()
         # Project should be reset

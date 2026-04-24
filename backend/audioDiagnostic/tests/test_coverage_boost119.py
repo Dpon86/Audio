@@ -37,6 +37,7 @@ class Tab3ReviewDeletionsTests(TestCase):
     def _req(self, view_func, method, url, data=None, **kwargs):
         from rest_framework.authtoken.models import Token
         from rest_framework.authentication import TokenAuthentication
+from rest_framework.test import force_authenticate
         token = Token.objects.get(user=self.user)
         if method == 'get':
             request = self.factory.get(url, **kwargs)
@@ -49,7 +50,7 @@ class Tab3ReviewDeletionsTests(TestCase):
         request.META['HTTP_AUTHORIZATION'] = f'Token {token.key}'
         # Authenticate manually
         from django.contrib.auth.models import AnonymousUser
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         return request
 
     def test_preview_deletions_no_transcription(self):
@@ -186,7 +187,7 @@ class Tab4PdfComparisonAdditionalTests(TestCase):
         else:
             request = self.factory.get('/')
         request.META['HTTP_AUTHORIZATION'] = f'Token {token.key}'
-        request.user = self.user
+        force_authenticate(request, user=self.user)
         return request
 
     def test_compare_view_no_pdf(self):
