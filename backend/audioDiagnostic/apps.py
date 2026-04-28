@@ -32,7 +32,11 @@ class AudiodiagnosticConfig(AppConfig):
         if any(skip_conditions):
             logger.info("Skipping infrastructure setup during Django management command")
             return
-            
+
+        # Pre-warm Whisper model on Celery worker startup
+        if 'celery' in sys.argv:
+            self._warmup_whisper_model()
+
         # Only set up infrastructure when running the actual server
         if 'runserver' in sys.argv or 'rundev' in sys.argv:
             logger.info("Django app ready - initializing Docker/Celery infrastructure...")
@@ -58,3 +62,17 @@ class AudiodiagnosticConfig(AppConfig):
             # Start setup in background thread
             setup_thread = threading.Thread(target=setup_infrastructure, daemon=True)
             setup_thread.start()
+
+    def _warmup_whisper_model(self):
+        """Pre-load Whisper model on Celery worker startup"""
+        try:
+            logger.info("Pre-warming Whisper model on worker startup...")
+
+            from .tasks.transcription_tasks import _get_whisper_model
+            _get_whisper_model()
+
+            logger.info("✓ Whisper model pre-warmed and ready")
+        except Exception as e:
+            logger.error(f"Failed to pre-warm Whisper model: {str(e)}")
+            # Don't fail worker startup, just log the error
+            # Model will attempt to load when first transcription task runs

@@ -16,9 +16,46 @@ from .transcription_utils import (
 _whisper_model = None
 
 def _get_whisper_model():
+    """
+    Load Whisper model with comprehensive error handling and logging.
+
+    The model is cached globally per Celery worker process.
+    On first load, Whisper downloads ~140MB model files to ~/.cache/whisper/
+
+    Raises:
+        Exception: If model fails to load with diagnostic information
+    """
     global _whisper_model
     if _whisper_model is None:
-        _whisper_model = whisper.load_model("base")
+        try:
+            logger.info("Loading Whisper 'base' model...")
+            logger.info("Note: First-time load downloads ~140MB to ~/.cache/whisper/")
+
+            import time
+            start_time = time.time()
+
+            _whisper_model = whisper.load_model("base")
+
+            load_time = time.time() - start_time
+            logger.info(f"✓ Whisper model loaded successfully in {load_time:.2f} seconds")
+
+        except Exception as e:
+            error_msg = f"Failed to load Whisper model: {str(e)}"
+            logger.error("=" * 80)
+            logger.error("WHISPER MODEL LOADING FAILED")
+            logger.error("=" * 80)
+            logger.error(error_msg)
+            logger.error("\nTroubleshooting steps:")
+            logger.error("1. Check internet connectivity (model downloads on first use)")
+            logger.error("2. Verify disk space: df -h")
+            logger.error("3. Check cache directory permissions: ls -la ~/.cache/whisper/")
+            logger.error("4. Try manual load: docker exec audioapp_celery_worker python -c 'import whisper; whisper.load_model(\"base\")'")
+            logger.error("5. For ISO/restricted environments, pre-download model files")
+            logger.error("=" * 80)
+
+            # Re-raise with clearer message for frontend
+            raise Exception(f"Unable to connect to Whisper transcription model: {str(e)}. Check server logs for details.")
+
     return _whisper_model
 
 @shared_task(bind=True)
