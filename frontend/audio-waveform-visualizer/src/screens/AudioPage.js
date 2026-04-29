@@ -192,10 +192,21 @@ const AudioPage = () => {
       setUploadProgress(0);
     } catch (error) {
       console.error('Client-side processing error:', error);
-      alert(`Client-side processing failed: ${error.message}\n\nPlease try server-side processing instead.`);
+      const isModelLoadError = error.message.includes('Model loading failed') ||
+                               error.message.includes('Load failed') ||
+                               error.message.includes('Failed to fetch');
       setProcessing(false);
       setUploadProgress(0);
-      setUseClientSide(false); // Fallback to server-side
+      setUseClientSide(false); // Disable for future files
+
+      if (isModelLoadError) {
+        alert(
+          `ℹ️ In-browser model unavailable (CDN may be blocked on this network).\n\n` +
+          `Switched to server-side processing — please re-select your file to upload.`
+        );
+      } else {
+        alert(`Client-side processing failed: ${error.message}\n\nPlease try server-side processing instead.`);
+      }
     }
   }
 

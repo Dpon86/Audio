@@ -548,15 +548,64 @@ const Tab1Files = () => {
       setProcessingElapsed(0);
     } catch (error) {
       console.error('Client-side processing error:', error);
-      alert(`Client-side processing failed: ${error.message}\n\nPlease try server-side processing instead.`);
-      setUploading(false);
-      setUploadProgress(0);
+
+      // Detect model download failures (CDN blocked on ISO/restricted networks)
+      const isModelLoadError = error.message.includes('Model loading failed') ||
+                               error.message.includes('Load failed') ||
+                               error.message.includes('Failed to fetch');
+
       setModelLoading(false);
       setModelProgress(null);
       setProcessingStep('');
       setProcessingTimeEstimate(null);
       setProcessingElapsed(0);
-      setUseClientSide(false); // Fallback to server-side
+      setUseClientSide(false); // Disable client-side for future files
+
+      if (isModelLoadError) {
+        // Automatically fall back to server-side processing — no scary error dialog
+        console.log('[Tab1Files] Model download failed (CDN likely blocked). Auto-switching to server-side processing...');
+        try {
+          setProcessingStep('uploading');
+          setUploadProgress(0);
+
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
+
+          const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/files/`, {
+            method: 'POST',
+            headers: { 'Authorization': `Token ${token}` },
+            body: formData
+          });
+
+          setUploadProgress(100);
+
+          if (response.ok) {
+            await refreshAudioFiles(token);
+            alert(
+              `✅ File uploaded via server-side processing.\n\n` +
+              `ℹ️ Note: In-browser transcription was disabled because the AI model\n` +
+              `could not be downloaded (CDN may be blocked on this network).\n` +
+              `Server-side transcription will run in the background.`
+            );
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            alert(`Upload failed: ${errorData.error || response.statusText}`);
+          }
+        } catch (uploadError) {
+          console.error('[Tab1Files] Server-side fallback also failed:', uploadError);
+          alert(`Upload failed: ${uploadError.message}`);
+        } finally {
+          setUploading(false);
+          setUploadProgress(0);
+          setProcessingStep('');
+        }
+      } else {
+        // Non-model error — show existing message
+        alert(`Client-side processing failed: ${error.message}\n\nPlease try server-side processing instead.`);
+        setUploading(false);
+        setUploadProgress(0);
+      }
     }
   };
 
