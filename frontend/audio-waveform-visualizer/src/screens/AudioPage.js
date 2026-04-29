@@ -192,20 +192,22 @@ const AudioPage = () => {
       setUploadProgress(0);
     } catch (error) {
       console.error('Client-side processing error:', error);
-      const isModelLoadError = error.message.includes('Model loading failed') ||
-                               error.message.includes('Load failed') ||
-                               error.message.includes('Failed to fetch');
       setProcessing(false);
       setUploadProgress(0);
-      setUseClientSide(false); // Disable for future files
 
-      if (isModelLoadError) {
+      const isNetworkBlock = error.message.includes('unavailable on this network') ||
+                             error.message.includes('Model loading failed') ||
+                             error.message.includes('Load failed') ||
+                             error.message.includes('Failed to fetch');
+
+      if (isNetworkBlock) {
         alert(
-          `ℹ️ In-browser model unavailable (CDN may be blocked on this network).\n\n` +
-          `Switched to server-side processing — please re-select your file to upload.`
+          `⚠️ Could not load transcription model.\n\n` +
+          `All download sources (HuggingFace, hf-mirror.com) were unreachable on this network.\n\n` +
+          `If you are on a restricted/ISO network, please connect to the internet and try again.`
         );
       } else {
-        alert(`Client-side processing failed: ${error.message}\n\nPlease try server-side processing instead.`);
+        alert(`Client-side processing failed: ${error.message}`);
       }
     }
   }

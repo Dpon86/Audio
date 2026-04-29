@@ -61,60 +61,63 @@ class ClientSideTranscriptionService {
     this.isLoading = true;
     console.log('[ClientTranscription] Starting model initialization...');
 
-    // Intercept fetch to log URLs (development only)
-    const originalFetch = window.fetch;
-    if (process.env.NODE_ENV === 'development') {
-      window.fetch = function(...args) {
-        console.log('[ClientTranscription] Fetching URL:', args[0]);
-        return originalFetch.apply(this, args);
-      };
-    }
+    // Ordered list of (modelName, remoteHost) candidates to try
+    const candidates = [
+      { model: `Xenova/whisper-${modelSize}.en`, remote: 'https://huggingface.co/' },
+      { model: `Xenova/whisper-${modelSize}.en`, remote: 'https://hf-mirror.com/' },
+      { model: `Xenova/whisper-${modelSize}`,    remote: 'https://huggingface.co/' },
+      { model: `Xenova/whisper-${modelSize}`,    remote: 'https://hf-mirror.com/' },
+    ];
 
-    try {
-      const modelName = `Xenova/whisper-${modelSize}.en`;
-      console.log('[ClientTranscription] Loading model:', modelName);
-      console.log('[ClientTranscription] Environment settings:', {
-        allowRemoteModels: env.allowRemoteModels,
-        allowLocalModels: env.allowLocalModels
-      });
-      
-      this.transcriber = await pipeline(
-        'automatic-speech-recognition',
-        modelName,
-        {
-          progress_callback: (progress) => {
-            console.log('[ClientTranscription] Download progress:', progress);
-            if (onProgress && progress.status) {
-              const percent = progress.progress || 0;
-              const status = progress.status;
-              console.log(`[ClientTranscription] Progress: ${status} ${Math.round(percent)}%`);
-              onProgress({ 
-                percent: Math.round(percent), 
-                status,
-                message: `${status}: ${Math.round(percent)}%`
-              });
+    let lastError = null;
+
+    for (let i = 0; i < candidates.length; i++) {
+      const { model: modelName, remote } = candidates[i];
+      console.log(`[ClientTranscription] Attempt ${i + 1}/${candidates.length}: ${modelName} via ${remote}`);
+
+      try {
+        // Point the library at this mirror
+        env.remotes = { models: remote };
+
+        this.transcriber = await pipeline(
+          'automatic-speech-recognition',
+          modelName,
+          {
+            progress_callback: (progress) => {
+              if (onProgress && progress.status) {
+                const percent = progress.progress || 0;
+                const status = progress.status;
+                onProgress({
+                  percent: Math.round(percent),
+                  status,
+                  message: `${status}: ${Math.round(percent)}% (attempt ${i + 1})`
+                });
+              }
             }
           }
-        }
-      );
+        );
 
-      this.modelLoaded = true;
-      this.isLoading = false;
-      window.fetch = originalFetch; // Restore original fetch
-      console.log('[ClientTranscription] Model loaded successfully!');
-      return this.transcriber;
-    } catch (error) {
-      this.isLoading = false;
-      window.fetch = originalFetch; // Restore original fetch
-      console.error('[ClientTranscription] Failed to load Whisper model:', error);
-      console.error('[ClientTranscription] Error stack:', error.stack);
-      console.error('[ClientTranscription] Error details:', {
-        message: error.message,
-        name: error.name,
-        cause: error.cause
-      });
-      throw new Error(`Model loading failed: ${error.message}`);
+        this.modelLoaded = true;
+        this.isLoading = false;
+        console.log(`[ClientTranscription] Model loaded successfully on attempt ${i + 1}!`);
+        return this.transcriber;
+
+      } catch (error) {
+        lastError = error;
+        console.warn(`[ClientTranscription] Attempt ${i + 1} failed:`, error.message);
+        // Reset pipeline state before retrying
+        this.transcriber = null;
+      }
     }
+
+    // All candidates exhausted
+    this.isLoading = false;
+    console.error('[ClientTranscription] All model load attempts failed. Last error:', lastError);
+    throw new Error(
+      `Transcription model unavailable on this network. ` +
+      `All download sources were blocked or unreachable. ` +
+      `Details: ${lastError?.message}`
+    );
   }
 
   /**
