@@ -4,16 +4,13 @@
  * This reduces server load and allows users to process audio on their own hardware
  */
 
-import { pipeline, env } from '@xenova/transformers';
+import { pipeline, env } from '@huggingface/transformers';
 
 // Configure transformers.js environment
 console.log('[ClientTranscription] Configuring transformers.js environment...');
 
 // Explicitly use jsdelivr CDN
-env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/';
-env.remotes = {
-  'models': 'https://huggingface.co/',
-};
+env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3/dist/';
 
 env.allowRemoteModels = true;
 env.allowLocalModels = false;
@@ -61,24 +58,19 @@ class ClientSideTranscriptionService {
     this.isLoading = true;
     console.log('[ClientTranscription] Starting model initialization...');
 
-    // Ordered list of (modelName, remoteHost) candidates to try
+    // Try English-specific model first, fall back to multilingual
     const candidates = [
-      { model: `Xenova/whisper-${modelSize}.en`, remote: 'https://huggingface.co/' },
-      { model: `Xenova/whisper-${modelSize}.en`, remote: 'https://hf-mirror.com/' },
-      { model: `Xenova/whisper-${modelSize}`,    remote: 'https://huggingface.co/' },
-      { model: `Xenova/whisper-${modelSize}`,    remote: 'https://hf-mirror.com/' },
+      `Xenova/whisper-${modelSize}.en`,
+      `Xenova/whisper-${modelSize}`,
     ];
 
     let lastError = null;
 
     for (let i = 0; i < candidates.length; i++) {
-      const { model: modelName, remote } = candidates[i];
-      console.log(`[ClientTranscription] Attempt ${i + 1}/${candidates.length}: ${modelName} via ${remote}`);
+      const modelName = candidates[i];
+      console.log(`[ClientTranscription] Attempt ${i + 1}/${candidates.length}: ${modelName}`);
 
       try {
-        // Point the library at this mirror
-        env.remotes = { models: remote };
-
         this.transcriber = await pipeline(
           'automatic-speech-recognition',
           modelName,
