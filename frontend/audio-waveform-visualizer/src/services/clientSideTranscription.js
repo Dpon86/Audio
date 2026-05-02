@@ -59,9 +59,10 @@ class ClientSideTranscriptionService {
     console.log('[ClientTranscription] Starting model initialization...');
 
     // Try English-specific model first, fall back to multilingual
+    // onnx-community/ models are the v3-compatible ONNX exports (Xenova/ are v2-only)
     const candidates = [
-      `Xenova/whisper-${modelSize}.en`,
-      `Xenova/whisper-${modelSize}`,
+      `onnx-community/whisper-${modelSize}.en`,
+      `onnx-community/whisper-${modelSize}`,
     ];
 
     let lastError = null;
@@ -75,6 +76,7 @@ class ClientSideTranscriptionService {
           'automatic-speech-recognition',
           modelName,
           {
+            dtype: 'q4',
             progress_callback: (progress) => {
               if (onProgress && progress.status) {
                 const percent = progress.progress || 0;
