@@ -2058,8 +2058,6 @@ const Tab3Duplicates = () => {
               )}
             </>
           )}
-              </div>
-            )}
             
             {duplicateGroups.length > 0 && (
               <button
