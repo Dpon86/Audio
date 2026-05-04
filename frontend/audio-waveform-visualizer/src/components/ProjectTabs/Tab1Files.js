@@ -45,6 +45,12 @@ const Tab1Files = () => {
   // State for displaying merged files (server + local)
   const [displayFiles, setDisplayFiles] = useState([]);
   const [processingStep, setProcessingStep] = useState(''); // Track current processing step for progress display
+  const [showUploadSection, setShowUploadSection] = useState(true); // Show/hide upload section
+
+  // Check if any files have been transcribed
+  const hasTranscribedFiles = displayFiles.some(file => 
+    file.transcription && file.transcription.text
+  );
 
   // Load project data including PDF info on mount
   useEffect(() => {
@@ -750,70 +756,7 @@ const Tab1Files = () => {
         </p>
       </div>
 
-      <div style={{
-        background: '#ffffff',
-        border: '1px solid #dbeafe',
-        borderRadius: '12px',
-        padding: '1rem',
-        marginBottom: '1.25rem',
-        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)'
-      }}>
-        <h3 style={{ margin: 0, marginBottom: '0.5rem', color: '#1e293b' }}>Step 2: Duplicate Detection Mode</h3>
-        <p style={{ margin: 0, marginBottom: '0.75rem', color: '#475569', fontSize: '0.9rem' }}>
-          Choose the mode now. The Duplicates tab will use this selection when you click start.
-        </p>
 
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => setDuplicateDetectionMode('algorithm')}
-            style={{
-              padding: '0.6rem 0.9rem',
-              borderRadius: '8px',
-              border: duplicateDetectionMode === 'algorithm' ? '2px solid #2563eb' : '1px solid #cbd5e1',
-              background: duplicateDetectionMode === 'algorithm' ? '#eff6ff' : '#ffffff',
-              color: '#1e293b',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            Algorithm (faster)
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setDuplicateDetectionMode('ai')}
-            style={{
-              padding: '0.6rem 0.9rem',
-              borderRadius: '8px',
-              border: duplicateDetectionMode === 'ai' ? '2px solid #0891b2' : '1px solid #cbd5e1',
-              background: duplicateDetectionMode === 'ai' ? '#ecfeff' : '#ffffff',
-              color: '#1e293b',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            AI (higher quality)
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('duplicates')}
-            style={{
-              marginLeft: 'auto',
-              padding: '0.6rem 0.9rem',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              background: '#f8fafc',
-              color: '#1e293b',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            Open Duplicates Tab
-          </button>
-        </div>
-      </div>
 
       {/* Processing Mode Toggle - DISABLED (server has low memory) */}
       {false && clientSideSupported && (
@@ -862,14 +805,75 @@ const Tab1Files = () => {
         </div>
       )}
 
-      {/* Upload Area */}
-      <div 
-        className={`upload-area ${dragActive ? 'drag-active' : ''}`}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-      >
+      {/* Upload Area - Compact when files are transcribed */}
+      {hasTranscribedFiles && !showUploadSection ? (
+        <div style={{
+          background: '#f8fafc',
+          border: '1px solid #e2e8f0',
+          borderRadius: '8px',
+          padding: '0.75rem 1rem',
+          marginBottom: '1rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <span style={{ color: '#64748b', fontSize: '0.9rem' }}>
+            📁 Upload section hidden
+          </span>
+          <button
+            onClick={() => setShowUploadSection(true)}
+            style={{
+              padding: '0.5rem 0.75rem',
+              borderRadius: '6px',
+              border: '1px solid #cbd5e1',
+              background: 'white',
+              color: '#1e293b',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontSize: '0.85rem'
+            }}
+          >
+            Show Upload
+          </button>
+        </div>
+      ) : (
+        <div style={{
+          marginBottom: '1rem',
+          transition: 'all 0.3s ease'
+        }}>
+          {hasTranscribedFiles && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              marginBottom: '0.5rem'
+            }}>
+              <button
+                onClick={() => setShowUploadSection(false)}
+                style={{
+                  padding: '0.4rem 0.6rem',
+                  borderRadius: '6px',
+                  border: '1px solid #e2e8f0',
+                  background: 'white',
+                  color: '#64748b',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Hide Upload Section
+              </button>
+            </div>
+          )}
+          <div 
+            className={`upload-area ${dragActive ? 'drag-active' : ''} ${hasTranscribedFiles ? 'compact' : ''}`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+            style={{
+              minHeight: hasTranscribedFiles ? '120px' : '200px',
+              transition: 'min-height 0.3s ease'
+            }}
+          >
         <div className="upload-icon">📁</div>
         <h3>Upload Audio Files</h3>
         <p>Drag & drop files here, or click to browse</p>
@@ -987,7 +991,9 @@ const Tab1Files = () => {
             </div>
           </div>
         )}
-      </div>
+          </div>
+        </div>
+      )}
 
       {/* Files Table */}
       <div className="files-table-container">
@@ -1028,9 +1034,17 @@ const Tab1Files = () => {
                     className={selectedAudioFile?.id === file.id ? 'selected' : ''}
                     onClick={() => selectAudioFile(file)}
                     title="Click to select this file for use in other tabs"
+                    style={{
+                      background: selectedAudioFile?.id === file.id ? '#eff6ff' : 'white',
+                      borderLeft: selectedAudioFile?.id === file.id ? '4px solid #3b82f6' : '4px solid transparent',
+                      cursor: 'pointer'
+                    }}
                   >
                     <td className="file-cell">
                       <div className="file-info-inline">
+                        {selectedAudioFile?.id === file.id && (
+                          <span style={{ marginRight: '0.5rem', fontSize: '1.2rem' }}>✓</span>
+                        )}
                         <span className="file-icon">🎵</span>
                         <div className="file-details">
                           <div className="file-name" title={file.filename}>
@@ -1143,6 +1157,44 @@ const Tab1Files = () => {
           </table>
         )}
       </div>
+
+      {/* Move to Duplicates Button - Show when files are transcribed */}
+      {hasTranscribedFiles && selectedAudioFile && (
+        <div style={{
+          marginTop: '1.5rem',
+          padding: '1.5rem',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: '12px',
+          textAlign: 'center',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+        }}>
+          <h3 style={{ margin: 0, marginBottom: '0.5rem', color: 'white', fontSize: '1.1rem' }}>
+            ✨ Ready for Next Step
+          </h3>
+          <p style={{ margin: 0, marginBottom: '1rem', color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem' }}>
+            Your files are transcribed! Now detect and remove duplicate content.
+          </p>
+          <button
+            onClick={() => setActiveTab('duplicates')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'white',
+              color: '#667eea',
+              fontWeight: 700,
+              fontSize: '1rem',
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+              transition: 'transform 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+          >
+            → Move to Detecting Duplicates
+          </button>
+        </div>
+      )}
     </div>
   );
 };

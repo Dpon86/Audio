@@ -115,7 +115,8 @@ def ai_detect_duplicates_task(
                 })
             
             transcript_data['segments'].append({
-                'segment_id': segment.segment_index,
+                'segment_id': segment.id,          # DB primary key — used to look up segments from AI response
+                'segment_index': segment.segment_index,  # 0-based position in transcript (for reference only)
                 'text': segment.text,
                 'start_time': segment.start_time,
                 'end_time': segment.end_time,
@@ -292,13 +293,28 @@ def ai_detect_duplicates_task(
                 if not all_segment_pks:
                     continue
 
-                # Fetch real segment objects — use DB timestamps, not LLM timestamps
+                # Fetch real segment objects using DB PKs returned by the AI.
+                # Also build a fallback map by segment_index so that if the AI
+                # confused segment_id with the 0-based index we can still recover.
                 db_segments = list(
                     TranscriptionSegment.objects.filter(
                         id__in=all_segment_pks,
                         transcription=audio_file.transcription
                     ).order_by('start_time')
                 )
+
+                if not db_segments:
+                    # Fallback: treat the returned "segment_ids" as segment_index values
+                    logger.warning(
+                        f"No segments found by PK for group {group_index}; "
+                        f"retrying by segment_index (AI may have used sequential ids)"
+                    )
+                    db_segments = list(
+                        TranscriptionSegment.objects.filter(
+                            segment_index__in=all_segment_pks,
+                            transcription=audio_file.transcription
+                        ).order_by('start_time')
+                    )
 
                 if not db_segments:
                     continue

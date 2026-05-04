@@ -56,6 +56,9 @@ Identify repeated sentences or phrases that were re-recorded and need to be remo
 3. Group related duplicates together
 4. Default action: Keep {keep_occurrence} occurrence, mark others for deletion
 5. Provide confidence scores (0.0-1.0)
+6. CRITICAL: The `segment_ids` array in each occurrence MUST contain the exact `segment_id`
+   values from the input transcript segments. Do NOT invent IDs or use sequential numbers.
+   These IDs are database primary keys and will be used to look up the segments.
 
 # Input Transcript
 ```json
@@ -109,7 +112,9 @@ Return ONLY valid JSON with this structure:
 # Important
 - Only return the JSON (no extra text)
 - Include all fields shown in the example
-- Use actual segment IDs and timestamps from input
+- The `segment_ids` values MUST match the `segment_id` field in the input segments exactly
+  (they are database primary keys, not sequential numbers you invent)
+- Use `start_time` and `end_time` from the matching input segments
 - Be conservative: Only flag clear duplicates (high confidence)
 
 Analyze the transcript now:"""

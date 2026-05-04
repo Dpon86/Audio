@@ -37,6 +37,10 @@ const Tab3Duplicates = () => {
   const [detectionAlgorithm, setDetectionAlgorithm] = useState('windowed_retry_pdf');
   const [showAlgorithmSettings, setShowAlgorithmSettings] = useState(true);
   const [lastRunSummary, setLastRunSummary] = useState(null);
+  const [showDetectionControls, setShowDetectionControls] = useState(true); // Show/hide detection section after completion
+
+  // Check if duplicates have been detected
+  const hasDuplicates = duplicateGroups.length > 0;
 
   useEffect(() => {
     if (duplicateDetectionMode === 'ai') {
@@ -1099,29 +1103,35 @@ const Tab3Duplicates = () => {
       const statusPayload = await pollAIDetectionStatus(startPayload.task_id);
       const detectionResult = statusPayload.detection_result;
 
-      if (!detectionResult) {
-        throw new Error('AI detection completed but no result was returned.');
-      }
-
       // The backend has written DuplicateGroup rows and TranscriptionSegment flags,
       // so we load via the same server path as the non-AI route.
-      // This gives us real DB integer IDs, accurate DB timestamps, localStorage
-      // persistence, and auto-selection of duplicates — all for free.
+      // This gives real DB integer IDs, accurate DB timestamps, localStorage
+      // persistence, and auto-selection of duplicates — identical to algorithm path.
       await loadDuplicateGroups();
 
-      const groupCount = detectionResult.duplicate_count
-        || (Array.isArray(detectionResult.duplicate_groups) ? detectionResult.duplicate_groups.length : 0);
+      const groupCount = detectionResult
+        ? (detectionResult.duplicate_count
+            || (Array.isArray(detectionResult.duplicate_groups) ? detectionResult.duplicate_groups.length : 0))
+        : 0;
 
       setLastRunSummary({
         algorithm: 'ai-duplicate-detection',
         groupCount
       });
 
-      setDetectionProgress({ current: 100, total: 100, status: 'AI detection complete.' });
-      alert(`AI duplicate detection completed. Found ${groupCount} duplicate groups.`);
+      // Hide the detection controls section now that results are in
+      setShowDetectionControls(false);
+
+      setDetectionProgress({
+        current: 100,
+        total: 100,
+        status: groupCount > 0
+          ? `✅ AI detection complete — found ${groupCount} duplicate groups`
+          : '⚠️ AI detection complete — no duplicates found'
+      });
     } catch (error) {
       console.error('[Tab3Duplicates] AI detection error:', error);
-      alert(`AI duplicate detection failed: ${error.message}`);
+      setDetectionProgress({ current: 0, total: 100, status: `❌ AI detection failed: ${error.message}` });
     } finally {
       setDetecting(false);
     }
@@ -1746,6 +1756,82 @@ const Tab3Duplicates = () => {
         <p>Detect repeated content within a single audio file. The system will keep the last occurrence of each duplicate.</p>
       </div>
 
+      {/* Step 1: Choose Detection Mode */}
+      <div style={{
+        background: '#ffffff',
+        border: '2px solid #3b82f6',
+        borderRadius: '12px',
+        padding: '1.25rem',
+        marginBottom: '1.5rem',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+      }}>
+        <h3 style={{ margin: 0, marginBottom: '0.75rem', color: '#1e293b', fontSize: '1.15rem' }}>
+          Step 1: Choose Detection Mode
+        </h3>
+        <p style={{ margin: 0, marginBottom: '1rem', color: '#475569', fontSize: '0.9rem' }}>
+          Select how you want to detect duplicates. AI provides higher quality results, while Algorithm is faster.
+        </p>
+
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setDuplicateDetectionMode('algorithm')}
+            disabled={detecting}
+            style={{
+              padding: '0.75rem 1.25rem',
+              borderRadius: '8px',
+              border: duplicateDetectionMode === 'algorithm' ? '3px solid #2563eb' : '2px solid #cbd5e1',
+              background: duplicateDetectionMode === 'algorithm' ? '#eff6ff' : '#ffffff',
+              color: '#1e293b',
+              fontWeight: 700,
+              fontSize: '1rem',
+              cursor: detecting ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              flex: '1',
+              minWidth: '200px'
+            }}
+          >
+            🚀 Algorithm (Faster)
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDuplicateDetectionMode('ai')}
+            disabled={detecting || selectedAudioFile?.client_only || selectedAudioFile?.client_processed}
+            style={{
+              padding: '0.75rem 1.25rem',
+              borderRadius: '8px',
+              border: duplicateDetectionMode === 'ai' ? '3px solid #0891b2' : '2px solid #cbd5e1',
+              background: duplicateDetectionMode === 'ai' ? '#ecfeff' : '#ffffff',
+              color: '#1e293b',
+              fontWeight: 700,
+              fontSize: '1rem',
+              cursor: (detecting || selectedAudioFile?.client_only || selectedAudioFile?.client_processed) ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              flex: '1',
+              minWidth: '200px'
+            }}
+            title={selectedAudioFile?.client_only || selectedAudioFile?.client_processed ? 'AI mode requires a server-side transcribed file' : 'Use AI duplicate detection'}
+          >
+            🤖 AI (Higher Quality)
+          </button>
+        </div>
+
+        {duplicateDetectionMode === 'ai' && (
+          <div style={{
+            marginTop: '1rem',
+            padding: '0.75rem 1rem',
+            borderRadius: '8px',
+            border: '1px solid #99f6e4',
+            background: '#f0fdfa',
+            color: '#0f766e',
+            fontWeight: '600'
+          }}>
+            ✨ AI mode uses Claude 3.5 Sonnet for intelligent duplicate detection
+          </div>
+        )}
+      </div>
+
       {/* Selected File Display */}
       {selectedAudioFile ? (
         <div className="file-selection-card">
@@ -1816,138 +1902,162 @@ const Tab3Duplicates = () => {
             </div>
           )}
 
-          <div style={{
-            padding: '1rem',
-            border: '1px solid #e2e8f0',
-            borderRadius: '8px',
-            background: '#f8fafc',
-            marginBottom: '1rem'
-          }}>
-            <h4 style={{ margin: 0, marginBottom: '0.5rem', color: '#1e293b' }}>Before you start</h4>
-            <p style={{ margin: 0, color: '#475569', fontSize: '0.9rem' }}>
-              1) Choose mode (AI or Algorithm). 2) For Algorithm mode, adjust settings (optional). 3) Click Start.
-              All modes keep the last occurrence and mark earlier repeats for deletion.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          {/* Step 2: Detection Controls - Collapsible after detection */}
+          {hasDuplicates && !showDetectionControls ? (
+            <div style={{
+              padding: '1rem',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              background: '#f8fafc',
+              marginBottom: '1rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <span style={{ color: '#64748b', fontSize: '0.9rem' }}>
+                ✓ Detection complete ({duplicateGroups.length} groups found)
+              </span>
               <button
-                type="button"
-                onClick={() => setDuplicateDetectionMode('algorithm')}
-                disabled={detecting}
+                onClick={() => setShowDetectionControls(true)}
                 style={{
-                  padding: '0.55rem 0.75rem',
-                  borderRadius: '8px',
-                  border: duplicateDetectionMode === 'algorithm' ? '2px solid #2563eb' : '1px solid #cbd5e1',
-                  background: duplicateDetectionMode === 'algorithm' ? '#eff6ff' : '#ffffff',
-                  fontWeight: '600',
-                  color: '#334155',
-                  cursor: detecting ? 'not-allowed' : 'pointer'
-                }}
-              >
-                Algorithm
-              </button>
-              <button
-                type="button"
-                onClick={() => setDuplicateDetectionMode('ai')}
-                disabled={detecting || selectedAudioFile?.client_only || selectedAudioFile?.client_processed}
-                style={{
-                  padding: '0.55rem 0.75rem',
-                  borderRadius: '8px',
-                  border: duplicateDetectionMode === 'ai' ? '2px solid #0891b2' : '1px solid #cbd5e1',
-                  background: duplicateDetectionMode === 'ai' ? '#ecfeff' : '#ffffff',
-                  fontWeight: '600',
-                  color: '#334155',
-                  cursor: (detecting || selectedAudioFile?.client_only || selectedAudioFile?.client_processed) ? 'not-allowed' : 'pointer'
-                }}
-                title={selectedAudioFile?.client_only || selectedAudioFile?.client_processed ? 'AI mode requires a server-side transcribed file' : 'Use AI duplicate detection'}
-              >
-                AI
-              </button>
-            </div>
-
-            {duplicateDetectionMode === 'algorithm' && (
-              <select
-                value={detectionAlgorithm}
-                onChange={(e) => setDetectionAlgorithm(e.target.value)}
-                disabled={detecting}
-                style={{
-                  minWidth: '280px',
-                  padding: '0.6rem 0.75rem',
+                  padding: '0.5rem 0.75rem',
                   borderRadius: '6px',
                   border: '1px solid #cbd5e1',
-                  fontWeight: '600',
-                  color: '#334155',
-                  background: 'white'
+                  background: 'white',
+                  color: '#1e293b',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontSize: '0.85rem'
                 }}
               >
-                {algorithmOptions.map((option) => (
-                  <option
-                    key={option.value}
-                    value={option.value}
-                    disabled={option.requiresPdf && !hasPdf}
-                  >
-                    {option.requiresPdf && !hasPdf
-                      ? `${option.label} (requires PDF)`
-                      : option.label}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {duplicateDetectionMode === 'ai' && (
-              <div style={{
-                padding: '0.45rem 0.75rem',
-                borderRadius: '6px',
-                border: '1px solid #99f6e4',
-                background: '#f0fdfa',
-                color: '#0f766e',
-                fontWeight: '600'
-              }}>
-                AI mode uses server-side Claude detection
-              </div>
-            )}
-
-            {duplicateDetectionMode === 'algorithm' && (
-              <button
-                onClick={() => setShowAlgorithmSettings((prev) => !prev)}
-                disabled={detecting}
-                style={{
-                  padding: '0.75rem 1rem',
-                  background: '#ffffff',
-                  color: '#334155',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '8px',
-                  fontWeight: '600',
-                  cursor: detecting ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {showAlgorithmSettings ? '⚙️ Hide Settings' : '⚙️ Show Settings'}
+                Show Detection Controls
               </button>
-            )}
+            </div>
+          ) : (
+            <>
+              {hasDuplicates && (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  marginBottom: '0.5rem'
+                }}>
+                  <button
+                    onClick={() => setShowDetectionControls(false)}
+                    style={{
+                      padding: '0.4rem 0.6rem',
+                      borderRadius: '6px',
+                      border: '1px solid #e2e8f0',
+                      background: 'white',
+                      color: '#64748b',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Hide Detection Controls
+                  </button>
+                </div>
+              )}
 
-            <button
-              onClick={handleStartDetection}
-              disabled={detecting}
-              className="detect-button"
-            >
-              {detecting
-                ? (duplicateDetectionMode === 'ai' ? '⏳ Running AI Detection...' : '⏳ Detecting Duplicates...')
-                : (duplicateDetectionMode === 'ai' ? '🤖 Start AI Detection' : '▶️ Start Detection')}
-            </button>
-            
-            {detecting && detectionProgress.status && (
-              <div className="detection-progress">
-                <p className="progress-status">{detectionProgress.status}</p>
-                {detectionProgress.total > 0 && (
-                  <div className="progress-bar">
-                    <div 
-                      className="progress-fill" 
-                      style={{ width: `${(detectionProgress.current / detectionProgress.total) * 100}%` }}
-                    />
-                  </div>
-                )}
+              <div style={{
+                padding: '1rem',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                background: '#f8fafc',
+                marginBottom: '1rem'
+              }}>
+                <h4 style={{ margin: 0, marginBottom: '0.5rem', color: '#1e293b' }}>
+                  {duplicateDetectionMode === 'ai' ? 'AI Detection Settings' : 'Algorithm Detection Settings'}
+                </h4>
+                <p style={{ margin: 0, color: '#475569', fontSize: '0.9rem' }}>
+                  {duplicateDetectionMode === 'ai' 
+                    ? 'Click Start to run AI-powered duplicate detection. The AI will analyze your transcription intelligently.'
+                    : 'Choose an algorithm and adjust settings (optional), then click Start. All modes keep the last occurrence and mark earlier repeats for deletion.'
+                  }
+                </p>
+              </div>
+
+              {/* Algorithm-specific controls */}
+              {duplicateDetectionMode === 'algorithm' && (
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                  <select
+                    value={detectionAlgorithm}
+                    onChange={(e) => setDetectionAlgorithm(e.target.value)}
+                    disabled={detecting}
+                    style={{
+                      minWidth: '280px',
+                      padding: '0.6rem 0.75rem',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      fontWeight: '600',
+                      color: '#334155',
+                      background: 'white'
+                    }}
+                  >
+                    {algorithmOptions.map((option) => (
+                      <option
+                        key={option.value}
+                        value={option.value}
+                        disabled={option.requiresPdf && !hasPdf}
+                      >
+                        {option.requiresPdf && !hasPdf
+                          ? `${option.label} (requires PDF)`
+                          : option.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    onClick={() => setShowAlgorithmSettings((prev) => !prev)}
+                    disabled={detecting}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      background: '#ffffff',
+                      color: '#334155',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      fontWeight: '600',
+                      cursor: detecting ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {showAlgorithmSettings ? '⚙️ Hide Settings' : '⚙️ Show Settings'}
+                  </button>
+                </div>
+              )}
+
+              {/* Start Detection Button */}
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
+                <button
+                  onClick={handleStartDetection}
+                  disabled={detecting}
+                  className="detect-button"
+                  style={{
+                    flex: 1,
+                    padding: '0.85rem 1.5rem',
+                    fontSize: '1.05rem',
+                    fontWeight: 700
+                  }}
+                >
+                  {detecting
+                    ? (duplicateDetectionMode === 'ai' ? '⏳ Running AI Detection...' : '⏳ Detecting Duplicates...')
+                    : (duplicateDetectionMode === 'ai' ? '🤖 Start AI Detection' : '▶️ Start Detection')}
+                </button>
+              </div>
+
+              {detecting && detectionProgress.status && (
+                <div className="detection-progress">
+                  <p className="progress-status">{detectionProgress.status}</p>
+                  {detectionProgress.total > 0 && (
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-fill" 
+                        style={{ width: `${(detectionProgress.current / detectionProgress.total) * 100}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
               </div>
             )}
             
@@ -2224,35 +2334,61 @@ const Tab3Duplicates = () => {
         />
       )}
 
-      {/* Action Buttons - Moved to top for better UX */}
+      {/* Action Buttons - Prominent after detection */}
       {duplicateGroups.length > 0 && (
-        <div className="review-actions-top">
-          {selectedAudioFile && (
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <button
-                onClick={handleSelectAllDuplicates}
-                disabled={processing || isAssemblingAudio}
-                className="secondary-button"
-                style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
-              >
-                ✓ Select All
-              </button>
+        <div style={{
+          marginTop: '1.5rem',
+          marginBottom: '1.5rem',
+          padding: '1.5rem',
+          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          borderRadius: '12px',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+        }}>
+          <h3 style={{ margin: 0, marginBottom: '0.75rem', color: 'white', fontSize: '1.15rem' }}>
+            ✨ Step 3: Assign Duplicates to Silence
+          </h3>
+          <p style={{ margin: 0, marginBottom: '1rem', color: 'rgba(255, 255, 255, 0.95)', fontSize: '0.9rem' }}>
+            Select duplicates to remove, then assemble your clean audio file.
+          </p>
+          
+          <div className="review-actions-top" style={{ 
+            background: 'white', 
+            padding: '1rem', 
+            borderRadius: '8px',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+          }}>
+            {selectedAudioFile && (
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  onClick={handleSelectAllDuplicates}
+                  disabled={processing || isAssemblingAudio}
+                  className="secondary-button"
+                  style={{ padding: '0.65rem 1.25rem', fontSize: '0.95rem', fontWeight: 600 }}
+                >
+                  ✓ Select All Duplicates
+                </button>
 
-              <button
-                onClick={handleDeselectAll}
-                disabled={processing || isAssemblingAudio || selectedDeletions.length === 0}
-                className="secondary-button"
-                style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
-              >
-                ✗ Deselect All
-              </button>
+                <button
+                  onClick={handleDeselectAll}
+                  disabled={processing || isAssemblingAudio || selectedDeletions.length === 0}
+                  className="secondary-button"
+                  style={{ padding: '0.65rem 1.25rem', fontSize: '0.95rem', fontWeight: 600 }}
+                >
+                  ✗ Deselect All
+                </button>
 
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 <button
                   onClick={handleAssembleAudio}
                   disabled={selectedDeletions.length === 0 || isAssemblingAudio || processing}
                   className="confirm-button assemble-button"
-                  style={{ background: isAssemblingAudio ? '#f59e0b' : '#16a34a' }}
+                  style={{ 
+                    background: isAssemblingAudio ? '#f59e0b' : '#16a34a',
+                    padding: '0.65rem 1.25rem',
+                    fontSize: '0.95rem',
+                    fontWeight: 700,
+                    flex: 1,
+                    minWidth: '250px'
+                  }}
                 >
                   {isAssemblingAudio ? (
                     <>
@@ -2264,21 +2400,35 @@ const Tab3Duplicates = () => {
                     : `🖥️ Assemble on Server (Remove ${selectedDeletions.length} segments)`)}
                 </button>
               </div>
-            </div>
-          )}
+            )}
 
-          {selectedDeletions.length > 0 && assembledAudioBlob && assemblyInfo && (
-            <div className="assembled-audio-info-inline">
-              <span className="success-icon">✅</span>
-              <span className="info-text">Audio Ready: {clientAudioAssembly.formatDuration(assemblyInfo.assembledDuration)}</span>
-              <button
-                onClick={handleDownloadAssembledAudio}
-                className="download-button-inline"
-              >
-                📥 Download Audio
-              </button>
-            </div>
-          )}
+            {selectedDeletions.length > 0 && assembledAudioBlob && assemblyInfo && (
+              <div className="assembled-audio-info-inline" style={{
+                marginTop: '1rem',
+                padding: '0.75rem',
+                background: '#dcfce7',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem'
+              }}>
+                <span className="success-icon" style={{ fontSize: '1.5rem' }}>✅</span>
+                <span className="info-text" style={{ flex: 1, fontWeight: 600 }}>
+                  Audio Ready: {clientAudioAssembly.formatDuration(assemblyInfo.assembledDuration)}
+                </span>
+                <button
+                  onClick={handleDownloadAssembledAudio}
+                  className="download-button-inline"
+                  style={{ 
+                    padding: '0.65rem 1.25rem',
+                    fontWeight: 700
+                  }}
+                >
+                  📥 Download Audio
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
