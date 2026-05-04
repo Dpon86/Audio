@@ -2067,7 +2067,6 @@ const Tab3Duplicates = () => {
                 🔄 Clear Results
               </button>
             )}
-          </div>
 
           {duplicateDetectionMode === 'algorithm' && showAlgorithmSettings && (
             <div style={{
