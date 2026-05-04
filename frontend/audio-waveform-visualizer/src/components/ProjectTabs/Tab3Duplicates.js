@@ -26,8 +26,11 @@ const Tab3Duplicates = () => {
     setActiveTab, 
     setPendingDeletions,
     duplicateDetectionMode,
-    setDuplicateDetectionMode
+    setDuplicateDetectionMode,
+    projectData
   } = useProjectTab();
+
+  const hasPdf = !!(projectData?.pdf_file || projectData?.has_pdf);
   
   const [detecting, setDetecting] = useState(false);
   const [detectionProgress, setDetectionProgress] = useState({ current: 0, total: 0, status: '' });
@@ -74,12 +77,20 @@ const Tab3Duplicates = () => {
   const [assemblyInfo, setAssemblyInfo] = useState(null);
 
   const algorithmOptions = [
-    { value: 'windowed_retry', label: 'Retry-Aware (No PDF)' },
-    { value: 'windowed_retry_pdf', label: 'Retry-Aware + PDF Hint' },
-    { value: 'tfidf_cosine', label: 'Classic TF-IDF Cosine' },
-    { value: 'anchor_phrase_global', label: '🔍 Anchor Phrase — Global (No Window Limit)' },
-    { value: 'multi_pass_best', label: '⭐ Multi-Pass Best (Highest Recall)' },
+    { value: 'windowed_retry', label: 'Retry-Aware (No PDF)', requiresPdf: false },
+    { value: 'windowed_retry_pdf', label: 'Retry-Aware + PDF Hint', requiresPdf: true },
+    { value: 'tfidf_cosine', label: 'Classic TF-IDF Cosine', requiresPdf: false },
+    { value: 'anchor_phrase_global', label: '🔍 Anchor Phrase — Global (No Window Limit)', requiresPdf: true },
+    { value: 'multi_pass_best', label: '⭐ Multi-Pass Best (Highest Recall)', requiresPdf: true },
   ];
+
+  // If the selected algorithm requires a PDF but none is uploaded, fall back to a non-PDF algorithm
+  useEffect(() => {
+    const selected = algorithmOptions.find(o => o.value === detectionAlgorithm);
+    if (selected?.requiresPdf && !hasPdf) {
+      setDetectionAlgorithm('windowed_retry');
+    }
+  }, [hasPdf]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Audio player state
   const [wavesurfer, setWavesurfer] = useState(null);
@@ -1872,7 +1883,15 @@ const Tab3Duplicates = () => {
                 }}
               >
                 {algorithmOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+                  <option
+                    key={option.value}
+                    value={option.value}
+                    disabled={option.requiresPdf && !hasPdf}
+                  >
+                    {option.requiresPdf && !hasPdf
+                      ? `${option.label} (requires PDF)`
+                      : option.label}
+                  </option>
                 ))}
               </select>
             )}

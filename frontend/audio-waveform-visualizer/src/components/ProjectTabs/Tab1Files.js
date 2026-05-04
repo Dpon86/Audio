@@ -4,7 +4,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../config/api';
 import clientSideTranscription from '../../services/clientSideTranscription';
 import clientAudioStorage from '../../services/clientAudioStorage';
-import { uploadWithTranscription } from '../../services/uploadWithTranscription';
 import './Tab1Files.css';
 
 /**
@@ -315,46 +314,36 @@ const Tab1Files = () => {
     loadLocalFiles();
   }, [audioFiles, projectId]);
 
-  // Process file client-side
-  const processFileClientSide = async (file) => {
-    setUploading(true);
-    setUploadProgress(0);
+  // Transcribe a file client-side AFTER it has already been uploaded to the server.
+  // Model download happens here — only when client-side transcription is actually needed.
+  const transcribeFileClientSide = async (file, serverAudioFileId) => {
     setProcessingStep('loading');
 
     try {
-      // Initialize model if not loaded
+      // Initialize/download model only now — not during upload
       if (!clientSideTranscription.modelLoaded) {
         setModelLoading(true);
         await clientSideTranscription.initialize('tiny', (progress) => {
           setModelProgress(progress);
-          setUploadProgress(Math.min(progress.percent || 0, 30));
+          setUploadProgress(40 + Math.min(progress.percent || 0, 20));
         });
         setModelLoading(false);
       }
 
-      // Reading audio file
-      setProcessingStep('reading');
-      setUploadProgress(30);
-
-      // Transcribe audio - show time estimate based on file duration
+      // Transcribe audio
       setProcessingStep('transcribing');
       setProcessingTimeEstimate(null);
       setProcessingElapsed(0);
-      
-      // Calculate estimated time (rough estimate: 1 minute of audio = ~30 seconds processing)
-      const audioDurationMinutes = file.size / (1024 * 1024 * 10); // Very rough estimate
+
+      const audioDurationMinutes = file.size / (1024 * 1024 * 10);
       const estimatedMinutes = Math.ceil(audioDurationMinutes * 0.5);
-      
       console.log(`[Tab1Files] Starting transcription - estimated time: ~${estimatedMinutes} minutes`);
-      
+
       const result = await clientSideTranscription.transcribe(
         file,
         {},
         (progress) => {
-          // Update progress percentage
-          setUploadProgress(30 + Math.round((progress.percent || 0) * 0.4));
-          
-          // Update time estimate on first progress update
+          setUploadProgress(60 + Math.round((progress.percent || 0) * 0.3));
           if (progress.estimatedTimeMin && progress.estimatedTimeMax && !processingTimeEstimate) {
             setProcessingTimeEstimate({
               min: progress.estimatedTimeMin,
@@ -362,8 +351,6 @@ const Tab1Files = () => {
               audioDuration: progress.audioDuration
             });
           }
-          
-          // Update elapsed time
           if (progress.elapsed !== undefined) {
             setProcessingElapsed(progress.elapsed);
           }
@@ -371,51 +358,14 @@ const Tab1Files = () => {
       );
 
       setProcessingStep('finalizing');
-      setUploadProgress(70);
-
-      // *** NEW: Upload audio file + transcription to server ***
-      // This enables server-side assembly after client-side transcription
-      setProcessingStep('uploading');
-      console.log('[Tab1Files] Uploading audio + transcription to server...');
-      
-      let serverAudioFileId = null;
-      let uploadSuccess = false;
-      
-      try {
-        const uploadResult = await uploadWithTranscription(
-          file,
-          result,  // transcriptionResult with all_segments
-          projectId,
-          token,
-          {
-            title: file.name.replace(/\.[^/.]+$/, ''),  // Remove extension
-            orderIndex: audioFiles?.length || 0,
-            onProgress: (percent) => {
-              // Upload progress: 70% to 90%
-              setUploadProgress(70 + Math.round(percent * 0.2));
-            }
-          }
-        );
-        
-        serverAudioFileId = uploadResult.audio_file_id;
-        uploadSuccess = true;
-        console.log('[Tab1Files] Upload successful! Server audio_file_id:', serverAudioFileId);
-        
-      } catch (uploadError) {
-        console.error('[Tab1Files] Upload failed:', uploadError);
-        // Don't fail the whole process - we can still use client-side data
-        uploadSuccess = false;
-      }
-
       setUploadProgress(90);
 
-      // For client-side processing, store locally and display in UI
-      console.log('[Tab1Files] Storing transcription locally');
-      
-      // Create a unique ID for this file
+      // Store audio in IndexedDB for local playback
       const fileId = `local-${Date.now()}`;
-      
-      // Store the actual File object in IndexedDB for persistence
+      const duration = result.all_segments && result.all_segments.length > 0
+        ? result.all_segments[result.all_segments.length - 1].end
+        : 0;
+
       await clientAudioStorage.storeFile(fileId, projectId, file, {
         transcription: {
           text: result.text,
@@ -423,138 +373,70 @@ const Tab1Files = () => {
           word_count: result.text.split(/\s+/).filter(w => w.length > 0).length,
           client_processed: true
         },
-        duration_seconds: result.all_segments && result.all_segments.length > 0 
-          ? result.all_segments[result.all_segments.length - 1].end 
-          : 0,
-        server_audio_file_id: serverAudioFileId  // *** NEW: Link to server file ***
+        duration_seconds: duration,
+        server_audio_file_id: serverAudioFileId
       });
-      
-      console.log(`[Tab1Files] Stored audio file in IndexedDB: ${fileId}`);
-      
-      // Create a local file object to display in the list
-      const localFile = {
+
+      // Store metadata in localStorage
+      const storageKey = `client_transcriptions_${projectId}`;
+      const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      existing.push({
         id: fileId,
         filename: file.name,
         title: file.name.replace(/\.[^/.]+$/, ''),
-        status: 'transcribed',
-        file_size_bytes: file.size,
-        duration_seconds: result.all_segments && result.all_segments.length > 0 
-          ? result.all_segments[result.all_segments.length - 1].end 
-          : 0,
         transcription: {
           text: result.text,
           all_segments: result.all_segments || [],
           word_count: result.text.split(/\s+/).filter(w => w.length > 0).length,
           client_processed: true
         },
-        client_only: !uploadSuccess,  // Only client if upload failed
-        has_local_audio: true,
-        server_audio_file_id: serverAudioFileId,  // *** NEW: Server file ID ***
-        server_upload_complete: uploadSuccess  // *** NEW: Upload status ***
-      };
-
-      // Store metadata in localStorage for quick access
-      const storageKey = `client_transcriptions_${projectId}`;
-      const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      existing.push({
-        id: localFile.id,
-        filename: localFile.filename,
-        title: localFile.title,
-        transcription: localFile.transcription,
         timestamp: Date.now(),
         has_local_audio: true,
-        server_audio_file_id: serverAudioFileId,  // *** NEW ***
-        server_upload_complete: uploadSuccess  // *** NEW ***
+        server_audio_file_id: serverAudioFileId,
+        server_upload_complete: true
       });
       localStorage.setItem(storageKey, JSON.stringify(existing));
 
-      // Save transcription metadata to server for cross-device persistence
-      // This is separate from the audio file upload above
+      // Save transcription metadata to server
       const serverSave = await saveTranscriptionToServer(
         fileId,
         file.name,
-        localFile.transcription,
-        localFile.duration_seconds,
+        { text: result.text, all_segments: result.all_segments || [] },
+        duration,
         file.size
       );
 
-      // Update local file with server sync status
-      if (serverSave.success) {
-        localFile.server_synced = true;
-        localFile.server_id = serverSave.data?.id;
-        console.log('[Tab1Files] Transcription metadata synced to server');
-      } else {
-        localFile.server_synced = false;
-        console.log('[Tab1Files] Transcription saved locally only (server unavailable)');
-      }
-
       setProcessingStep('complete');
       setUploadProgress(100);
-      
-      // Add to audioFiles state for immediate display
-      const currentFiles = audioFiles || [];
-      const updatedFiles = [...currentFiles, localFile];
-      // Trigger refresh to include local file
       await refreshAudioFiles(token);
-      
-      // Enhanced success alert with detailed information
-      const duration = formatDuration(localFile.duration_seconds);
-      const segments = result.all_segments?.length || 0;
-      const words = localFile.transcription.word_count;
-      
-      // *** NEW: Different messaging based on upload status ***
-      let uploadStatusMsg;
-      let additionalInfo;
-      
-      if (uploadSuccess) {
-        uploadStatusMsg = `✅ Upload Complete: Audio + transcription uploaded to server`;
-        additionalInfo = `🔧 Server-Side Features Available:\n` +
-                        `   • Server-side assembly (removes duplicates server-side)\n` +
-                        `   • Cross-device access\n` +
-                        `   • Persistent storage\n\n` +
-                        `Your audio was transcribed on your device (no server load),\n` +
-                        `then uploaded with transcription data for server-side assembly.`;
-      } else {
-        uploadStatusMsg = `⚠️ Upload Failed: Local-only processing`;
-        additionalInfo = `📱 Your transcription is saved locally but:\n` +
-                        `   • Server-side assembly NOT available\n` +
-                        `   • Limited to this device only\n` +
-                        `   • Will try to upload again later\n\n` +
-                        `To enable server-side features, check your connection\n` +
-                        `and try re-processing this file.`;
-      }
-      
-      const syncStatus = localFile.server_synced 
+
+      const wordCount = result.text.split(/\s+/).filter(w => w.length > 0).length;
+      const syncStatus = serverSave.success
         ? `☁️ Metadata Synced: Transcription available on all devices`
         : `📱 Local Metadata: Server unavailable for sync`;
-      
+
       alert(
         `✅ Transcription Complete!\n\n` +
         `📄 File: ${file.name}\n` +
-        `⏱️ Duration: ${duration}\n` +
-        `💬 Words: ${words.toLocaleString()}\n` +
-        `📝 Segments: ${segments}\n\n` +
-        `${uploadStatusMsg}\n` +
-        `${syncStatus}\n\n` +
-        `${additionalInfo}`
+        `⏱️ Duration: ${formatDuration(duration)}\n` +
+        `💬 Words: ${wordCount.toLocaleString()}\n` +
+        `📝 Segments: ${result.all_segments?.length || 0}\n\n` +
+        `✅ Audio already uploaded to server\n` +
+        `${syncStatus}`
       );
 
-      setUploading(false);
-      setUploadProgress(0);
-      setModelLoading(false);
-      setModelProgress(null);
       setProcessingStep('');
       setProcessingTimeEstimate(null);
       setProcessingElapsed(0);
+      setModelProgress(null);
+
     } catch (error) {
-      console.error('Client-side processing error:', error);
+      console.error('[Tab1Files] Client-side transcription failed:', error);
       setModelLoading(false);
       setModelProgress(null);
       setProcessingStep('');
       setProcessingTimeEstimate(null);
       setProcessingElapsed(0);
-      setUploading(false);
-      setUploadProgress(0);
 
       const isNetworkBlock = error.message.includes('unavailable on this network') ||
                              error.message.includes('Model loading failed') ||
@@ -564,39 +446,42 @@ const Tab1Files = () => {
       if (isNetworkBlock) {
         alert(
           `⚠️ Could not load transcription model.\n\n` +
-          `All download sources (HuggingFace, hf-mirror.com) were unreachable on this network.\n\n` +
-          `If you are on a restricted/ISO network, please connect to the internet and try again.`
+          `All download sources were unreachable on this network.\n\n` +
+          `Note: Your file was already uploaded to the server successfully.\n` +
+          `If you are on a restricted network, connect to the internet and try again.`
         );
       } else {
-        alert(`Client-side processing failed: ${error.message}`);
+        alert(`Transcription failed: ${error.message}\n\nNote: Your file was already uploaded to the server.`);
       }
     }
   };
 
-  // Handle file upload
+  // Handle file upload — always uploads to server first.
+  // If client-side transcription is selected, model download + transcription happens AFTER upload.
+  // If server-side (AI) is selected, server handles transcription — no model download needed.
   const handleFileUpload = async (files) => {
     if (!files || files.length === 0) return;
 
-    // If client-side processing is enabled and only one file, use client-side
-    if (useClientSide && files.length === 1) {
-      await processFileClientSide(files[0]);
-      return;
-    } else if (useClientSide && files.length > 1) {
-      alert('Client-side processing currently supports one file at a time. Processing first file only.');
-      await processFileClientSide(files[0]);
-      return;
+    const fileArray = Array.from(files);
+
+    if (useClientSide && fileArray.length > 1) {
+      alert('Client-side transcription supports one file at a time. Processing first file only.');
+      fileArray.splice(1);
     }
 
     setUploading(true);
     setUploadProgress(0);
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    for (let i = 0; i < fileArray.length; i++) {
+      const file = fileArray[i];
       const formData = new FormData();
-      formData.append('file', file);  // Backend expects 'file' not 'audio_file'
-      formData.append('title', file.name.replace(/\.[^/.]+$/, ''));  // Remove extension for title
+      formData.append('file', file);
+      formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
+
+      let serverFileId = null;
 
       try {
+        setProcessingStep('uploading');
         const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/files/`, {
           method: 'POST',
           headers: {
@@ -606,13 +491,16 @@ const Tab1Files = () => {
         });
 
         if (response.ok) {
-          await response.json();
-          setUploadProgress(Math.round(((i + 1) / files.length) * 100));
-          
-          // Refresh list after each upload
+          const data = await response.json();
+          serverFileId = data.id;
+          // For client-side: upload counts as first 40%; transcription follows.
+          // For server-side (AI): upload is the whole job, count to 100%.
+          const uploadPercent = useClientSide
+            ? Math.round(((i + 1) / fileArray.length) * 40)
+            : Math.round(((i + 1) / fileArray.length) * 100);
+          setUploadProgress(uploadPercent);
           await refreshAudioFiles(token);
         } else {
-          // Try to parse error as JSON, but handle HTML responses
           let errorMessage = `Failed to upload ${file.name}`;
           try {
             const contentType = response.headers.get('content-type');
@@ -620,7 +508,6 @@ const Tab1Files = () => {
               const error = await response.json();
               errorMessage = error.error || error.message || errorMessage;
             } else {
-              // HTML or other non-JSON response
               const text = await response.text();
               console.error('Server returned non-JSON error:', text);
               errorMessage = `Server error (${response.status}): ${response.statusText}`;
@@ -630,10 +517,12 @@ const Tab1Files = () => {
             errorMessage = `Server error (${response.status}): ${response.statusText}`;
           }
           alert(errorMessage);
+          continue;
         }
       } catch (error) {
         console.error('Upload error:', error);
         alert(`Error uploading ${file.name}: ${error.message}`);
+        continue;
       }
     }
 

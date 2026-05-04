@@ -92,7 +92,17 @@
 
 ### AI Duplicate Detection (Remaining Setup)
 
-**AI1 â€” Complete AI Service Integration** *(~1â€“2 days)*
+**T5 — Auto-Logout on Authentication Errors** *(~2–3 hours)*
+- If any API call returns a `401 Unauthorized` or `403 Forbidden` response, automatically log the user out (clear the httpOnly auth cookie via `POST /api/accounts/logout/`) and redirect to the login page
+- Centralise this in the API client / fetch wrapper so all requests benefit without per-call handling
+- Show a brief "Your session has expired. Please log in again." message before redirecting
+- Covers: expired tokens, invalidated sessions, cookie missing/tampered
+
+---
+
+## AI Duplicate Detection (Remaining Setup)
+
+**AI1 — Complete AI Service Integration** *(~1–2 days)*
 - AI DB models exist; AI service layer exists (`anthropic_client.py` etc.)
 - Wire up endpoints: AI duplicate detection, PDF comparison views
 - Add API keys to server `.env` (`ANTHROPIC_API_KEY`)
