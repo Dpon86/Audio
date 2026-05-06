@@ -585,6 +585,15 @@ const Tab1Files = () => {
 
   // Handle transcription
   const handleTranscribe = async (fileId) => {
+    const proceed = window.confirm(
+      '🎙️ Start Transcription?\n\n' +
+      '⏳ This may take several minutes depending on file length.\n\n' +
+      '⚠️ The page may appear unresponsive during processing — this is normal.\n' +
+      'If your browser asks whether to "Wait" or "Leave the page", please click Wait.\n\n' +
+      'Click OK to start.'
+    );
+    if (!proceed) return;
+
     try {
       setTranscribingFiles(prev => ({ ...prev, [fileId]: true }));
       
