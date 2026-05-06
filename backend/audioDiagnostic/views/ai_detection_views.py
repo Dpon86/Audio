@@ -170,18 +170,23 @@ def ai_task_status_view(request, task_id):
         task = AsyncResult(task_id)
         
         # Get progress from Redis if available
-        r = cache._cache.get_client()  # Get Redis client
         progress_key = f"progress:{task_id}"
         status_key = f"status:{task_id}"
         
-        progress = r.get(progress_key)
-        progress = int(progress) if progress else 0
+        try:
+            from django_redis import get_redis_connection
+            r = get_redis_connection('default')
+            progress_raw = r.get(progress_key)
+            progress = int(progress_raw) if progress_raw else 0
+            status_data = r.get(status_key)
+        except Exception:
+            progress = 0
+            status_data = None
         
-        status_data = r.get(status_key)
         if status_data:
             try:
                 status_info = json.loads(status_data)
-            except:
+            except Exception:
                 status_info = {'status': 'processing', 'message': 'Processing...'}
         else:
             status_info = {'status': 'pending', 'message': 'Starting...'}
