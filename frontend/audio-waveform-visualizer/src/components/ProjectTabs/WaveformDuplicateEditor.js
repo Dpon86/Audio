@@ -848,62 +848,6 @@ const WaveformDuplicateEditor = ({
           🔄 Refresh List
         </button>
         
-        <button 
-          onClick={handleAlignToSilence}
-          className="waveform-control-btn align-btn"
-          disabled={!wavesurfer || isLoading || isAligningToSilence}
-          title={`Align all DELETE regions to silence (threshold: ${silenceThreshold}dB)`}
-        >
-          {isAligningToSilence ? '⏳ Aligning...' : '🎯 Align to Silence'}
-        </button>
-        
-        <div className="silence-threshold-compact">
-          <label title="Silence detection threshold">
-            {silenceThreshold}dB
-          </label>
-          <input
-            type="range"
-            min="-60"
-            max="-20"
-            value={silenceThreshold}
-            onChange={(e) => setSilenceThreshold(Number(e.target.value))}
-            className="threshold-slider-compact"
-            title="Adjust silence detection sensitivity"
-          />
-        </div>
-
-        <div className="silence-threshold-compact">
-          <label title="Search range around boundaries">
-            {silenceSearchRange.toFixed(2)}s
-          </label>
-          <input
-            type="range"
-            min="0.2"
-            max="2.0"
-            step="0.05"
-            value={silenceSearchRange}
-            onChange={(e) => setSilenceSearchRange(Number(e.target.value))}
-            className="threshold-slider-compact"
-            title="Adjust silence search range"
-          />
-        </div>
-
-        <div className="silence-threshold-compact">
-          <label title="Minimum silence duration">
-            {(silenceMinDuration * 1000).toFixed(0)}ms
-          </label>
-          <input
-            type="range"
-            min="0.04"
-            max="0.3"
-            step="0.01"
-            value={silenceMinDuration}
-            onChange={(e) => setSilenceMinDuration(Number(e.target.value))}
-            className="threshold-slider-compact"
-            title="Adjust minimum silence duration"
-          />
-        </div>
-
         <div className="waveform-time-display">
           {formatTime(currentTime)} / {formatTime(duration)}
         </div>
@@ -921,6 +865,65 @@ const WaveformDuplicateEditor = ({
         </div>
         <div className="legend-help">
           💡 Tip: Click a region to select it, drag edges to adjust boundaries
+        </div>
+      </div>
+
+      {/* Step: Align to Silence */}
+      <div className="align-silence-step-card">
+        <div className="step-card-header">
+          <span className="step-badge">Step 1</span>
+          <h4 className="step-card-title">🎯 Align Regions to Silence</h4>
+        </div>
+        <p className="step-card-description">
+          Snap the boundaries of all DELETE regions to the nearest silence point. 
+          This ensures cleaner cuts with no abrupt audio interruptions before assembling.
+        </p>
+        <div className="align-silence-controls">
+          <div className="silence-slider-group">
+            <label title="Silence detection threshold">Threshold: {silenceThreshold}dB</label>
+            <input
+              type="range"
+              min="-60"
+              max="-20"
+              value={silenceThreshold}
+              onChange={(e) => setSilenceThreshold(Number(e.target.value))}
+              className="threshold-slider-compact"
+              title="Adjust silence detection sensitivity"
+            />
+          </div>
+          <div className="silence-slider-group">
+            <label title="Search range around boundaries">Search: {silenceSearchRange.toFixed(2)}s</label>
+            <input
+              type="range"
+              min="0.2"
+              max="2.0"
+              step="0.05"
+              value={silenceSearchRange}
+              onChange={(e) => setSilenceSearchRange(Number(e.target.value))}
+              className="threshold-slider-compact"
+              title="Adjust silence search range"
+            />
+          </div>
+          <div className="silence-slider-group">
+            <label title="Minimum silence duration">Min silence: {(silenceMinDuration * 1000).toFixed(0)}ms</label>
+            <input
+              type="range"
+              min="0.04"
+              max="0.3"
+              step="0.01"
+              value={silenceMinDuration}
+              onChange={(e) => setSilenceMinDuration(Number(e.target.value))}
+              className="threshold-slider-compact"
+              title="Adjust minimum silence duration"
+            />
+          </div>
+          <button
+            onClick={handleAlignToSilence}
+            className="align-silence-step-btn"
+            disabled={!wavesurfer || isLoading || isAligningToSilence}
+          >
+            {isAligningToSilence ? '⏳ Aligning...' : '🎯 Align to Silence'}
+          </button>
         </div>
       </div>
     </div>

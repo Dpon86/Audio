@@ -2115,11 +2115,18 @@ const Tab3Duplicates = () => {
         />
       )}
 
-      {/* Action Buttons - Moved to top for better UX */}
+      {/* Action Buttons - Assemble Step */}
       {duplicateGroups.length > 0 && (
-        <div className="review-actions-top">
+        <div className="assemble-step-card">
+          <div className="step-card-header">
+            <span className="step-badge step-badge-2">Step 2</span>
+            <h4 className="step-card-title">🖥️ Assemble Audio</h4>
+          </div>
+          <p className="step-card-description">
+            Select the duplicate segments to remove, then assemble the clean audio file.
+          </p>
           {selectedAudioFile && (
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
               <button
                 onClick={handleSelectAllDuplicates}
                 disabled={processing || isAssemblingAudio}

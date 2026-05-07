@@ -519,3 +519,94 @@
     font-size: 0.8rem;
   }
 }
+
+/* ── Align to Silence Step Card ── */
+.align-silence-step-card {
+  margin-top: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: #f0f9ff;
+  border: 2px solid #bae6fd;
+  border-radius: 12px;
+}
+
+.step-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #0ea5e9;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.step-badge-2 {
+  background: #16a34a;
+}
+
+.step-card-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0c4a6e;
+}
+
+.step-card-description {
+  margin: 0 0 1rem 0;
+  font-size: 0.875rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.align-silence-controls {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.silence-slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 120px;
+}
+
+.silence-slider-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.align-silence-step-btn {
+  padding: 0.6rem 1.4rem;
+  background: #0ea5e9;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.align-silence-step-btn:hover:not(:disabled) {
+  background: #0284c7;
+  transform: translateY(-1px);
+}
+
+.align-silence-step-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  transform: none;
+}
