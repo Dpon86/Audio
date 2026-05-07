@@ -3,6 +3,7 @@ import { API_BASE_URL, resolveMediaUrl } from '../../config/api';
 import { useProjectTab } from '../../contexts/ProjectTabContext';
 import { useAuth } from '../../contexts/AuthContext';
 import WaveSurfer from 'wavesurfer.js';
+import downloadHelper from '../../utils/downloadHelper';
 import './Tab4Results.css';
 
 /**
@@ -527,6 +528,53 @@ const Tab4Results = () => {
     }
   };
 
+  const handleDownloadTranscription = async (format) => {
+    if (!selectedAudioFile) {
+      alert('No file selected');
+      return;
+    }
+
+    let allSegments = [];
+
+    if (selectedAudioFile.transcription && selectedAudioFile.transcription.all_segments) {
+      allSegments = selectedAudioFile.transcription.all_segments;
+    } else {
+      const storageKey = `client_transcriptions_${projectId}`;
+      const localFiles = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      const matchingFile = localFiles.find(f => f.id === selectedAudioFile.id || f.filename === selectedAudioFile.filename);
+      if (matchingFile && matchingFile.transcription && matchingFile.transcription.all_segments) {
+        allSegments = matchingFile.transcription.all_segments;
+      }
+    }
+
+    if (allSegments.length === 0 && !selectedAudioFile.client_only && selectedAudioFile.transcription) {
+      try {
+        const resp = await fetch(
+          `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/transcription/download/?format=json`,
+          { headers: { Authorization: `Token ${token}` } }
+        );
+        if (resp.ok) {
+          const data = await resp.json();
+          allSegments = data.segments || [];
+        }
+      } catch (err) {
+        console.error('[Tab4Results] Error fetching transcription for download:', err);
+      }
+    }
+
+    if (allSegments.length === 0) {
+      alert('No transcription segments found for this file.');
+      return;
+    }
+
+    try {
+      const baseFilename = selectedAudioFile.filename || selectedAudioFile.title || 'transcription';
+      downloadHelper.downloadTranscription(allSegments, baseFilename, format);
+    } catch (error) {
+      alert(`Failed to download: ${error.message}`);
+    }
+  };
+
   const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds) || seconds < 0) return '0:00';
     const mins = Math.floor(seconds / 60);
@@ -812,6 +860,20 @@ const Tab4Results = () => {
               Download the processed audio file with all duplicates removed
             </p>
           </div>
+
+          {/* Download Transcription Section */}
+          {(selectedAudioFile.transcription || selectedAudioFile.client_only) && (
+            <div className="transcript-card">
+              <h3>📥 Download Transcription</h3>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+                <button onClick={() => handleDownloadTranscription('txt')} className="download-format-button">TXT</button>
+                <button onClick={() => handleDownloadTranscription('txt-timestamps')} className="download-format-button">TXT + Timestamps</button>
+                <button onClick={() => handleDownloadTranscription('json')} className="download-format-button">JSON</button>
+                <button onClick={() => handleDownloadTranscription('srt')} className="download-format-button">SRT (Subtitles)</button>
+                <button onClick={() => handleDownloadTranscription('vtt')} className="download-format-button">VTT (WebVTT)</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

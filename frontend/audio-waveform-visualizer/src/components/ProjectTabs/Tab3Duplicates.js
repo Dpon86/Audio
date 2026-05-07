@@ -7,7 +7,6 @@ import WaveformDuplicateEditor from './WaveformDuplicateEditor';
 import PDFRegionSelector from '../PDFRegionSelector';
 import clientDuplicateDetection from '../../services/clientDuplicateDetection';
 import clientAudioAssembly from '../../services/clientAudioAssembly';
-import downloadHelper from '../../utils/downloadHelper';
 import clientAudioStorage from '../../services/clientAudioStorage';
 import './Tab3Duplicates.css';
 
@@ -1617,61 +1616,6 @@ const Tab3Duplicates = () => {
     }
   };
 
-  const handleDownloadTranscription = async (format) => {
-    if (!selectedAudioFile) {
-      alert('No file selected');
-      return;
-    }
-
-    // Get all segments — try in-memory first, then localStorage, then server API
-    let allSegments = [];
-
-    if (selectedAudioFile.transcription && selectedAudioFile.transcription.all_segments) {
-      allSegments = selectedAudioFile.transcription.all_segments;
-    } else {
-      // Try loading from localStorage for client-only files
-      const storageKey = `client_transcriptions_${projectId}`;
-      const localFiles = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      const matchingFile = localFiles.find(f => f.id === selectedAudioFile.id || f.filename === selectedAudioFile.filename);
-
-      if (matchingFile && matchingFile.transcription && matchingFile.transcription.all_segments) {
-        allSegments = matchingFile.transcription.all_segments;
-      }
-    }
-
-    // If still empty and this is a server-side transcription, fetch from API
-    if (allSegments.length === 0 && !selectedAudioFile.client_only && selectedAudioFile.transcription) {
-      try {
-        const resp = await fetch(
-          `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/transcription/download/?format=json`,
-          { headers: { Authorization: `Token ${token}` } }
-        );
-        if (resp.ok) {
-          const data = await resp.json();
-          allSegments = data.segments || [];
-        } else {
-          console.warn('[Tab3Duplicates] Could not fetch transcription segments from server:', resp.status);
-        }
-      } catch (err) {
-        console.error('[Tab3Duplicates] Error fetching transcription for download:', err);
-      }
-    }
-
-    if (allSegments.length === 0) {
-      alert('No transcription segments found for this file.');
-      return;
-    }
-
-    try {
-      const baseFilename = selectedAudioFile.filename || selectedAudioFile.title || 'transcription';
-      downloadHelper.downloadTranscription(allSegments, baseFilename, format);
-      console.log(`[Tab3Duplicates] Downloaded transcription as ${format}`);
-    } catch (error) {
-      console.error('[Tab3Duplicates] Download error:', error);
-      alert(`Failed to download: ${error.message}`);
-    }
-  };
-
   const toggleGroup = (groupId) => {
     const newExpanded = new Set(expandedGroups);
     if (newExpanded.has(groupId)) {
@@ -1764,53 +1708,6 @@ const Tab3Duplicates = () => {
               💡 Tip: Select a different file in the "Upload & Transcribe" tab to work with it here.
             </div>
           </div>
-
-          {/* Download Transcription Section */}
-          {selectedAudioFile && (selectedAudioFile.transcription || selectedAudioFile.client_only) && (
-            <div style={{
-              padding: '1rem',
-              border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-              background: 'white',
-              marginBottom: '1rem'
-            }}>
-              <h4 style={{ margin: 0, marginBottom: '0.75rem', color: '#1e293b', fontSize: '0.95rem' }}>
-                📥 Download Transcription
-              </h4>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => handleDownloadTranscription('txt')}
-                  className="download-format-button"
-                >
-                  TXT
-                </button>
-                <button
-                  onClick={() => handleDownloadTranscription('txt-timestamps')}
-                  className="download-format-button"
-                >
-                  TXT + Timestamps
-                </button>
-                <button
-                  onClick={() => handleDownloadTranscription('json')}
-                  className="download-format-button"
-                >
-                  JSON
-                </button>
-                <button
-                  onClick={() => handleDownloadTranscription('srt')}
-                  className="download-format-button"
-                >
-                  SRT (Subtitles)
-                </button>
-                <button
-                  onClick={() => handleDownloadTranscription('vtt')}
-                  className="download-format-button"
-                >
-                  VTT (WebVTT)
-                </button>
-              </div>
-            </div>
-          )}
 
           <div style={{
             padding: '1rem',
