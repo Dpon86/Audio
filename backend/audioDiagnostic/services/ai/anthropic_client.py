@@ -37,7 +37,7 @@ class AnthropicClient:
         self.max_retries = 3
         self.base_delay = 1  # seconds
         
-        logger.info(f"Initialized AnthropicClient with model: {self.model}")
+        logger.info(f"[AnthropicClient] Initialized with model='{self.model}', api_key_prefix='{api_key[:8]}...'")
     
     def call_api(
         self,
@@ -80,6 +80,7 @@ class AnthropicClient:
                     kwargs["system"] = system_prompt
                 
                 logger.debug(f"Calling Anthropic API (attempt {attempt + 1}/{self.max_retries})")
+                logger.info(f"[AnthropicClient] Sending request: model='{self.model}', max_tokens={max_tokens}")
                 
                 response = self.client.messages.create(**kwargs)
                 
@@ -119,7 +120,7 @@ class AnthropicClient:
                     raise
                     
             except APIError as e:
-                logger.error(f"Anthropic API error (attempt {attempt + 1}/{self.max_retries}): {e}")
+                logger.error(f"[AnthropicClient] API error (attempt {attempt + 1}/{self.max_retries}): status={getattr(e, 'status_code', 'unknown')}, model='{self.model}', error={e}")
                 if attempt < self.max_retries - 1:
                     delay = self.base_delay * (2 ** attempt)
                     logger.info(f"Retrying in {delay} seconds...")
