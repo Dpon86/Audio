@@ -585,15 +585,7 @@ const Tab1Files = () => {
 
   // Handle transcription
   const handleTranscribe = async (fileId) => {
-    const proceed = window.confirm(
-      '🎙️ Start Transcription?\n\n' +
-      '⏳ This may take several minutes depending on file length.\n\n' +
-      '⚠️ The page may appear unresponsive during processing — this is normal.\n' +
-      'If your browser asks whether to "Wait" or "Leave the page", please click Wait.\n\n' +
-      'Click OK to start.'
-    );
-    if (!proceed) return;
-
+    // Remove window.confirm since we show an overlay now
     try {
       setTranscribingFiles(prev => ({ ...prev, [fileId]: true }));
       
@@ -1202,6 +1194,42 @@ const Tab1Files = () => {
           >
             → Move to Detecting Duplicates
           </button>
+        </div>
+      )}
+
+      {/* Transcription Progress Overlay */}
+      {Object.keys(transcribingFiles).length > 0 && (
+        <div className="upload-progress-overlay">
+          <div className="progress-modal">
+            <div className="processing-animation">
+              <div className="spinner"></div>
+            </div>
+            
+            <h3 className="processing-title">Transcribing Audio</h3>
+            
+            <div className="browser-warning">
+              ⏳ <strong>Transcription in Progress</strong>
+              <br />
+              This may take several minutes depending on the file length.
+              <br />
+              <strong>Please do not close or refresh this page.</strong>
+            </div>
+            
+            <div className="progress-steps">
+              <div className="step-item active">
+                <span className="step-icon">⏳</span>
+                <span className="step-text">Sending file to AI for analysis...</span>
+              </div>
+              <div className="step-item active">
+                <span className="step-icon">⏳</span>
+                <span className="step-text">Generating transcription...</span>
+              </div>
+            </div>
+            
+            <div className="processing-info" style={{ marginTop: '1.5rem', textAlign: 'center', color: '#6b7280' }}>
+              💡 Hang tight! We are processing your file in the background.
+            </div>
+          </div>
         </div>
       )}
     </div>
