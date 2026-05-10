@@ -770,24 +770,25 @@ const WaveformDuplicateEditor = ({
   };
 
   return (
-    <div className="waveform-editor-container">
-      {/* Header */}
-      <div className="waveform-editor-header">
-        <h4 className="waveform-editor-title">🎵 Interactive Waveform Editor</h4>
-        
-        {/* Zoom Controls */}
-        <div className="waveform-zoom-controls">
-          <button 
-            onClick={handleZoomOut} 
-            disabled={zoomLevel <= 1}
-            className="zoom-btn"
-            title="Zoom out"
-          >
-            🔍-
-          </button>
-          <input
-            type="range"
-            min="1"
+    <>
+      <div className="waveform-editor-container">
+        {/* Header */}
+        <div className="waveform-editor-header">
+          <h4 className="waveform-editor-title">🎵 Interactive Waveform Editor</h4>
+          
+          {/* Zoom Controls */}
+          <div className="waveform-zoom-controls">
+            <button 
+              onClick={handleZoomOut} 
+              disabled={zoomLevel <= 1}
+              className="zoom-btn"
+              title="Zoom out"
+            >
+              🔍-
+            </button>
+            <input
+              type="range"
+              min="1"
             max="100"
             value={zoomLevel}
             onChange={(e) => setZoomLevel(Number(e.target.value))}
@@ -868,7 +869,7 @@ const WaveformDuplicateEditor = ({
         </div>
       </div>
 
-      {/* Step: Align to Silence */}
+      {/* Step 2: Align to Silence */}
       <div className="align-silence-step-card" style={{
         background: '#ffffff',
         borderRadius: '12px',
@@ -878,6 +879,15 @@ const WaveformDuplicateEditor = ({
         marginTop: '1.5rem'
       }}>
         <div className="step-card-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+          <span className="step-badge step-badge-2" style={{
+            background: '#8b5cf6',
+            color: 'white',
+            padding: '0.25rem 0.75rem',
+            borderRadius: '9999px',
+            fontSize: '0.875rem',
+            fontWeight: '600',
+            marginRight: '0.75rem'
+          }}>Step 2</span>
           <h4 className="step-card-title" style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b' }}>🎯 Align Regions to Silence (Optional)</h4>
         </div>
         <p className="step-card-description" style={{ color: '#475569', marginBottom: '1.5rem' }}>
@@ -961,6 +971,7 @@ const WaveformDuplicateEditor = ({
         </div>
       </div>
     </div>
+    </>
   );
 };
 

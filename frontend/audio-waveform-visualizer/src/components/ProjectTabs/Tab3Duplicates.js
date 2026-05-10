@@ -78,6 +78,16 @@ const Tab3Duplicates = () => {
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [isProcessingDeletions, setIsProcessingDeletions] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState({});
+  const [isDetectionExpanded, setIsDetectionExpanded] = useState(true);
+
+  // Auto-collapse detection when results are found
+  useEffect(() => {
+    if (duplicateGroups && duplicateGroups.length > 0) {
+      setIsDetectionExpanded(false);
+    } else {
+      setIsDetectionExpanded(true);
+    }
+  }, [duplicateGroups.length]);
 
   const toggleDebugInfo = (segmentId, e) => {
     if (e) e.stopPropagation();
@@ -1692,11 +1702,47 @@ const Tab3Duplicates = () => {
         <p>Detect repeated content within a single audio file. The system will keep the last occurrence of each duplicate.</p>
       </div>
 
-      {/* Selected File Display */}
+      {/* Selected File Display & Step 1: Detect */}
       {selectedAudioFile ? (
-        <div className="file-selection-card">
-          <div style={{ marginBottom: '1rem' }}>
-            <label className="input-label">Working with:</label>
+        <div className="file-selection-card" style={{
+          background: '#ffffff',
+          borderRadius: '12px',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          border: '1px solid #e2e8f0',
+          padding: '1.5rem',
+          marginBottom: '2rem'
+        }}>
+          <div className="step-card-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem', cursor: 'pointer' }} onClick={() => setIsDetectionExpanded(!isDetectionExpanded)}>
+            <span className="step-badge step-badge-1" style={{
+              background: '#0ea5e9',
+              color: 'white',
+              padding: '0.25rem 0.75rem',
+              borderRadius: '9999px',
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              marginRight: '0.75rem'
+            }}>Step 1</span>
+            <h4 className="step-card-title" style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b' }}>
+              🔍 Detect Duplicates 
+              <span style={{ fontSize: '0.9rem', color: '#64748b', marginLeft: '0.5rem', fontWeight: 'normal' }}>
+                {isDetectionExpanded ? '(Click to collapse)' : '(Click to expand)'}
+              </span>
+            </h4>
+            
+            {!isDetectionExpanded && duplicateGroups.length > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); handleClearResults(); }}
+                className="clear-button"
+                style={{ marginLeft: 'auto', padding: '0.4rem 0.75rem', fontSize: '0.85rem', background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5', borderRadius: '6px', fontWeight: '600' }}
+              >
+                🔄 Clear Results
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: isDetectionExpanded ? 'block' : 'none' }}>
+            <div style={{ marginBottom: '1rem' }}>
+              <label className="input-label">Working with:</label>
             <div style={{ 
               padding: '0.75rem', 
               background: '#e0e7ff', 
@@ -2060,6 +2106,7 @@ const Tab3Duplicates = () => {
               )}
             </div>
           )}
+          </div> {/* End expanded wrapper */}
         </div>
       ) : (
         <div className="empty-state">
@@ -2140,7 +2187,7 @@ const Tab3Duplicates = () => {
               fontSize: '0.875rem',
               fontWeight: '600',
               marginRight: '0.75rem'
-            }}>Step 2</span>
+            }}>Step 3</span>
             <h4 className="step-card-title" style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b' }}>🖥️ Assemble Audio</h4>
           </div>
           <p className="step-card-description" style={{ color: '#475569', marginBottom: '1.5rem' }}>
