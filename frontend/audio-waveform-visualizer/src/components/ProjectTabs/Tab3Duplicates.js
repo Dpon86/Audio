@@ -77,6 +77,12 @@ const Tab3Duplicates = () => {
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [isProcessingDeletions, setIsProcessingDeletions] = useState(false);
+  const [showDebugInfo, setShowDebugInfo] = useState({});
+
+  const toggleDebugInfo = (segmentId, e) => {
+    if (e) e.stopPropagation();
+    setShowDebugInfo(prev => ({ ...prev, [segmentId]: !prev[segmentId] }));
+  };
 
   // Audio assembly state
   const [isAssemblingAudio, setIsAssemblingAudio] = useState(false);
@@ -2117,40 +2123,106 @@ const Tab3Duplicates = () => {
 
       {/* Action Buttons - Assemble Step */}
       {duplicateGroups.length > 0 && (
-        <div className="assemble-step-card">
-          <div className="step-card-header">
-            <span className="step-badge step-badge-2">Step 2</span>
-            <h4 className="step-card-title">🖥️ Assemble Audio</h4>
+        <div className="assemble-step-card" style={{
+          background: '#ffffff',
+          borderRadius: '12px',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          border: '1px solid #e2e8f0',
+          padding: '1.5rem',
+          marginBottom: '2rem'
+        }}>
+          <div className="step-card-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+            <span className="step-badge step-badge-2" style={{
+              background: '#2563eb',
+              color: 'white',
+              padding: '0.25rem 0.75rem',
+              borderRadius: '9999px',
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              marginRight: '0.75rem'
+            }}>Step 2</span>
+            <h4 className="step-card-title" style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b' }}>🖥️ Assemble Audio</h4>
           </div>
-          <p className="step-card-description">
+          <p className="step-card-description" style={{ color: '#475569', marginBottom: '1.5rem' }}>
             Select the duplicate segments to remove, then assemble the clean audio file.
           </p>
           {selectedAudioFile && (
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <button
-                onClick={handleSelectAllDuplicates}
-                disabled={processing || isAssemblingAudio}
-                className="secondary-button"
-                style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
-              >
-                ✓ Select All
-              </button>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', borderRight: '1px solid #cbd5e1', paddingRight: '1rem' }}>
+                <button
+                  onClick={handleSelectAllDuplicates}
+                  disabled={processing || isAssemblingAudio}
+                  className="secondary-button"
+                  style={{
+                    padding: '0.6rem 1.25rem',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    color: '#0f172a',
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    cursor: (processing || isAssemblingAudio) ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => !e.currentTarget.disabled && (e.currentTarget.style.background = '#f1f5f9')}
+                  onMouseOut={(e) => !e.currentTarget.disabled && (e.currentTarget.style.background = '#ffffff')}
+                >
+                  <span style={{ color: '#10b981' }}>✓</span> Select All
+                </button>
 
-              <button
-                onClick={handleDeselectAll}
-                disabled={processing || isAssemblingAudio || selectedDeletions.length === 0}
-                className="secondary-button"
-                style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
-              >
-                ✗ Deselect All
-              </button>
+                <button
+                  onClick={handleDeselectAll}
+                  disabled={processing || isAssemblingAudio || selectedDeletions.length === 0}
+                  className="secondary-button"
+                  style={{
+                    padding: '0.6rem 1.25rem',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    color: '#0f172a',
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    cursor: (processing || isAssemblingAudio || selectedDeletions.length === 0) ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    opacity: (processing || isAssemblingAudio || selectedDeletions.length === 0) ? 0.6 : 1,
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => !e.currentTarget.disabled && (e.currentTarget.style.background = '#f1f5f9')}
+                  onMouseOut={(e) => !e.currentTarget.disabled && (e.currentTarget.style.background = '#ffffff')}
+                >
+                  <span style={{ color: '#ef4444' }}>✗</span> Deselect All
+                </button>
+              </div>
 
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 <button
                   onClick={handleAssembleAudio}
                   disabled={selectedDeletions.length === 0 || isAssemblingAudio || processing}
                   className="confirm-button assemble-button"
-                  style={{ background: isAssemblingAudio ? '#f59e0b' : '#16a34a' }}
+                  style={{ 
+                    padding: '0.75rem 1.5rem',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    color: 'white',
+                    background: isAssemblingAudio ? '#f59e0b' : (selectedDeletions.length === 0 ? '#94a3b8' : '#22c55e'),
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: (selectedDeletions.length === 0 || isAssemblingAudio || processing) ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 6px -1px rgba(34, 197, 94, 0.4), 0 2px 4px -1px rgba(34, 197, 94, 0.06)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => !e.currentTarget.disabled && isAssemblingAudio === false && (e.currentTarget.style.background = '#16a34a')}
+                  onMouseOut={(e) => !e.currentTarget.disabled && isAssemblingAudio === false && (e.currentTarget.style.background = '#22c55e')}
                 >
                   {isAssemblingAudio ? (
                     <>
@@ -2249,27 +2321,28 @@ const Tab3Duplicates = () => {
                           <div
                             key={segment.id}
                             className={`occurrence-card ${shouldKeep ? 'last-occurrence' : ''}`}
+                            style={{ padding: '0.5rem 0.75rem', marginBottom: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
                           >
-                            <div className="occurrence-header">
-                              <label className="checkbox-container">
+                            <div className="occurrence-header" style={{ marginBottom: '0.25rem' }}>
+                              <label className="checkbox-container" style={{ fontSize: '0.85rem' }}>
                                 <input
                                   type="checkbox"
                                   checked={selectedDeletions.includes(segment.id)}
                                   onChange={() => toggleDeletion(segment.id)}
                                   disabled={shouldKeep}
                                 />
-                                <span className="occurrence-title">
+                                <span className="occurrence-title" style={{ fontSize: '0.85rem' }}>
                                   Occurrence #{segment.occurrence_number || segment.segment_index || (index + 1)}
                                   {shouldKeep && ' (LAST - Keep)'}
                                 </span>
                               </label>
-                              <span className={`action-badge ${shouldKeep ? 'keep' : 'delete'}`}>
+                              <span className={`action-badge ${shouldKeep ? 'keep' : 'delete'}`} style={{ padding: '0.15rem 0.4rem', fontSize: '0.7rem' }}>
                                 {shouldKeep ? 'KEEP' : 'DELETE'}
                               </span>
                             </div>
 
-                            <div className="occurrence-details">
-                              <p>
+                            <div className="occurrence-details" style={{ marginTop: '0', fontSize: '0.85rem' }}>
+                              <p style={{ margin: '0 0 0.25rem 0' }}>
                                 <strong>Time:</strong> 
                                 <span 
                                   className="timestamp-link"
@@ -2278,17 +2351,39 @@ const Tab3Duplicates = () => {
                                     seekToTime(segment.start_time);
                                   }}
                                   title="Click to jump to this timestamp in audio"
+                                  style={{ margin: '0 0.25rem' }}
                                 >
                                   🎯 {segment.start_time?.toFixed(1)}s - {segment.end_time?.toFixed(1)}s
                                 </span>
-                                ({(segment.end_time - segment.start_time)?.toFixed(1)}s)
+                                <span style={{ color: '#64748b' }}>({(segment.end_time - segment.start_time)?.toFixed(1)}s)</span>
                               </p>
-                              <p className="occurrence-text">
+                              <p className="occurrence-text" style={{ margin: '0', lineHeight: '1.3' }}>
                                 <strong>Text:</strong> "{renderHighlightedDuplicateText(segment.text, segments)}"
                               </p>
-                              <p style={{fontSize: '0.8rem', color: '#666', marginTop: '0.5rem'}}>
-                                <strong>DEBUG:</strong> is_duplicate={String(segment.is_duplicate)}, is_kept={String(segment.is_kept)}, is_last_occurrence={String(segment.is_last_occurrence)}
-                              </p>
+                              
+                              <div style={{ marginTop: '0.35rem' }}>
+                                <button 
+                                  onClick={(e) => toggleDebugInfo(segment.id, e)}
+                                  style={{
+                                    background: 'none', 
+                                    border: 'none', 
+                                    color: '#94a3b8', 
+                                    fontSize: '0.75rem', 
+                                    cursor: 'pointer', 
+                                    padding: '0',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem'
+                                  }}
+                                >
+                                  {showDebugInfo[segment.id] ? '▼ Hide Debug' : '▶ Show Debug'}
+                                </button>
+                                {showDebugInfo[segment.id] && (
+                                  <p style={{fontSize: '0.75rem', color: '#666', marginTop: '0.25rem', background: '#f1f5f9', padding: '0.25rem', borderRadius: '4px'}}>
+                                    <strong>DEBUG:</strong> is_duplicate={String(segment.is_duplicate)}, is_kept={String(segment.is_kept)}, is_last_occurrence={String(segment.is_last_occurrence)}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );

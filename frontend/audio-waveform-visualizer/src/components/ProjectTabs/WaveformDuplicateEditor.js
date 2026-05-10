@@ -869,18 +869,33 @@ const WaveformDuplicateEditor = ({
       </div>
 
       {/* Step: Align to Silence */}
-      <div className="align-silence-step-card">
-        <div className="step-card-header">
-          <span className="step-badge">Step 1</span>
-          <h4 className="step-card-title">🎯 Align Regions to Silence</h4>
+      <div className="align-silence-step-card" style={{
+        background: '#ffffff',
+        borderRadius: '12px',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        border: '1px solid #e2e8f0',
+        padding: '1.5rem',
+        marginTop: '1.5rem'
+      }}>
+        <div className="step-card-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+          <h4 className="step-card-title" style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b' }}>🎯 Align Regions to Silence (Optional)</h4>
         </div>
-        <p className="step-card-description">
+        <p className="step-card-description" style={{ color: '#475569', marginBottom: '1.5rem' }}>
           Snap the boundaries of all DELETE regions to the nearest silence point. 
           This ensures cleaner cuts with no abrupt audio interruptions before assembling.
         </p>
-        <div className="align-silence-controls">
-          <div className="silence-slider-group">
-            <label title="Silence detection threshold">Threshold: {silenceThreshold}dB</label>
+        <div className="align-silence-controls" style={{ 
+          display: 'flex', 
+          flexWrap: 'wrap', 
+          gap: '1.5rem',
+          background: '#f8fafc', 
+          padding: '1.25rem', 
+          borderRadius: '8px', 
+          border: '1px solid #f1f5f9',
+          alignItems: 'flex-end'
+        }}>
+          <div className="silence-slider-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '120px' }}>
+            <label title="Silence detection threshold" style={{ fontSize: '0.85rem', fontWeight: '600', color: '#334155' }}>Threshold: {silenceThreshold}dB</label>
             <input
               type="range"
               min="-60"
@@ -891,8 +906,8 @@ const WaveformDuplicateEditor = ({
               title="Adjust silence detection sensitivity"
             />
           </div>
-          <div className="silence-slider-group">
-            <label title="Search range around boundaries">Search: {silenceSearchRange.toFixed(2)}s</label>
+          <div className="silence-slider-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '120px' }}>
+            <label title="Search range around boundaries" style={{ fontSize: '0.85rem', fontWeight: '600', color: '#334155' }}>Search: {silenceSearchRange.toFixed(2)}s</label>
             <input
               type="range"
               min="0.2"
@@ -904,8 +919,8 @@ const WaveformDuplicateEditor = ({
               title="Adjust silence search range"
             />
           </div>
-          <div className="silence-slider-group">
-            <label title="Minimum silence duration">Min silence: {(silenceMinDuration * 1000).toFixed(0)}ms</label>
+          <div className="silence-slider-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '120px' }}>
+            <label title="Minimum silence duration" style={{ fontSize: '0.85rem', fontWeight: '600', color: '#334155' }}>Min silence: {(silenceMinDuration * 1000).toFixed(0)}ms</label>
             <input
               type="range"
               min="0.04"
@@ -917,13 +932,32 @@ const WaveformDuplicateEditor = ({
               title="Adjust minimum silence duration"
             />
           </div>
-          <button
-            onClick={handleAlignToSilence}
-            className="align-silence-step-btn"
-            disabled={!wavesurfer || isLoading || isAligningToSilence}
-          >
-            {isAligningToSilence ? '⏳ Aligning...' : '🎯 Align to Silence'}
-          </button>
+          <div style={{ marginLeft: 'auto' }}>
+            <button
+              onClick={handleAlignToSilence}
+              className="align-silence-step-btn"
+              disabled={!wavesurfer || isLoading || isAligningToSilence}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: '#8b5cf6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '600',
+                cursor: (!wavesurfer || isLoading || isAligningToSilence) ? 'not-allowed' : 'pointer',
+                opacity: (!wavesurfer || isLoading || isAligningToSilence) ? 0.7 : 1,
+                boxShadow: '0 4px 6px -1px rgba(139, 92, 246, 0.4)',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+              onMouseOver={(e) => !e.currentTarget.disabled && (e.currentTarget.style.background = '#7c3aed')}
+              onMouseOut={(e) => !e.currentTarget.disabled && (e.currentTarget.style.background = '#8b5cf6')}
+            >
+              {isAligningToSilence ? '⏳ Aligning...' : '🎯 Align to Silence'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
