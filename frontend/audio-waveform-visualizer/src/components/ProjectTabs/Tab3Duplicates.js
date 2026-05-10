@@ -79,6 +79,7 @@ const Tab3Duplicates = () => {
   const [isProcessingDeletions, setIsProcessingDeletions] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState({});
   const [isDetectionExpanded, setIsDetectionExpanded] = useState(true);
+  const [isReviewExpanded, setIsReviewExpanded] = useState(false);
 
   // Auto-collapse detection when results are found
   useEffect(() => {
@@ -2168,7 +2169,207 @@ const Tab3Duplicates = () => {
         />
       )}
 
-      {/* Action Buttons - Assemble Step */}
+      {/* Step 3: Review Duplicates */}
+      {duplicateGroups.length > 0 && (
+        <div className="review-step-card" style={{
+          background: '#ffffff',
+          borderRadius: '12px',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          border: '1px solid #e2e8f0',
+          padding: '1.5rem',
+          marginBottom: '2rem'
+        }}>
+          <div className="step-card-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem', cursor: 'pointer' }} onClick={() => setIsReviewExpanded(!isReviewExpanded)}>
+            <span className="step-badge step-badge-3" style={{
+              background: '#0ea5e9',
+              color: 'white',
+              padding: '0.25rem 0.75rem',
+              borderRadius: '9999px',
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              marginRight: '0.75rem'
+            }}>Step 3</span>
+            <h4 className="step-card-title" style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b' }}>
+              📋 Review Detected Duplicates
+            </h4>
+            
+            <p className="selection-summary" style={{ margin: '0 0 0 auto', color: '#475569', fontSize: '0.9rem', fontWeight: '500' }}>
+              Selected: <span style={{ color: '#ef4444', fontWeight: 'bold' }}>{selectedDeletions.length}</span>
+            </p>
+          </div>
+          
+          <p className="step-card-description" style={{ color: '#475569', marginBottom: '1.5rem' }}>
+            Verify the automatically detected duplicates and make manual adjustments if needed.
+          </p>
+
+          {!isReviewExpanded ? (
+            <button
+              onClick={() => setIsReviewExpanded(true)}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                background: '#f8fafc',
+                border: '1px dashed #cbd5e1',
+                borderRadius: '8px',
+                color: '#3b82f6',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.background = '#f1f5f9'}
+              onMouseOut={(e) => e.currentTarget.style.background = '#f8fafc'}
+            >
+              <span>👁️ Review each duplicate (Expand List)</span>
+            </button>
+          ) : (
+            <div className="duplicate-results" style={{ marginTop: '1rem' }}>
+              <div className="duplicate-groups-list">
+
+                {duplicateGroups.map((group, groupIndex) => {
+              const isExpanded = expandedGroups.has(group.group_id);
+              const segments = group.segments || group.occurrences || [];
+              const isSelected = selectedGroupId === group.group_id;
+              
+              return (
+                <div 
+                  key={group.group_id} 
+                  className={`duplicate-group-card ${isSelected ? 'selected' : ''}`}
+                  data-group-id={group.group_id}
+                >
+                  <div 
+                    className="group-header" 
+                    onClick={() => {
+                      toggleGroup(group.group_id);
+                      handleGroupSelect(group.group_id);
+                      if (segments.length > 0 && segments[0].start_time != null) {
+                        seekToTime(segments[0].start_time);
+                      }
+                    }}
+                  >
+                    <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
+                    <span className="group-title">Group {groupIndex + 1}</span>
+                    <span className="group-text-inline">"{group.duplicate_text?.substring(0, 60) || (segments[0]?.text?.substring(0, 60)) || 'No text'}{(group.duplicate_text?.length > 60 || segments[0]?.text?.length > 60) ? '...' : ''}"</span>
+                    <span className="group-meta-inline">
+                      📊 {group.occurrence_count || segments.length} · ⏱️ {(group.total_duration_seconds || segments.reduce((sum, s) => sum + (s.end_time - s.start_time), 0)).toFixed(1)}s
+                    </span>
+                  </div>
+
+                  {isExpanded && segments.length > 0 && (
+                    <div className="group-occurrences">
+                      {segments.map((segment, index) => {
+                        // Backend flags:
+                        // - is_duplicate = true → DELETE (all except last)
+                        // - is_duplicate = false → KEEP (last occurrence)
+                        // - is_kept = true → explicitly marked to keep
+                        const shouldDelete = segment.is_duplicate === true;
+                        const shouldKeep = segment.is_kept === true || !shouldDelete;
+                        
+                        return (
+                          <div
+                            key={segment.id}
+                            className={`occurrence-card ${shouldKeep ? 'last-occurrence' : ''}`}
+                            style={{ padding: '0.5rem 0.75rem', marginBottom: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+                          >
+                            <div className="occurrence-header" style={{ marginBottom: '0.25rem' }}>
+                              <label className="checkbox-container" style={{ fontSize: '0.85rem' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedDeletions.includes(segment.id)}
+                                  onChange={() => toggleDeletion(segment.id)}
+                                  disabled={shouldKeep}
+                                />
+                                <span className="occurrence-title" style={{ fontSize: '0.85rem' }}>
+                                  Occurrence #{segment.occurrence_number || segment.segment_index || (index + 1)}
+                                  {shouldKeep && ' (LAST - Keep)'}
+                                </span>
+                              </label>
+                              <span className={`action-badge ${shouldKeep ? 'keep' : 'delete'}`} style={{ padding: '0.15rem 0.4rem', fontSize: '0.7rem' }}>
+                                {shouldKeep ? 'KEEP' : 'DELETE'}
+                              </span>
+                            </div>
+
+                            <div className="occurrence-details" style={{ marginTop: '0', fontSize: '0.85rem' }}>
+                              <p style={{ margin: '0 0 0.25rem 0' }}>
+                                <strong>Time:</strong> 
+                                <span 
+                                  className="timestamp-link"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    seekToTime(segment.start_time);
+                                  }}
+                                  title="Click to jump to this timestamp in audio"
+                                  style={{ margin: '0 0.25rem' }}
+                                >
+                                  🎯 {segment.start_time?.toFixed(1)}s - {segment.end_time?.toFixed(1)}s
+                                </span>
+                                <span style={{ color: '#64748b' }}>({(segment.end_time - segment.start_time)?.toFixed(1)}s)</span>
+                              </p>
+                              <p className="occurrence-text" style={{ margin: '0', lineHeight: '1.3' }}>
+                                <strong>Text:</strong> "{renderHighlightedDuplicateText(segment.text, segments)}"
+                              </p>
+                              
+                              <div style={{ marginTop: '0.35rem' }}>
+                                <button 
+                                  onClick={(e) => toggleDebugInfo(segment.id, e)}
+                                  style={{
+                                    background: 'none', 
+                                    border: 'none', 
+                                    color: '#94a3b8', 
+                                    fontSize: '0.75rem', 
+                                    cursor: 'pointer', 
+                                    padding: '0',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem'
+                                  }}
+                                >
+                                  {showDebugInfo[segment.id] ? '▼ Hide Debug' : '▶ Show Debug'}
+                                </button>
+                                {showDebugInfo[segment.id] && (
+                                  <p style={{fontSize: '0.75rem', color: '#666', marginTop: '0.25rem', background: '#f1f5f9', padding: '0.25rem', borderRadius: '4px'}}>
+                                    <strong>DEBUG:</strong> is_duplicate={String(segment.is_duplicate)}, is_kept={String(segment.is_kept)}, is_last_occurrence={String(segment.is_last_occurrence)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+              </div>
+
+              <button
+                onClick={() => setIsReviewExpanded(false)}
+                style={{
+                  marginTop: '1rem',
+                  padding: '0.5rem',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#64748b',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  margin: '1rem auto 0 auto'
+                }}
+              >
+                ▲ Collapse Review List
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Action Buttons - Step 4: Assemble Step */}
       {duplicateGroups.length > 0 && (
         <div className="assemble-step-card" style={{
           background: '#ffffff',
@@ -2179,7 +2380,7 @@ const Tab3Duplicates = () => {
           marginBottom: '2rem'
         }}>
           <div className="step-card-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-            <span className="step-badge step-badge-2" style={{
+            <span className="step-badge step-badge-4" style={{
               background: '#2563eb',
               color: 'white',
               padding: '0.25rem 0.75rem',
@@ -2187,7 +2388,7 @@ const Tab3Duplicates = () => {
               fontSize: '0.875rem',
               fontWeight: '600',
               marginRight: '0.75rem'
-            }}>Step 3</span>
+            }}>Step 4</span>
             <h4 className="step-card-title" style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b' }}>🖥️ Assemble Audio</h4>
           </div>
           <p className="step-card-description" style={{ color: '#475569', marginBottom: '1.5rem' }}>
@@ -2311,136 +2512,6 @@ const Tab3Duplicates = () => {
               />
             </div>
           )}
-        </div>
-      )}
-
-      {/* Results */}
-      {duplicateGroups.length > 0 && (
-        <div className="duplicate-results">
-          <div className="results-header">
-            <h3>Review Detected Duplicates</h3>
-            <p className="selection-summary">
-              <strong>Selected for deletion:</strong> {selectedDeletions.length} segments
-            </p>
-          </div>
-
-          <div className="duplicate-groups-list">
-            {duplicateGroups.map((group, groupIndex) => {
-              const isExpanded = expandedGroups.has(group.group_id);
-              const segments = group.segments || group.occurrences || [];
-              const isSelected = selectedGroupId === group.group_id;
-              
-              return (
-                <div 
-                  key={group.group_id} 
-                  className={`duplicate-group-card ${isSelected ? 'selected' : ''}`}
-                  data-group-id={group.group_id}
-                >
-                  <div 
-                    className="group-header" 
-                    onClick={() => {
-                      toggleGroup(group.group_id);
-                      handleGroupSelect(group.group_id);
-                      if (segments.length > 0 && segments[0].start_time != null) {
-                        seekToTime(segments[0].start_time);
-                      }
-                    }}
-                  >
-                    <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
-                    <span className="group-title">Group {groupIndex + 1}</span>
-                    <span className="group-text-inline">"{group.duplicate_text?.substring(0, 60) || (segments[0]?.text?.substring(0, 60)) || 'No text'}{(group.duplicate_text?.length > 60 || segments[0]?.text?.length > 60) ? '...' : ''}"</span>
-                    <span className="group-meta-inline">
-                      📊 {group.occurrence_count || segments.length} · ⏱️ {(group.total_duration_seconds || segments.reduce((sum, s) => sum + (s.end_time - s.start_time), 0)).toFixed(1)}s
-                    </span>
-                  </div>
-
-                  {isExpanded && segments.length > 0 && (
-                    <div className="group-occurrences">
-                      {segments.map((segment, index) => {
-                        // Backend flags:
-                        // - is_duplicate = true → DELETE (all except last)
-                        // - is_duplicate = false → KEEP (last occurrence)
-                        // - is_kept = true → explicitly marked to keep
-                        const shouldDelete = segment.is_duplicate === true;
-                        const shouldKeep = segment.is_kept === true || !shouldDelete;
-                        
-                        return (
-                          <div
-                            key={segment.id}
-                            className={`occurrence-card ${shouldKeep ? 'last-occurrence' : ''}`}
-                            style={{ padding: '0.5rem 0.75rem', marginBottom: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
-                          >
-                            <div className="occurrence-header" style={{ marginBottom: '0.25rem' }}>
-                              <label className="checkbox-container" style={{ fontSize: '0.85rem' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={selectedDeletions.includes(segment.id)}
-                                  onChange={() => toggleDeletion(segment.id)}
-                                  disabled={shouldKeep}
-                                />
-                                <span className="occurrence-title" style={{ fontSize: '0.85rem' }}>
-                                  Occurrence #{segment.occurrence_number || segment.segment_index || (index + 1)}
-                                  {shouldKeep && ' (LAST - Keep)'}
-                                </span>
-                              </label>
-                              <span className={`action-badge ${shouldKeep ? 'keep' : 'delete'}`} style={{ padding: '0.15rem 0.4rem', fontSize: '0.7rem' }}>
-                                {shouldKeep ? 'KEEP' : 'DELETE'}
-                              </span>
-                            </div>
-
-                            <div className="occurrence-details" style={{ marginTop: '0', fontSize: '0.85rem' }}>
-                              <p style={{ margin: '0 0 0.25rem 0' }}>
-                                <strong>Time:</strong> 
-                                <span 
-                                  className="timestamp-link"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    seekToTime(segment.start_time);
-                                  }}
-                                  title="Click to jump to this timestamp in audio"
-                                  style={{ margin: '0 0.25rem' }}
-                                >
-                                  🎯 {segment.start_time?.toFixed(1)}s - {segment.end_time?.toFixed(1)}s
-                                </span>
-                                <span style={{ color: '#64748b' }}>({(segment.end_time - segment.start_time)?.toFixed(1)}s)</span>
-                              </p>
-                              <p className="occurrence-text" style={{ margin: '0', lineHeight: '1.3' }}>
-                                <strong>Text:</strong> "{renderHighlightedDuplicateText(segment.text, segments)}"
-                              </p>
-                              
-                              <div style={{ marginTop: '0.35rem' }}>
-                                <button 
-                                  onClick={(e) => toggleDebugInfo(segment.id, e)}
-                                  style={{
-                                    background: 'none', 
-                                    border: 'none', 
-                                    color: '#94a3b8', 
-                                    fontSize: '0.75rem', 
-                                    cursor: 'pointer', 
-                                    padding: '0',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.25rem'
-                                  }}
-                                >
-                                  {showDebugInfo[segment.id] ? '▼ Hide Debug' : '▶ Show Debug'}
-                                </button>
-                                {showDebugInfo[segment.id] && (
-                                  <p style={{fontSize: '0.75rem', color: '#666', marginTop: '0.25rem', background: '#f1f5f9', padding: '0.25rem', borderRadius: '4px'}}>
-                                    <strong>DEBUG:</strong> is_duplicate={String(segment.is_duplicate)}, is_kept={String(segment.is_kept)}, is_last_occurrence={String(segment.is_last_occurrence)}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
         </div>
       )}
 
