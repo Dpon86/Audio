@@ -65,7 +65,7 @@ The containers use Dockerfiles, NOT volume mounts. When you `git pull`, it only 
 ```bash
 # Rebuild backend and celery with new code
 cd /opt/audioapp
-docker-compose -f docker-compose.production.yml up -d --build backend celery_worker
+docker compose -f docker-compose.production.yml up -d --build backend celery_worker
 ```
 
 **What happens:**
@@ -83,7 +83,7 @@ docker-compose -f docker-compose.production.yml up -d --build backend celery_wor
 ```bash
 # Rebuild and recreate backend + celery
 cd /opt/audioapp
-docker-compose -f docker-compose.production.yml up -d --build backend celery_worker
+docker compose -f docker-compose.production.yml up -d --build backend celery_worker
 ```
 
 ##### Option B: Restart Only What Changed
@@ -162,6 +162,9 @@ echo "Last git pull:" && cd /opt/audioapp && git log -1 --format="%ai"
 
 Frontend is built on your **Windows machine** and uploaded to the server.
 
+**⚠️ NEW WORKFLOW: Save Memory by Using External PowerShell**
+To save memory on your local machine and prevent VS Code terminal freezing, it is highly recommended to run these commands in a standalone Windows PowerShell window (search `powershell` in your Windows Start menu), rather than the integrated VS Code terminal.
+
 ### Prerequisites
 - Node.js installed on Windows machine
 - Frontend changes ready to build
@@ -169,7 +172,7 @@ Frontend is built on your **Windows machine** and uploaded to the server.
 
 ### Step-by-Step Process
 
-#### 1. Build on Windows Machine
+#### 1. Build on Windows Machine (Run in Windows PowerShell)
 ```powershell
 # Navigate to frontend directory
 cd C:\Users\NickD\Documents\Github\Audio\frontend\audio-waveform-visualizer
@@ -185,20 +188,29 @@ File sizes after gzip:
   27.57 kB   build\static\css\main.HASH.css
 ```
 
-#### 2. Upload Build to Server
+#### 2. Upload Build to Server (Run in Windows PowerShell)
 ```powershell
 # Upload all build files
 scp -r build\* nickd@82.165.221.205:/opt/audioapp/frontend/build/
 ```
 
-#### 3. Deploy on Server
+#### 3. Deploy on Server (Run in Windows PowerShell)
 
-**From Windows (recommended):**
+Instead of logging into the server directly to run commands, you can execute the deployment command over SSH in a single line from your Windows PowerShell:
+
 ```powershell
-ssh nickd@82.165.221.205 "FRONTEND_CONTAINER=$(docker ps --format '{{.Names}}' | grep -E 'audioapp_frontend|_audioapp_frontend' | head -1) && rsync -av --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r /opt/audioapp/frontend/build/ /opt/audioapp/frontend/audio-waveform-visualizer/build/ && if [ -n \"$FRONTEND_CONTAINER\" ]; then docker cp /opt/audioapp/frontend/build/. $FRONTEND_CONTAINER:/usr/share/nginx/html/ && docker restart $FRONTEND_CONTAINER; fi && sudo chmod -R u=rwX,go=rX /opt/audioapp/frontend/audio-waveform-visualizer/build/ && sudo chown -R nickd:www-data /opt/audioapp/frontend/audio-waveform-visualizer/build/ && sudo systemctl reload nginx"
+# Deploy frontend files and restart server processes in one command
+ssh -t nickd@82.165.221.205 "cd /opt/audioapp && sudo rsync -av --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r /opt/audioapp/frontend/build/ /opt/audioapp/frontend/audio-waveform-visualizer/build/ && FRONTEND_CONTAINER=\$(docker ps --format '{{.Names}}' | grep -E 'audioapp_frontend|_audioapp_frontend' | head -1) && if [ -n \"\$FRONTEND_CONTAINER\" ]; then sudo docker cp /opt/audioapp/frontend/build/. \$FRONTEND_CONTAINER:/usr/share/nginx/html/ && sudo docker restart \$FRONTEND_CONTAINER; fi && sudo chmod -R u=rwX,go=rX /opt/audioapp/frontend/audio-waveform-visualizer/build/ && sudo chown -R nickd:www-data /opt/audioapp/frontend/audio-waveform-visualizer/build/ && sudo systemctl reload nginx"
 ```
+*(You will be prompted for your SSH password, followed by your sudo password)*
 
-**From Server:**
+---
+
+***That's it! There are no other steps! The frontend is now successfully deployed!***
+
+---
+
+**Alternatively, From Inside The Server (`ssh nickd@82.165.221.205`):**
 ```bash
 # Deploy to main nginx
 rsync -av --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r /opt/audioapp/frontend/build/ /opt/audioapp/frontend/audio-waveform-visualizer/build/
@@ -611,7 +623,7 @@ docker exec audioapp_celery_worker grep -n \"project = None\" /app/audioDiagnost
 ```bash
 # Rebuild images with new code from host
 cd /opt/audioapp
-docker-compose -f docker-compose.production.yml up -d --build backend celery_worker
+docker compose -f docker-compose.production.yml up -d --build backend celery_worker
 
 # Wait for containers to start
 sleep 5
@@ -713,7 +725,7 @@ cd /opt/audioapp && git pull && docker restart audioapp_celery_worker
 # Pull code and rebuild images with new code
 cd /opt/audioapp && \
 git pull origin master && \
-docker-compose -f docker-compose.production.yml up -d --build backend celery_worker && \
+docker compose -f docker-compose.production.yml up -d --build backend celery_worker && \
 echo "✅ Deployment complete. Verifying..." && \
 sleep 5 && \
 docker ps --filter name=audioapp_celery_worker --format "Celery: {{.Status}}" && \
@@ -727,7 +739,7 @@ docker logs --tail 20 audioapp_celery_worker | grep "ready" | tail -1
 # Deploy: Pull + Rebuild + Recreate
 cd /opt/audioapp && \
 git pull origin master && \
-docker-compose -f docker-compose.production.yml up -d --build backend celery_worker
+docker compose -f docker-compose.production.yml up -d --build backend celery_worker
 
 # Verify services rebuilt (wait for Celery to start)
 sleep 5 && echo "=== Verification ===" && \
@@ -798,7 +810,7 @@ sudo tail -100 /var/log/nginx/access.log
 **Commands:**
 - \u274c **WRONG:** `docker restart audioapp_celery_worker` (uses old image)
 - \u274c **WRONG:** `touch backend/myproject/wsgi.py` (only works for volume-mounted code)
-- \u2705 **CORRECT:** `docker-compose up -d --build backend celery_worker` (rebuilds image)
+- ✅ **CORRECT:** `docker compose up -d --build backend celery_worker` (rebuilds image)
 
 **Real Example of This Problem:**
 ```bash

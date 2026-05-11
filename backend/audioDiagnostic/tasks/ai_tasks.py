@@ -687,10 +687,13 @@ def estimate_ai_cost_task(audio_duration_seconds, task_type='duplicate_detection
     Returns:
         Dict with cost estimate
     """
+    from django.conf import settings
+    ai_model = getattr(settings, 'AI_MODEL', 'claude-3-5-sonnet-20241022')
+    
     calculator = CostCalculator()
     estimate = calculator.estimate_cost_for_audio(
         provider='anthropic',
-        model='claude-3-5-sonnet-20241022',
+        model=ai_model,
         audio_duration_seconds=audio_duration_seconds,
         task_type=task_type
     )

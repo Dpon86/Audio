@@ -92,10 +92,13 @@ def ai_detect_duplicates_view(request):
         
         # Estimate cost before starting
         duration = audio_file.duration_seconds or 0
+        from django.conf import settings
+        ai_model = getattr(settings, 'AI_MODEL', 'claude-3-5-sonnet-20241022')
+        
         calculator = CostCalculator()
         cost_estimate = calculator.estimate_cost_for_audio(
             provider='anthropic',
-            model='claude-3-5-sonnet-20241022',
+            model=ai_model,
             audio_duration_seconds=duration,
             task='duplicate_detection'
         )

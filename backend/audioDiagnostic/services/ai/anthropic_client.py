@@ -79,6 +79,13 @@ class AnthropicClient:
                 if system_prompt:
                     kwargs["system"] = system_prompt
                 
+                logger.error(f"--- DETAILED AI LOGGING ---")
+                logger.error(f"Endpoint: https://api.anthropic.com/v1/messages")
+                logger.error(f"Model String being used: '{self.model}'")
+                logger.error(f"API Key prefix: '{self.client.api_key[:8] if self.client.api_key else 'NONE'}'")
+                logger.error(f"kwargs sent to Anthropic: {kwargs}")
+                logger.error(f"---------------------------")
+                
                 logger.debug(f"Calling Anthropic API (attempt {attempt + 1}/{self.max_retries})")
                 logger.info(f"[AnthropicClient] Sending request: model='{self.model}', max_tokens={max_tokens}")
                 
