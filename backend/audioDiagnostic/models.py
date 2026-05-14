@@ -129,6 +129,7 @@ class AudioFile(models.Model):
     )
     preview_generated_at = models.DateTimeField(null=True, blank=True)
     preview_metadata = models.JSONField(null=True, blank=True)  # Stores deletion_regions, stats, etc.
+    deleted_items = models.JSONField(null=True, blank=True)  # Soft-deleted duplicate items
     
     # Tab 4 Review/Comparison fields (Post-Processing Analysis)
     comparison_status = models.CharField(
