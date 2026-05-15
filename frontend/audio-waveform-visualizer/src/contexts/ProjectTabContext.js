@@ -18,6 +18,31 @@ export const ProjectTabProvider = ({ children, projectId }) => {
   const [duplicatesData, setDuplicatesData] = useState(null);
   const [pdfComparisonData, setPdfComparisonData] = useState(null);
   const [duplicateDetectionMode, setDuplicateDetectionMode] = useState('algorithm');
+
+  // PDF Edit tab state — markers shared with TabEdit waveform
+  const [pdfEditMarkers, setPdfEditMarkers] = useState([]);  // Array of {id, type, label, audioTime, gapSeconds, useRoomTone, color}
+  const [pdfRoomTone, setPdfRoomTone] = useState(null);     // { blobUrl, filename, duration }
+  // Client-side undo stack (complements backend history)
+  const [pdfMarkersUndoStack, setPdfMarkersUndoStack] = useState([]); // Array of marker arrays
+  const MAX_CLIENT_UNDO = 30;
+
+  // Push current markers onto the local undo stack before making a change
+  const pushPdfMarkersUndo = useCallback((currentMarkers) => {
+    setPdfMarkersUndoStack(prev => {
+      const next = [...prev, currentMarkers];
+      return next.slice(-MAX_CLIENT_UNDO);
+    });
+  }, []);
+
+  // Pop the last snapshot off the undo stack and restore it
+  const undoPdfMarkers = useCallback(() => {
+    setPdfMarkersUndoStack(prev => {
+      if (prev.length === 0) return prev;
+      const restored = prev[prev.length - 1];
+      setPdfEditMarkers(restored);
+      return prev.slice(0, -1);
+    });
+  }, []);
   
   // Deletion workflow state
   const [pendingDeletions, setPendingDeletions] = useState(null); // Confirmed deletions waiting to be processed
@@ -145,6 +170,15 @@ export const ProjectTabProvider = ({ children, projectId }) => {
     setDuplicateDetectionMode,
     pdfComparisonData,
     setPdfComparisonData,
+
+    // PDF Edit
+    pdfEditMarkers,
+    setPdfEditMarkers,
+    pdfRoomTone,
+    setPdfRoomTone,
+    pdfMarkersUndoStack,
+    pushPdfMarkersUndo,
+    undoPdfMarkers,
     
     // Deletion workflow
     pendingDeletions,

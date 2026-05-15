@@ -65,7 +65,11 @@ class AudioProject(models.Model):
     pdf_validation_html = models.TextField(null=True, blank=True)  # Rendered HTML with color-coded highlights
     
     error_message = models.TextField(null=True, blank=True)
-    
+
+    # PDF Edit Tab — structural gap markers
+    pdf_edit_markers = models.JSONField(null=True, blank=True)   # Saved marker array [{id, type, label, audioTime, ...}]
+    pdf_edit_markers_history = models.JSONField(null=True, blank=True)  # Last N snapshots for revert/undo
+
     # Book information
     description = models.TextField(null=True, blank=True)
     total_chapters = models.IntegerField(null=True, blank=True)

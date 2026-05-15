@@ -49,6 +49,11 @@ export const resolveMediaUrl = (mediaPath) => {
  * @returns {string} Full API URL
  */
 export const getApiUrl = (endpoint) => {
+  // Check for undefined or empty endpoint
+  if (!endpoint || typeof endpoint !== 'string') {
+    return API_BASE_URL || '';
+  }
+
   // If endpoint already has a full URL, return as-is
   if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
     return endpoint;

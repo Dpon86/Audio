@@ -6,9 +6,11 @@ import { ProjectTabProvider, useProjectTab } from "../contexts/ProjectTabContext
 import ProjectTabs from "../components/ProjectTabs/ProjectTabs";
 import Tab1Files from "../components/ProjectTabs/Tab1Files";
 import Tab3Duplicates from "../components/ProjectTabs/Tab3Duplicates";
+import TabEdit from "../components/ProjectTabs/TabEdit";
 import Tab4Results from "../components/ProjectTabs/Tab4Results";
 import Tab4Review from "../components/Tab4Review";
 import Tab5ComparePDF from "../components/ProjectTabs/Tab5ComparePDF";
+import TabPDFEdit from "../components/ProjectTabs/TabPDFEdit";
 import ErrorBoundary from "../components/ErrorBoundary";
 import "./ProjectDetailPageNew.css";
 
@@ -72,9 +74,11 @@ const ProjectDetailContent = ({ projectData, loading }) => {
       <div className="tab-content">
         {activeTab === 'files' && <ErrorBoundary><Tab1Files /></ErrorBoundary>}
         {activeTab === 'duplicates' && <ErrorBoundary><Tab3Duplicates /></ErrorBoundary>}
+        {activeTab === 'edit' && <ErrorBoundary><TabEdit /></ErrorBoundary>}
         {activeTab === 'results' && <ErrorBoundary><Tab4Results /></ErrorBoundary>}
         {activeTab === 'review' && <ErrorBoundary><Tab4Review /></ErrorBoundary>}
         {activeTab === 'compare' && <ErrorBoundary><Tab5ComparePDF /></ErrorBoundary>}
+        {activeTab === 'pdfedit' && <ErrorBoundary><TabPDFEdit /></ErrorBoundary>}
       </div>
     </div>
   );

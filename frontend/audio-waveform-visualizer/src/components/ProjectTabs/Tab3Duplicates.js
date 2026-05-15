@@ -1021,7 +1021,7 @@ const Tab3Duplicates = () => {
   };
 
   const pollAIDetectionStatus = async (taskId) => {
-    for (let i = 0; i < 120; i += 1) {
+    for (let i = 0; i < 600; i += 1) { // 600 * 5s = 50 minutes max timeout
       const response = await fetch(
         `${API_BASE_URL}/api/ai-detection/status/${taskId}/`,
         {
@@ -1052,7 +1052,8 @@ const Tab3Duplicates = () => {
         throw new Error(statusData.error || 'AI duplicate detection failed');
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 2500));
+      // Wait 5 seconds between polls to reduce server load for long tasks
+      await new Promise((resolve) => setTimeout(resolve, 5000));
     }
 
     throw new Error('AI detection timed out. Please try again.');

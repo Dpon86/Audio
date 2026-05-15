@@ -79,6 +79,7 @@ from .views.ai_detection_views import (
     ai_detection_results_view,
     ai_user_cost_view,
 )
+from .views.pdf_edit_markers_view import PDFEditMarkersView, PDFEditMarkersUndoView
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import HttpResponse
@@ -168,6 +169,10 @@ urlpatterns = [
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/precise-compare/', StartPrecisePDFComparisonView.as_view(), name='tab5-precise-compare'),
     path('api/projects/<int:project_id>/pdf-text/', GetPDFTextView.as_view(), name='tab5-get-pdf-text'),
     path('api/projects/<int:project_id>/clean-pdf-text/', CleanPDFTextView.as_view(), name='tab5-clean-pdf-text'),
+
+    # PDF Edit Tab — marker persistence
+    path('api/projects/<int:project_id>/pdf-edit-markers/', PDFEditMarkersView.as_view(), name='pdf-edit-markers'),
+    path('api/projects/<int:project_id>/pdf-edit-markers/undo/', PDFEditMarkersUndoView.as_view(), name='pdf-edit-markers-undo'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/pdf-result/', PDFComparisonResultView.as_view(), name='tab5-pdf-result'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/pdf-status/', PDFComparisonStatusView.as_view(), name='tab5-pdf-status'),
     path('api/projects/<int:project_id>/files/<int:audio_file_id>/side-by-side/', SideBySideComparisonView.as_view(), name='tab5-side-by-side'),
