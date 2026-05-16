@@ -8,6 +8,24 @@
   z-index: 100;
 }
 
+/* Hide WaveSurfer's native scrollbar — WaveSurfer v7 uses Shadow DOM, so we
+   must use ::part(scroll) to reach inside the shadow root.
+   The text strip scrollbar is the only visible scroll control. */
+
+/* Shadow DOM path (WaveSurfer v7) */
+.wavesurfer-container > div::part(scroll)::-webkit-scrollbar { display: none; }
+.wavesurfer-container > div::part(scroll) {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* Fallback for non-shadow-DOM builds */
+.wavesurfer-container div::-webkit-scrollbar { display: none; }
+.wavesurfer-container div {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
 .project-tabs {
   display: flex;
   gap: 0;

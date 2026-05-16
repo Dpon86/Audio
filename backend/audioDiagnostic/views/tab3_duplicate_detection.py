@@ -141,14 +141,6 @@ class SingleFileDuplicatesReviewView(APIView):
         # Get all duplicate groups for this audio file
         duplicate_groups = DuplicateGroup.objects.filter(audio_file=audio_file)
         
-        if not duplicate_groups.exists():
-            return Response({
-                'success': True,
-                'message': 'No duplicates found',
-                'duplicate_groups': [],
-                'total_duplicates': 0
-            })
-        
         # Build detailed duplicate information
         groups_data = []
         for group in duplicate_groups:
@@ -188,6 +180,49 @@ class SingleFileDuplicatesReviewView(APIView):
                 'first_occurrence_time': first_occurrence_time  # For sorting
             })
         
+        # Also include manually-added deleted segments (those created via the
+        # "Add Deleted Section" button).  They have duplicate_group_id starting
+        # with 'manual_' but have no corresponding DuplicateGroup DB row, so
+        # the loop above never picks them up.
+        try:
+            transcription = audio_file.transcription  # OneToOneField
+            manual_segs = TranscriptionSegment.objects.filter(
+                transcription=transcription,
+                duplicate_group_id__startswith='manual_',
+                is_kept=False,
+            ).order_by('start_time')
+            for seg in manual_segs:
+                seg_data = {
+                    'id': seg.id,
+                    'text': seg.text,
+                    'start_time': seg.start_time,
+                    'end_time': seg.end_time,
+                    'duration': seg.end_time - seg.start_time,
+                    'is_last_occurrence': True,
+                    'is_duplicate': True,
+                    'is_kept': False,
+                    'segment_index': seg.segment_index,
+                }
+                groups_data.append({
+                    'group_id': seg.duplicate_group_id,
+                    'duplicate_text': seg.text,
+                    'occurrence_count': 1,
+                    'total_duration_seconds': seg.end_time - seg.start_time,
+                    'segments': [seg_data],
+                    'occurrences': [seg_data],
+                    'first_occurrence_time': seg.start_time,
+                })
+        except Exception:
+            pass  # No transcription or other error — skip manual segments
+        
+        if not groups_data:
+            return Response({
+                'success': True,
+                'message': 'No duplicates found',
+                'duplicate_groups': [],
+                'total_duplicates': 0
+            })
+        
         # Sort groups by first occurrence time (chronological order)
         groups_data.sort(key=lambda g: g['first_occurrence_time'])
         
@@ -198,8 +233,8 @@ class SingleFileDuplicatesReviewView(APIView):
         return Response({
             'success': True,
             'duplicate_groups': groups_data,
-            'total_groups': duplicate_groups.count(),
-            'total_duplicates': sum(g.occurrence_count for g in duplicate_groups)
+            'total_groups': len(groups_data),
+            'total_duplicates': sum(g['occurrence_count'] for g in groups_data)
         })
 
 
@@ -401,6 +436,87 @@ class SingleFileStatisticsView(APIView):
                 'has_processed_audio': bool(audio_file.processed_audio)
             }
         })
+
+
+class CreateSegmentView(APIView):
+    """
+    POST: Create a new manually-added deleted segment in the waveform editor.
+    Adds a region marked as is_kept=False (deleted) to the transcription.
+    """
+    authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, project_id, audio_file_id):
+        from django.db.models import Max
+        project = get_object_or_404(AudioProject, id=project_id, user=request.user)
+        audio_file = get_object_or_404(AudioFile, id=audio_file_id, project=project)
+
+        transcription = Transcription.objects.filter(audio_file=audio_file).first()
+        if not transcription:
+            return Response({
+                'success': False,
+                'error': 'No transcription found for this file.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        start_time = request.data.get('start_time')
+        end_time = request.data.get('end_time')
+        text = request.data.get('text', '[Manually deleted]')
+
+        if start_time is None or end_time is None:
+            return Response({
+                'success': False,
+                'error': 'start_time and end_time are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            start_time = float(start_time)
+            end_time = float(end_time)
+        except (ValueError, TypeError):
+            return Response({
+                'success': False,
+                'error': 'start_time and end_time must be numbers'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if end_time <= start_time:
+            return Response({
+                'success': False,
+                'error': 'end_time must be after start_time'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if end_time - start_time < 0.1:
+            return Response({
+                'success': False,
+                'error': 'Segment duration must be at least 0.1 seconds'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        max_index = TranscriptionSegment.objects.filter(
+            transcription=transcription
+        ).aggregate(m=Max('segment_index'))['m']
+        next_index = (max_index or 0) + 1
+
+        segment = TranscriptionSegment.objects.create(
+            transcription=transcription,
+            text=text,
+            start_time=start_time,
+            end_time=end_time,
+            is_duplicate=True,
+            is_kept=False,
+            segment_index=next_index,
+            duplicate_group_id=f'manual_{audio_file_id}_{next_index}',
+        )
+
+        return Response({
+            'success': True,
+            'segment': {
+                'id': segment.id,
+                'start_time': segment.start_time,
+                'end_time': segment.end_time,
+                'text': segment.text,
+                'segment_index': segment.segment_index,
+                'is_kept': segment.is_kept,
+                'duplicate_group_id': segment.duplicate_group_id,
+            }
+        }, status=status.HTTP_201_CREATED)
 
 
 class UpdateSegmentTimesView(APIView):

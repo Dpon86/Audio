@@ -70,7 +70,19 @@ const TabPDFEdit = () => {
   const [viewMode,      setViewMode]      = useState('split'); // 'pdf' | 'text' | 'split'
   const [filterType,    setFilterType]    = useState('all');
   const [activeSection, setActiveSection] = useState('markers'); // 'markers' | 'roomtone' | 'custom'
-  const roomToneInputRef = useRef(null);
+  const roomToneInputRef    = useRef(null);
+  const textViewRef         = useRef(null);
+  const selectionToolbarRef = useRef(null);
+
+  /* ─── Text tool state ───────────────────────────────────────────── */
+  const [activeTextTool,  setActiveTextTool]  = useState('none'); // 'find'|'highlight'|'edit'
+  const [findQuery,       setFindQuery]       = useState('');
+  const [findMatchIdx,    setFindMatchIdx]    = useState(0);
+  const [findMatches,     setFindMatches]     = useState([]);
+  const [textAnnotations, setTextAnnotations] = useState([]);   // [{id,start,end,type,text}]
+  const [isEditMode,      setIsEditMode]      = useState(false);
+  const [editedText,      setEditedText]      = useState('');
+  const [selectionInfo,   setSelectionInfo]   = useState(null); // {x,y,start,end}
 
   /* ─────────────────────────────────────────────────────────────────  */
   /* Derived — PDF file URL                                             */
@@ -448,6 +460,135 @@ const TabPDFEdit = () => {
     return `${m}:${ss}`;
   };
 
+  /* ─── Find-text effect ─────────────────────────────────────────── */
+  useEffect(() => {
+    if (!findQuery.trim() || !pdfText) { setFindMatches([]); setFindMatchIdx(0); return; }
+    const lq = findQuery.toLowerCase();
+    const lt = pdfText.toLowerCase();
+    const matches = [];
+    let idx = 0;
+    while ((idx = lt.indexOf(lq, idx)) !== -1) {
+      matches.push({ start: idx, end: idx + lq.length });
+      idx += lq.length;
+    }
+    setFindMatches(matches);
+    setFindMatchIdx(0);
+  }, [findQuery, pdfText]);
+
+  /* ─── Scroll current find match into view ───────────────────────── */
+  useEffect(() => {
+    if (!findMatches.length || !textViewRef.current) return;
+    const el = textViewRef.current.querySelector('[data-find-current="true"]');
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [findMatchIdx, findMatches]);
+
+  /* ─── Dismiss selection toolbar on outside click ────────────────── */
+  useEffect(() => {
+    if (!selectionInfo) return;
+    const handler = (e) => {
+      if (selectionToolbarRef.current && !selectionToolbarRef.current.contains(e.target))
+        setSelectionInfo(null);
+    };
+    const timer = setTimeout(() => document.addEventListener('mousedown', handler), 150);
+    return () => { clearTimeout(timer); document.removeEventListener('mousedown', handler); };
+  }, [selectionInfo]);
+
+  /* ─── Text tool helpers ─────────────────────────────────────────── */
+  const getCharOffset = (container, node, offset) => {
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
+    let total = 0;
+    while (walker.nextNode()) {
+      if (walker.currentNode === node) return total + offset;
+      total += walker.currentNode.textContent.length;
+    }
+    return -1;
+  };
+
+  const buildStyledSegments = (text) => {
+    const ranges = [
+      ...textAnnotations.map(a => ({ start: a.start, end: a.end, kind: a.type })),
+      ...findMatches.map((m, i) => ({ start: m.start, end: m.end, kind: i === findMatchIdx ? 'find-current' : 'find-match' })),
+    ];
+    const points = new Set([0, text.length]);
+    ranges.forEach(r => {
+      if (r.start >= 0 && r.start <= text.length) points.add(r.start);
+      if (r.end   >= 0 && r.end   <= text.length) points.add(r.end);
+    });
+    const sorted = [...points].sort((a, b) => a - b);
+    return sorted.slice(0, -1).map((start, i) => {
+      const end    = sorted[i + 1];
+      const active = ranges.filter(r => r.start <= start && r.end >= end);
+      return { text: text.slice(start, end), start, end, active };
+    });
+  };
+
+  const renderAnnotatedText = (text) => {
+    const segs = buildStyledSegments(text);
+    const els  = [];
+    segs.forEach((seg, si) => {
+      let bg = null, td = null, color = null, isCurrent = false;
+      seg.active.forEach(r => {
+        if      (r.kind === 'find-current')              { bg = '#fbbf24'; isCurrent = true; }
+        else if (r.kind === 'find-match' && !isCurrent)  { bg = '#fef9c3'; }
+        else if (r.kind === 'room_tone')                 { bg = 'rgba(20,184,166,0.28)'; }
+        else if (r.kind === 'not_included')              { td = 'line-through'; color = '#94a3b8'; }
+      });
+      const style = {};
+      if (bg)       style.background     = bg;
+      if (td)       style.textDecoration = td;
+      if (color)    style.color          = color;
+      if (bg || td) style.borderRadius   = '3px';
+      const parts = seg.text.split('\n');
+      parts.forEach((part, pi) => {
+        if (pi > 0) els.push(<br key={`br-${si}-${pi}`} />);
+        const hasStyle = Object.keys(style).length > 0;
+        els.push(
+          hasStyle
+            ? <span key={`s-${si}-${pi}`} style={style} {...(isCurrent ? { 'data-find-current': 'true' } : {})}>{part || '\u00a0'}</span>
+            : <React.Fragment key={`s-${si}-${pi}`}>{part}</React.Fragment>
+        );
+      });
+    });
+    return els;
+  };
+
+  const handleTextMouseUp = (e) => {
+    if (activeTextTool !== 'highlight') return;
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !textViewRef.current) { setSelectionInfo(null); return; }
+    if (!textViewRef.current.contains(sel.anchorNode) || !textViewRef.current.contains(sel.focusNode)) {
+      setSelectionInfo(null); return;
+    }
+    let s  = getCharOffset(textViewRef.current, sel.anchorNode, sel.anchorOffset);
+    let en = getCharOffset(textViewRef.current, sel.focusNode,  sel.focusOffset);
+    if (s < 0 || en < 0) { setSelectionInfo(null); return; }
+    if (s > en) [s, en] = [en, s];
+    if (en <= s) { setSelectionInfo(null); return; }
+    setSelectionInfo({ x: e.clientX, y: e.clientY, start: s, end: en });
+  };
+
+  const addTextAnnotation = (type) => {
+    if (!selectionInfo) return;
+    const { start, end } = selectionInfo;
+    const annText = pdfText.slice(start, Math.min(end, start + 60));
+    setTextAnnotations(prev => [...prev, { id: mkId(), start, end, type, text: annText }]);
+    if (type === 'room_tone') {
+      const wm  = buildWordTimeMap();
+      const dur = selectedAudioFile?.duration || 0;
+      const audioTime = charToTime(start, wm, dur);
+      const marker = {
+        id: mkId(), type: 'custom',
+        label: `Room Tone: "${annText.slice(0, 25).trim()}\u2026"`,
+        pdfCharPos: start, pdfPage: null, audioTime,
+        gapSeconds: 3, useRoomTone: true, color: MARKER_COLORS.custom,
+      };
+      pushPdfMarkersUndo(pdfEditMarkers);
+      setPdfEditMarkers(prev => [...prev, marker].sort((a, b) => a.audioTime - b.audioTime));
+    }
+    setSelectionInfo(null);
+    window.getSelection()?.removeAllRanges();
+  };
+
   const filteredMarkers = pdfEditMarkers.filter(m =>
     filterType === 'all' || m.type === filterType
   );
@@ -559,30 +700,127 @@ const TabPDFEdit = () => {
               <span style={S.cardMeta}>{pdfLoading ? '⏳ Loading…' : `${totalPages} pages`}</span>
             </div>
 
+            {/* ── Text tool bar (text mode only) ─────────────────── */}
+            {viewMode !== 'pdf' && !pdfLoading && pdfText && (
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                {[
+                  { id: 'find',      label: '🔍 Find'     },
+                  { id: 'highlight', label: '🖌 Highlight' },
+                  { id: 'edit',      label: '✏️ Edit Text' },
+                ].map(tool => (
+                  <button
+                    key={tool.id}
+                    style={activeTextTool === tool.id ? S.toolBtnActive : S.toolBtn}
+                    onClick={() => {
+                      if (tool.id === 'edit') {
+                        setEditedText(pdfText);
+                        setIsEditMode(true);
+                        setActiveTextTool('edit');
+                      } else if (activeTextTool === tool.id) {
+                        setActiveTextTool('none');
+                        setIsEditMode(false);
+                      } else {
+                        setActiveTextTool(tool.id);
+                        setIsEditMode(false);
+                      }
+                    }}
+                  >
+                    {tool.label}
+                  </button>
+                ))}
+                {textAnnotations.length > 0 && (
+                  <button style={S.btnXS} onClick={() => setTextAnnotations([])}>
+                    Clear {textAnnotations.length} highlights
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* ── Find bar ──────────────────────────────────────── */}
+            {viewMode !== 'pdf' && activeTextTool === 'find' && (
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Search in text…"
+                  value={findQuery}
+                  onChange={e => setFindQuery(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter')  setFindMatchIdx(p => findMatches.length ? (p + 1) % findMatches.length : 0);
+                    if (e.key === 'Escape') { setFindQuery(''); setActiveTextTool('none'); }
+                  }}
+                  autoFocus
+                  style={{ flex: 1, padding: '5px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '0.88em' }}
+                />
+                <span style={{ fontSize: '0.78em', color: '#6b7280', whiteSpace: 'nowrap', minWidth: '56px' }}>
+                  {findMatches.length ? `${findMatchIdx + 1} / ${findMatches.length}` : findQuery ? '0 results' : ''}
+                </span>
+                <button style={S.btnXS} disabled={!findMatches.length} onClick={() => setFindMatchIdx(p => (p - 1 + findMatches.length) % findMatches.length)}>▲</button>
+                <button style={S.btnXS} disabled={!findMatches.length} onClick={() => setFindMatchIdx(p => (p + 1) % findMatches.length)}>▼</button>
+              </div>
+            )}
+
+            {/* ── Highlight hint ─────────────────────────────────── */}
+            {viewMode !== 'pdf' && activeTextTool === 'highlight' && !isEditMode && (
+              <div style={{ fontSize: '0.8em', color: '#4f46e5', background: '#eef2ff', padding: '5px 10px', borderRadius: '6px', marginBottom: '8px' }}>
+                Select text → choose <strong>Room Tone</strong> (adds a gap marker) or <strong>Not Included</strong> (marks text to skip).
+              </div>
+            )}
+
             {viewMode === 'pdf' ? (
               <iframe
                 src={pdfUrl}
                 title="PDF Viewer"
                 style={{ flex: 1, border: 'none', borderRadius: '8px', width: '100%', minHeight: '460px' }}
               />
+            ) : isEditMode ? (
+              /* ── Edit mode ───────────────────────────────────── */
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 0 }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.78em', color: '#64748b', flex: 1 }}>
+                    Edit extracted text — changes are local only
+                  </span>
+                  <button style={S.btnSuccess} onClick={() => { setPdfText(editedText); setIsEditMode(false); setActiveTextTool('none'); }}>
+                    ✅ Apply
+                  </button>
+                  <button style={S.btnGhost} onClick={() => { setIsEditMode(false); setActiveTextTool('none'); }}>
+                    Cancel
+                  </button>
+                </div>
+                <textarea
+                  value={editedText}
+                  onChange={e => setEditedText(e.target.value)}
+                  spellCheck={false}
+                  style={{ flex: 1, minHeight: '400px', padding: '10px 12px', fontFamily: 'ui-monospace, monospace', fontSize: '0.84em', lineHeight: 1.65, border: '1px solid #d1d5db', borderRadius: '8px', resize: 'none', color: '#334155' }}
+                />
+              </div>
             ) : (
-              <div style={S.textView}>
+              /* ── Text view with find + annotation highlighting ── */
+              <div ref={textViewRef} style={S.textView} onMouseUp={handleTextMouseUp}>
                 {pdfLoading ? (
                   <div style={S.spinner} />
                 ) : pdfText ? (
-                  pdfText.split('\n').map((line, i) => (
-                    <p key={i} style={{
-                      margin: line.trim() === '' ? '8px 0' : '0 0 2px',
-                      color: line.trim() === '' ? 'transparent' : '#334155',
-                      fontSize: '0.88em',
-                      lineHeight: 1.6,
-                      borderLeft: line.trim() === '' ? '2px dashed #e2e8f0' : 'none',
-                      paddingLeft: line.trim() === '' ? '6px' : 0,
-                    }}>{line || ' '}</p>
-                  ))
+                  <div style={{ fontSize: '0.88em', lineHeight: 1.65, color: '#334155', userSelect: 'text' }}>
+                    {renderAnnotatedText(pdfText)}
+                  </div>
                 ) : (
                   <p style={{ color: '#94a3b8' }}>No text extracted</p>
                 )}
+              </div>
+            )}
+
+            {/* ── Annotation legend ─────────────────────────────── */}
+            {viewMode !== 'pdf' && textAnnotations.length > 0 && !isEditMode && (
+              <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '100px', overflowY: 'auto' }}>
+                <span style={{ fontSize: '0.72em', color: '#94a3b8', fontWeight: 700, letterSpacing: '0.05em' }}>HIGHLIGHTS</span>
+                {textAnnotations.map(ann => (
+                  <div key={ann.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78em' }}>
+                    <span style={{ background: ann.type === 'room_tone' ? 'rgba(20,184,166,0.25)' : 'rgba(148,163,184,0.25)', padding: '1px 6px', borderRadius: '4px', color: ann.type === 'room_tone' ? '#0f766e' : '#64748b', fontWeight: 600 }}>
+                      {ann.type === 'room_tone' ? '🎙' : '🚫'}
+                    </span>
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#475569' }}>"{ann.text}"</span>
+                    <button style={{ ...S.btnXS, padding: '1px 5px' }} onClick={() => setTextAnnotations(prev => prev.filter(a => a.id !== ann.id))}>✕</button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -793,6 +1031,44 @@ const TabPDFEdit = () => {
         </div>
       )}
 
+      {/* ── Floating selection toolbar ──────────────────────────────── */}
+      {selectionInfo && (
+        <div
+          ref={selectionToolbarRef}
+          style={{
+            position: 'fixed',
+            left: `${Math.min(selectionInfo.x, (window.innerWidth || 1200) - 330)}px`,
+            top:  `${Math.max(8, selectionInfo.y - 74)}px`,
+            background: '#1e293b',
+            borderRadius: '10px',
+            padding: '6px 8px',
+            display: 'flex',
+            gap: '6px',
+            alignItems: 'center',
+            zIndex: 9999,
+            boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+          }}
+        >
+          <span style={{ fontSize: '0.72em', color: '#94a3b8', marginRight: '2px' }}>Tag as:</span>
+          <button
+            style={{ background: 'rgba(20,184,166,0.85)', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.82em', fontWeight: 600 }}
+            onClick={() => addTextAnnotation('room_tone')}
+          >
+            🎙 Room Tone
+          </button>
+          <button
+            style={{ background: 'rgba(100,116,139,0.85)', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.82em', fontWeight: 600 }}
+            onClick={() => addTextAnnotation('not_included')}
+          >
+            🚫 Not Included
+          </button>
+          <button
+            style={{ background: 'transparent', color: '#64748b', border: 'none', padding: '4px 6px', cursor: 'pointer', fontSize: '0.9em' }}
+            onClick={() => { setSelectionInfo(null); window.getSelection()?.removeAllRanges(); }}
+          >✕</button>
+        </div>
+      )}
+
     </div>
   );
 };
@@ -843,6 +1119,8 @@ const S = {
   btnGray:    { background:'#9ca3af', color:'#fff', border:'none', padding:'9px 18px', borderRadius:'8px', cursor:'not-allowed', fontWeight:600, fontSize:'0.9em' },
   btnDanger:  { background:'#fef2f2', color:'#b91c1c', border:'1px solid #fecaca', padding:'6px 12px', borderRadius:'7px', cursor:'pointer', fontWeight:500, fontSize:'0.82em' },
   btnXS:      { background:'#f1f5f9', color:'#6b7280', border:'none', padding:'2px 7px', borderRadius:'5px', cursor:'pointer', fontSize:'0.8em', marginLeft:'auto' },
+  toolBtn:       { background:'#f1f5f9', color:'#475569', border:'1px solid #e2e8f0', padding:'5px 12px', borderRadius:'7px', cursor:'pointer', fontSize:'0.82em', fontWeight:500 },
+  toolBtnActive: { background:'#6366f1', color:'#fff', border:'1px solid #4f46e5', padding:'5px 12px', borderRadius:'7px', cursor:'pointer', fontSize:'0.82em', fontWeight:600 },
 };
 
 export default TabPDFEdit;

@@ -111,7 +111,30 @@
 
 ---
 
-## ðŸŸ¢ LOW PRIORITY â€” Future (1â€“3 Months)
+## 🎵 EDIT TAB — In Progress (May 2026)
+
+**E1 — Fix Skip Deleted** ✅ *Completed May 16, 2026*
+- Replaced unreliable `wsRegions.on('region-in', ...)` with `wavesurfer.on('timeupdate', ...)` listener
+- Checks all deleted regions every ~50ms during playback and seeks past them
+- Uses `wavesurfer.seekTo(region.end / dur)` which is confirmed to work in this codebase
+
+**E2 — Locked Scrollbar (waveform + text strip sync)** ✅ *Completed May 16, 2026*
+- Text strip scrollbar is now the single shared control (WaveSurfer's native scrollbar hidden via CSS)
+- Two-way sync: text strip scroll → waveform via event listener; waveform playback → text strip via RAF
+- `isUserScrollingRef` flag prevents feedback loop between the two directions
+- CSS class `wavesurfer-container` + `ProjectTabs.css` hides webkit scrollbar on WaveSurfer internals
+
+**E3 — Toggle Kept Sections visibility** ✅ *Completed May 16, 2026*
+- `showKeptSections` state + checkbox in toolbar (green accent)
+- When unchecked: kept regions are simply not drawn (removed from map)
+
+**E4 — Toggle PDF Markers visibility** ✅ *Completed May 16, 2026*
+- `showPdfMarkers` state + checkbox in toolbar (purple accent, only shown when markers exist)
+- When unchecked: PDF marker regions are removed from the waveform
+
+---
+
+## 🟢 LOW PRIORITY — Future (1–3 Months)
 
 ### Performance & Production Hardening
 

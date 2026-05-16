@@ -27,9 +27,17 @@ const TabEdit = () => {
   /* ─── Refs ──────────────────────────────────────────────────────── */
   const waveformRef      = useRef(null);
   const timelineRef      = useRef(null);
-  const transcriptRef    = useRef(null);
   const regionsMapRef    = useRef(new Map());
-  const overlayScrollRef = useRef(null);
+  const deletedRegionIdsRef = useRef(new Set());
+  const overlayScrollRef   = useRef(null);
+  const wsScrollRef        = useRef(null);
+  const isUserScrollingRef = useRef(false);
+  const userScrollTimerRef = useRef(null);
+  const isPlayingRef       = useRef(false);  // mirror of isPlaying state for RAF closures
+  const wavesurferRef      = useRef(null);   // mirror of wavesurfer state for RAF closures
+  const zoomRef            = useRef(1);      // mirror of zoom state for RAF closures
+  const isSeekingRef       = useRef(false);  // throttle skip-deleted seeks
+  const regionMetaRef      = useRef(new Map()); // region.id → { segmentId (DB pk), groupId }
 
   /* ─── WaveSurfer state ───────────────────────────────────────────── */
   const [wavesurfer,       setWavesurfer]       = useState(null);
@@ -41,6 +49,8 @@ const TabEdit = () => {
   const [isWaveformLoading,setIsWaveformLoading] = useState(false);
   const [zoom,             setZoom]              = useState(1);
   const [skipDeleted,      setSkipDeleted]       = useState(true);
+  const [showKeptSections, setShowKeptSections]  = useState(true);
+  const [showPdfMarkers,   setShowPdfMarkers]    = useState(true);
 
   /* ─── Data state ─────────────────────────────────────────────────── */
   const [loading,    setLoading]    = useState(false);
@@ -52,6 +62,13 @@ const TabEdit = () => {
   const [silenceThreshold,   setSilenceThreshold]   = useState(-40);
   const [silenceSearchRange, setSilenceSearchRange] = useState(0.6);
   const [silenceMinDuration, setSilenceMinDuration] = useState(0.08);
+
+  /* ─── Save state ─────────────────────────────────────────────────── */
+  const [isSaving,    setIsSaving]    = useState(false);
+  const [saveResult,  setSaveResult]  = useState(null);
+
+  /* ─── UI toggle state ────────────────────────────────────────────── */
+  const [showAlignPanel, setShowAlignPanel] = useState(false);
 
   /* ────────────────────────────────────────────────────────────────── */
   /* Load transcription from API (mirrors Tab2 logic)                  */
@@ -154,6 +171,7 @@ const TabEdit = () => {
     const regions  = ws.registerPlugin(RegionsPlugin.create());
     ws.registerPlugin(TimelinePlugin.create({ container: timelineRef.current }));
 
+    wavesurferRef.current = ws;
     setWavesurfer(ws);
     setWsRegions(regions);
     ws.load(audioUrl);
@@ -178,12 +196,24 @@ const TabEdit = () => {
   /* ─── Draw duplicate regions ────────────────────────────────────── */
   useEffect(() => {
     if (!wsRegions || !isReady) return;
-    wsRegions.clearRegions();
-    regionsMapRef.current.clear();
+    // Remove only duplicate/kept regions — preserve PDF markers so they
+    // survive a fetchDuplicates() refresh without needing their own re-run.
+    const toRemove = [];
+    regionsMapRef.current.forEach((region, id) => {
+      if (!region.data?.isPdfMarker) toRemove.push([region, id]);
+    });
+    toRemove.forEach(([region, id]) => {
+      try { region.remove(); } catch (_) {}
+      regionsMapRef.current.delete(id);
+    });
+    deletedRegionIdsRef.current.clear();
+    regionMetaRef.current.clear();
     duplicates.forEach((group) => {
       if (!group.occurrences) return;
       group.occurrences.forEach((occ) => {
         const isDeleted = !occ.is_kept;
+        // Skip kept sections when their toggle is off
+        if (!isDeleted && !showKeptSections) return;
         const region = wsRegions.addRegion({
           start: occ.start_time,
           end:   occ.end_time,
@@ -194,13 +224,16 @@ const TabEdit = () => {
             isDeleted,
             isDelete:  isDeleted,
             groupId:   group.group_id,
-            segmentId: occ.segment_index,
+            segmentId: occ.id,  // DB primary key (not segment_index)
           },
         });
         regionsMapRef.current.set(region.id, region);
+        // Track metadata in our own Map — don't rely on region.data
+        regionMetaRef.current.set(region.id, { segmentId: occ.id, groupId: group.group_id, isDeleted });
+        if (isDeleted) deletedRegionIdsRef.current.add(region.id);
       });
     });
-  }, [wsRegions, duplicates, isReady]);
+  }, [wsRegions, duplicates, isReady, showKeptSections]);
 
   /* ─── Draw PDF structure markers (purple / orange / pink) ───────── */
   useEffect(() => {
@@ -212,7 +245,7 @@ const TabEdit = () => {
         regionsMapRef.current.delete(id);
       }
     });
-    if (!pdfEditMarkers || pdfEditMarkers.length === 0) return;
+    if (!pdfEditMarkers || pdfEditMarkers.length === 0 || !showPdfMarkers) return;
     pdfEditMarkers.forEach((marker) => {
       const gapDur = Math.max(marker.gapSeconds || 0.3, 0.1);
       const region = wsRegions.addRegion({
@@ -225,38 +258,127 @@ const TabEdit = () => {
       });
       regionsMapRef.current.set(region.id, region);
     });
-  }, [wsRegions, isReady, pdfEditMarkers]);
+  }, [wsRegions, isReady, pdfEditMarkers, showPdfMarkers]);
 
   /* ─── Skip deleted during playback ─────────────────────────────── */
+  // Use timeupdate (fires every ~50ms during play) rather than region-in
+  // which can miss fast-moving cursors or fire inconsistently.
   useEffect(() => {
-    if (!wsRegions || !wavesurfer || !skipDeleted) return;
-    const onRegionIn = (region) => {
-      if (region.data?.isDeleted) wavesurfer.setTime(region.end);
-    };
-    wsRegions.on('region-in', onRegionIn);
-    return () => { try { wsRegions.un('region-in', onRegionIn); } catch(e){} };
-  }, [wsRegions, wavesurfer, skipDeleted]);
-
-  /* ─── Auto-scroll transcript ────────────────────────────────────── */
-  useEffect(() => {
-    if (!transcriptRef.current) return;
-    const active = transcriptRef.current.querySelector('.tabedit-seg-active');
-    if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [currentTime]);
-
-  /* ─── Sync waveform scroll → transcript overlay ─────────────────── */
-  useEffect(() => {
-    if (!wavesurfer || !isReady || !overlayScrollRef.current || !waveformRef.current) return;
-    const container = waveformRef.current;
-    const handleScroll = (e) => {
-      if (overlayScrollRef.current) {
-        overlayScrollRef.current.scrollLeft = e.target.scrollLeft;
+    if (!wavesurfer || !isReady) return;
+    const handleTimeUpdate = (t) => {
+      if (!skipDeleted) return;
+      const dur = wavesurfer.getDuration();
+      if (!dur) return;
+      for (const [, region] of regionsMapRef.current) {
+        if (deletedRegionIdsRef.current.has(region.id) && t >= region.start && t < region.end) {
+          isSeekingRef.current = true;
+          wavesurfer.seekTo(region.end / dur);
+          // Release throttle after the seek has had time to propagate
+          setTimeout(() => { isSeekingRef.current = false; }, 300);
+          break;
+        }
       }
     };
-    // Use capture so we catch scroll on any child element (WaveSurfer shadow container)
-    container.addEventListener('scroll', handleScroll, true);
-    return () => container.removeEventListener('scroll', handleScroll, true);
-  }, [wavesurfer, isReady]);
+    wavesurfer.on('timeupdate', handleTimeUpdate);
+    return () => { try { wavesurfer.un('timeupdate', handleTimeUpdate); } catch(e){} };
+  }, [wavesurfer, isReady, skipDeleted]);
+
+  /* ─── Locked scrollbar: single scrollbar controls waveform + text ─ */
+  // Keep refs in sync with state so RAF closures always read current values
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+
+  useEffect(() => {
+    if (!isReady) return;
+
+    // WaveSurfer v7 uses Shadow DOM — its scroll container lives inside a shadow root
+    // and is invisible to querySelectorAll. Use shadowRoot + part attribute to find it.
+    const findScrollEl = () => {
+      if (!waveformRef.current) return null;
+      // WaveSurfer appends a shadow host div to our container
+      const host = waveformRef.current.firstElementChild;
+      if (host?.shadowRoot) {
+        return (
+          host.shadowRoot.querySelector('[part="scroll"]') ||
+          host.shadowRoot.querySelector('.scroll') ||
+          null
+        );
+      }
+      // Fallback for non-shadow builds
+      return (
+        Array.from(waveformRef.current.querySelectorAll('div')).find(el => {
+          const ov = window.getComputedStyle(el).overflowX;
+          return ov === 'auto' || ov === 'scroll';
+        }) || waveformRef.current.firstElementChild || null
+      );
+    };
+
+    // Give WaveSurfer time to render its shadow DOM, then locate the scroll container
+    const initTimer = setTimeout(() => {
+      wsScrollRef.current = findScrollEl();
+    }, 200);
+
+    // When user drags the TEXT STRIP scrollbar:
+    //  - push position to WaveSurfer immediately
+    //  - mark as user-scrolling so RAF loop keeps pushing (prevents WaveSurfer snap-back)
+    const onTextScroll = () => {
+      if (!overlayScrollRef.current || !wsScrollRef.current) return;
+      wsScrollRef.current.scrollLeft = overlayScrollRef.current.scrollLeft;
+      isUserScrollingRef.current = true;
+      clearTimeout(userScrollTimerRef.current);
+      userScrollTimerRef.current = setTimeout(() => {
+        isUserScrollingRef.current = false;
+      }, 500);
+    };
+
+    let rafId;
+    let textScrollAttached = false;
+
+    const syncLoop = () => {
+      if (!wsScrollRef.current) wsScrollRef.current = findScrollEl();
+
+      // Lazily attach the text-strip scroll listener once it's in the DOM
+      if (!textScrollAttached && overlayScrollRef.current) {
+        overlayScrollRef.current.addEventListener('scroll', onTextScroll, { passive: true });
+        textScrollAttached = true;
+      }
+
+      if (wsScrollRef.current && overlayScrollRef.current) {
+        if (isUserScrollingRef.current) {
+          // User dragged the TEXT STRIP scrollbar → keep pushing to WaveSurfer every frame
+          wsScrollRef.current.scrollLeft = overlayScrollRef.current.scrollLeft;
+        } else if (isPlayingRef.current && wavesurferRef.current) {
+          // PLAYING: calculate text position from getCurrentTime() directly.
+          // This reads from the Web Audio API clock (sub-ms precision, 60fps ready)
+          // instead of WaveSurfer's scrollLeft which only updates every ~90ms.
+          const t        = wavesurferRef.current.getCurrentTime();
+          const pxPerSec = 10 * zoomRef.current;
+          const half     = overlayScrollRef.current.clientWidth / 2;
+          const target   = Math.max(0, t * pxPerSec - half);
+          const current  = overlayScrollRef.current.scrollLeft;
+          const diff     = target - current;
+          overlayScrollRef.current.scrollLeft =
+            Math.abs(diff) > 0.5 ? current + diff * 0.3 : target;
+        } else {
+          // PAUSED / idle: mirror WaveSurfer's scroll position instantly
+          // (covers user scrolling the waveform while paused)
+          overlayScrollRef.current.scrollLeft = wsScrollRef.current.scrollLeft;
+        }
+      }
+
+      rafId = requestAnimationFrame(syncLoop);
+    };
+    rafId = requestAnimationFrame(syncLoop);
+
+    return () => {
+      clearTimeout(initTimer);
+      clearTimeout(userScrollTimerRef.current);
+      cancelAnimationFrame(rafId);
+      if (overlayScrollRef.current) {
+        overlayScrollRef.current.removeEventListener('scroll', onTextScroll);
+      }
+    };
+  }, [isReady]);
 
   /* ────────────────────────────────────────────────────────────────── */
   /* Align to Silence                                                   */
@@ -300,29 +422,154 @@ const TabEdit = () => {
   };
 
   const handleAlignToSilence = async () => {
-    if (!wavesurfer || !isReady || regionsMapRef.current.size === 0) {
-      alert('No regions loaded — run duplicate detection in Tab 3 first.');
+    const deletedCount = deletedRegionIdsRef.current.size;
+    if (!wavesurfer || !isReady || deletedCount === 0) {
+      alert('No deleted regions found — run duplicate detection in Tab 3 first.');
       return;
     }
     setIsAligningToSilence(true);
     setAlignResult(null);
     try {
       const buf = wavesurfer.getDecodedData();
-      if (!buf) throw new Error('Audio buffer not ready.');
+      if (!buf) throw new Error('Audio buffer not available. Try clicking the waveform first to ensure it is fully loaded.');
       let adjusted = 0, skipped = 0;
       regionsMapRef.current.forEach((region) => {
-        if (!region?.data?.isDelete) return;
-        const { start: s, end: e } = region;
+        // Use our own Set rather than region.data to identify deleted regions
+        if (!deletedRegionIdsRef.current.has(region.id)) return;
+        const s = region.start;
+        const e = region.end;
         if (isInSilence(buf, s) && isInSilence(buf, e)) { skipped++; return; }
         const ns = isInSilence(buf, s) ? s : findSilenceCenter(buf, s);
         const ne = isInSilence(buf, e) ? e : findSilenceCenter(buf, e);
         if (ns < ne && ne - ns >= 0.1) { region.setOptions({ start: ns, end: ne }); adjusted++; }
+        else { skipped++; }
       });
-      setAlignResult({ adjusted, skipped });
+      setAlignResult({ adjusted, skipped, total: deletedCount });
     } catch (err) {
       alert(`Align to silence failed: ${err.message}`);
     } finally {
       setIsAligningToSilence(false);
+    }
+  };
+
+  /* ─── Add a new manually-marked deleted section ─────────────────── */
+  const handleAddDeletedSection = async () => {
+    if (!wavesurfer || !isReady || !wsRegions) return;
+    const t   = wavesurfer.getCurrentTime();
+    const dur = wavesurfer.getDuration();
+    const end = Math.min(t + 2.0, dur);
+    if (end - t < 0.1) {
+      alert('Not enough space at current position — seek further back and try again.');
+      return;
+    }
+
+    // Add the region visually immediately so the user sees instant feedback
+    const region = wsRegions.addRegion({
+      start: t,
+      end,
+      color: 'rgba(239,68,68,0.35)',
+      drag:   true,
+      resize: true,
+    });
+    regionsMapRef.current.set(region.id, region);
+    deletedRegionIdsRef.current.add(region.id);
+    regionMetaRef.current.set(region.id, { segmentId: null, groupId: 'manual', isDeleted: true });
+
+    // Persist to backend
+    try {
+      const url = `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/segments/`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: `Token ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ start_time: t, end_time: end, text: '[Manually deleted]' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Store the new DB id so Save Timings can PATCH it later
+        regionMetaRef.current.set(region.id, {
+          segmentId: data.segment.id,
+          groupId:   data.segment.duplicate_group_id,
+          isDeleted: true,
+        });
+      } else {
+        // Roll back the visual region on server failure
+        try { region.remove(); } catch (_) {}
+        regionsMapRef.current.delete(region.id);
+        deletedRegionIdsRef.current.delete(region.id);
+        regionMetaRef.current.delete(region.id);
+        alert('Failed to save new deleted section to server.');
+      }
+    } catch (err) {
+      try { region.remove(); } catch (_) {}
+      regionsMapRef.current.delete(region.id);
+      deletedRegionIdsRef.current.delete(region.id);
+      regionMetaRef.current.delete(region.id);
+      alert('Network error saving new deleted section.');
+    }
+  };
+
+  /* ─── Save region timings to backend ────────────────────────────── */
+  const handleSaveRegions = async () => {
+    if (regionMetaRef.current.size === 0) {
+      alert('No regions to save. Load a file and run duplicate detection first.');
+      return;
+    }
+    setIsSaving(true);
+    setSaveResult(null);
+    let saved = 0, failed = 0;
+    const promises = [];
+    regionsMapRef.current.forEach((region, regionId) => {
+      const meta = regionMetaRef.current.get(regionId);
+      if (!meta?.segmentId) return;
+      // Read the current region boundaries directly from the WaveSurfer Region
+      // object — these are updated in-place when the user drags or when
+      // handleAlignToSilence calls region.setOptions().
+      const startTime = region.start;
+      const endTime   = region.end;
+      if (typeof startTime !== 'number' || typeof endTime !== 'number') return;
+      const url = `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/segments/${meta.segmentId}/`;
+      promises.push(
+        fetch(url, {
+          method: 'PATCH',
+          headers: { Authorization: `Token ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ start_time: startTime, end_time: endTime }),
+        })
+          .then(r => { if (r.ok) saved++; else failed++; })
+          .catch(() => failed++)
+      );
+    });
+    await Promise.all(promises);
+    setSaveResult({ saved, failed });
+    setIsSaving(false);
+    // Re-fetch from the server to confirm the save persisted and to ensure the
+    // component's state matches the database (critical when the tab remounts).
+    if (failed === 0 && saved > 0) {
+      await fetchDuplicates();
+    }
+  };
+
+  /* ─── Skip playhead to the next deleted region ───────────────────── */
+  const handleSkipToNextDeleted = () => {
+    if (!wavesurfer || !isReady) return;
+    const t = wavesurfer.getCurrentTime();
+    let nextRegion = null;
+    regionsMapRef.current.forEach((region) => {
+      if (
+        deletedRegionIdsRef.current.has(region.id) &&
+        region.start > t + 0.1 &&
+        (!nextRegion || region.start < nextRegion.start)
+      ) {
+        nextRegion = region;
+      }
+    });
+    if (nextRegion) {
+      const dur = wavesurfer.getDuration();
+      if (dur > 0) {
+        wavesurfer.seekTo(nextRegion.start / dur);
+        setCurrentTime(nextRegion.start);
+      }
+    } else {
+      alert('No more deleted sections after current position.');
     }
   };
 
@@ -403,13 +650,125 @@ const TabEdit = () => {
               <input type="checkbox" checked={skipDeleted} onChange={(e) => setSkipDeleted(e.target.checked)} style={{ accentColor: '#3b82f6' }} />
               <span>⏭ Skip Deleted</span>
             </label>
+            <label style={S.checkLabel}>
+              <input type="checkbox" checked={showKeptSections} onChange={(e) => setShowKeptSections(e.target.checked)} style={{ accentColor: '#22c55e' }} />
+              <span style={{ color: '#16a34a' }}>🟢 Kept</span>
+            </label>
+            {pdfEditMarkers?.length > 0 && (
+              <label style={S.checkLabel}>
+                <input type="checkbox" checked={showPdfMarkers} onChange={(e) => setShowPdfMarkers(e.target.checked)} style={{ accentColor: '#9333ea' }} />
+                <span style={{ color: '#7e22ce' }}>🟣 PDF</span>
+              </label>
+            )}
             <div style={S.zoomRow}>
               🔍
               <input type="range" min="0.5" max="15" step="0.5" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} style={S.slider} />
               <span style={S.zoomLabel}>{zoom}x</span>
             </div>
+            {/* Add Deleted Section */}
+            <button
+              onClick={handleAddDeletedSection}
+              disabled={!isReady}
+              title="Mark the next 2 seconds from the current playhead position as a deleted section"
+              style={{
+                padding: '0.45rem 0.9rem',
+                background: !isReady ? '#9ca3af' : '#ef4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontWeight: 700,
+                cursor: !isReady ? 'not-allowed' : 'pointer',
+                opacity: !isReady ? 0.7 : 1,
+                fontSize: '0.82rem',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ➕ Add Deleted
+            </button>
+            {/* Align to Silence toggle */}
+            <button
+              onClick={() => setShowAlignPanel(v => !v)}
+              disabled={!isReady}
+              title="Snap deleted region boundaries to nearest silence"
+              style={{
+                padding: '0.45rem 0.9rem',
+                background: !isReady ? '#9ca3af' : (showAlignPanel ? '#0369a1' : '#0ea5e9'),
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontWeight: 700,
+                cursor: !isReady ? 'not-allowed' : 'pointer',
+                opacity: !isReady ? 0.7 : 1,
+                fontSize: '0.82rem',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              🎯 Align to Silence
+            </button>
           </div>
         </div>
+
+        {/* Align-to-Silence panel — shown when toggled on */}
+        {showAlignPanel && (
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '1.25rem',
+            alignItems: 'flex-end',
+            background: '#f0f9ff',
+            padding: '1rem 1.25rem',
+            borderBottom: '1px solid #bae6fd',
+          }}>
+            <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:'160px' }}>
+              <label style={{ fontSize:'0.8rem', fontWeight:600, color:'#334155', marginBottom:'0.3rem' }}>
+                Threshold: {silenceThreshold} dB
+              </label>
+              <input type="range" min="-60" max="-20" value={silenceThreshold}
+                onChange={(e) => setSilenceThreshold(Number(e.target.value))}
+                style={{ width:'100%', accentColor:'#0ea5e9' }} />
+              <span style={{ fontSize:'0.7rem', color:'#64748b', marginTop:'0.2rem' }}>Lower = stricter</span>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:'160px' }}>
+              <label style={{ fontSize:'0.8rem', fontWeight:600, color:'#334155', marginBottom:'0.3rem' }}>
+                Search Range: {silenceSearchRange}s
+              </label>
+              <input type="range" min="0.1" max="2.0" step="0.1" value={silenceSearchRange}
+                onChange={(e) => setSilenceSearchRange(Number(e.target.value))}
+                style={{ width:'100%', accentColor:'#0ea5e9' }} />
+              <span style={{ fontSize:'0.7rem', color:'#64748b', marginTop:'0.2rem' }}>Range from boundary to search</span>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:'160px' }}>
+              <label style={{ fontSize:'0.8rem', fontWeight:600, color:'#334155', marginBottom:'0.3rem' }}>
+                Min Silence: {silenceMinDuration}s
+              </label>
+              <input type="range" min="0.01" max="0.5" step="0.01" value={silenceMinDuration}
+                onChange={(e) => setSilenceMinDuration(Number(e.target.value))}
+                style={{ width:'100%', accentColor:'#0ea5e9' }} />
+              <span style={{ fontSize:'0.7rem', color:'#64748b', marginTop:'0.2rem' }}>Min gap to qualify</span>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
+              <button
+                onClick={handleAlignToSilence}
+                disabled={isAligningToSilence || !isReady}
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  background: (isAligningToSilence || !isReady) ? '#9ca3af' : '#0ea5e9',
+                  color: 'white', border: 'none', borderRadius: '6px',
+                  fontWeight: 'bold', cursor: (isAligningToSilence || !isReady) ? 'not-allowed' : 'pointer',
+                  opacity: (isAligningToSilence || !isReady) ? 0.7 : 1,
+                  whiteSpace: 'nowrap', fontSize: '0.9rem',
+                }}
+              >
+                {isAligningToSilence ? '⏳ Aligning…' : '🎯 Run Alignment'}
+              </button>
+              {alignResult && (
+                <span style={{ fontSize: '0.78rem', color: '#0369a1', fontWeight: 600 }}>
+                  ✅ {alignResult.adjusted} adjusted · {alignResult.skipped} at boundary · {alignResult.total} total
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Waveform with loading spinner */}
         <div style={S.waveOuter}>
@@ -420,17 +779,17 @@ const TabEdit = () => {
             </div>
           )}
           <div ref={timelineRef} style={{ borderBottom: '1px solid #e2e8f0' }} />
-          <div ref={waveformRef} style={{ width: '100%' }} />
+          <div ref={waveformRef} className="wavesurfer-container" style={{ width: '100%' }} />
 
           {/* ── Transcript overlay: time-aligned text beneath the waveform ── */}
           {segments.length > 0 && isReady && (
             <div
               ref={overlayScrollRef}
               style={{
-                overflowX: 'hidden',
+                overflowX: 'scroll',
                 overflowY: 'hidden',
                 width: '100%',
-                height: `${Math.max(22, 13 + zoom * 1.5)}px`,
+                height: `${Math.max(30, 18 + zoom * 2)}px`,
                 borderTop: '1px solid #e2e8f0',
                 background: '#f8fafc',
                 position: 'relative',
@@ -441,14 +800,27 @@ const TabEdit = () => {
                   position: 'relative',
                   width: `${Math.max(100, duration * 10 * zoom)}px`,
                   height: '100%',
-                  minWidth: '100%',
                 }}
               >
+                {/* Playhead line extending down from the waveform cursor */}
+                {duration > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    left: `${currentTime * 10 * zoom}px`,
+                    top: 0,
+                    bottom: 0,
+                    width: '2px',
+                    background: '#ef4444',
+                    pointerEvents: 'none',
+                    zIndex: 10,
+                    opacity: 0.9,
+                  }} />
+                )}
                 {segments.map((seg, idx) => {
                   const pxPerSec = 10 * zoom;
                   const left     = seg.start * pxPerSec;
                   const segWidth = Math.max(1, (seg.end - seg.start) * pxPerSec);
-                  const fontSize = Math.max(7, Math.min(16, 5 + zoom * 0.75));
+                  const fontSize = Math.max(8, Math.min(13, 6 + zoom * 0.7));
                   const isActive = idx === activeSegIdx;
                   return (
                     <div
@@ -489,55 +861,15 @@ const TabEdit = () => {
         <div style={S.legend}>
           <span style={S.legendItem}><span style={{ ...S.swatch, background: 'rgba(34,197,94,0.5)' }} /> Kept Section</span>
           <span style={S.legendItem}><span style={{ ...S.swatch, background: 'rgba(239,68,68,0.5)' }} /> Deleted Section</span>
+          {pdfEditMarkers?.length > 0 && (
+            <span style={S.legendItem}><span style={{ ...S.swatch, background: 'rgba(147,51,234,0.5)' }} /> PDF Marker</span>
+          )}
           {isReady && totalRegions === 0 && (
             <span style={{ color: '#f59e0b', fontSize: '0.82em', marginLeft: 'auto' }}>
               ⚠️ No regions found — run duplicate detection in Tab 3 first.
             </span>
           )}
         </div>
-      </div>
-
-      {/* ── Transcript Card ──────────────────────────────────────────── */}
-      <div style={S.card}>
-        <div style={S.cardHead}>
-          <h3 style={S.cardTitle}>📝 Transcript</h3>
-          <span style={S.cardMeta}>
-            {segments.length > 0
-              ? `${transcriptionData?.word_count || 0} words · ${segments.length} segments — click any segment to seek`
-              : 'No timed segments available'}
-          </span>
-          <button style={S.btnTiny} onClick={loadTranscription} title="Reload from server">↻ Refresh</button>
-        </div>
-
-        {segments.length > 0 ? (
-          <div ref={transcriptRef} style={S.transcriptBox}>
-            {segments.map((seg, idx) => {
-              const active = idx === activeSegIdx;
-              return (
-                <span
-                  key={idx}
-                  onClick={() => seekTo(seg.start)}
-                  title={`${formatTime(seg.start)} → ${formatTime(seg.end)}`}
-                  className={active ? 'tabedit-seg-active' : ''}
-                  style={{ ...S.seg, ...(active ? S.segActive : {}) }}
-                >
-                  {seg.text?.trim()}{' '}
-                </span>
-              );
-            })}
-          </div>
-        ) : transcriptionData?.text ? (
-          <div style={S.transcriptBox}>
-            <p style={{ margin: 0, lineHeight: 1.7, color: '#475569' }}>{transcriptionData.text}</p>
-          </div>
-        ) : (
-          <div style={S.emptyBox}>
-            <p style={{ margin: '0 0 6px' }}>No transcription loaded.</p>
-            <p style={{ margin: 0, fontSize: '0.85em', color: '#9ca3af' }}>
-              Go to the <strong>Transcribe</strong> tab and transcribe this file first.
-            </p>
-          </div>
-        )}
       </div>
 
       {/* ── Editing Tools Card ───────────────────────────────────────── */}
@@ -549,83 +881,86 @@ const TabEdit = () => {
 
         <div style={S.toolsGrid}>
 
-          {/* Align to Silence */}
-          <div style={{ ...S.toolGroup, gridColumn: '1 / -1' }}>
-            <div style={S.toolGroupLabel}>Boundary Alignment</div>
-            <div style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '1.5rem',
-              alignItems: 'flex-end',
-              background: '#f8fafc',
-              padding: '1.25rem',
-              borderRadius: '8px',
-              border: '1px solid #f1f5f9',
-            }}>
-              <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:'180px' }}>
-                <label style={{ fontSize:'0.875rem', fontWeight:600, color:'#334155', marginBottom:'0.4rem' }}>
-                  Silence Threshold: {silenceThreshold} dB
-                </label>
-                <input type="range" min="-60" max="-20" value={silenceThreshold}
-                  onChange={(e) => setSilenceThreshold(Number(e.target.value))}
-                  style={{ width:'100%', accentColor:'#0ea5e9' }} />
-                <span style={{ fontSize:'0.75rem', color:'#64748b', marginTop:'0.25rem' }}>Lower = stricter silence requirement</span>
-              </div>
-              <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:'180px' }}>
-                <label style={{ fontSize:'0.875rem', fontWeight:600, color:'#334155', marginBottom:'0.4rem' }}>
-                  Search Range: {silenceSearchRange}s
-                </label>
-                <input type="range" min="0.1" max="2.0" step="0.1" value={silenceSearchRange}
-                  onChange={(e) => setSilenceSearchRange(Number(e.target.value))}
-                  style={{ width:'100%', accentColor:'#0ea5e9' }} />
-                <span style={{ fontSize:'0.75rem', color:'#64748b', marginTop:'0.25rem' }}>How far to look from current boundary</span>
-              </div>
-              <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:'180px' }}>
-                <label style={{ fontSize:'0.875rem', fontWeight:600, color:'#334155', marginBottom:'0.4rem' }}>
-                  Min Silence Duration: {silenceMinDuration}s
-                </label>
-                <input type="range" min="0.01" max="0.5" step="0.01" value={silenceMinDuration}
-                  onChange={(e) => setSilenceMinDuration(Number(e.target.value))}
-                  style={{ width:'100%', accentColor:'#0ea5e9' }} />
-                <span style={{ fontSize:'0.75rem', color:'#64748b', marginTop:'0.25rem' }}>Required length of silent section</span>
-              </div>
+          {/* Add Deleted Section */}
+          <div style={S.toolGroup}>
+            <div style={S.toolGroupLabel}>Edit Operations</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <button
-                onClick={handleAlignToSilence}
-                disabled={isAligningToSilence || !isReady}
+                onClick={handleAddDeletedSection}
+                disabled={!isReady}
+                title="Add a new 2-second deleted region starting at the current playhead position"
                 style={{
-                  padding: '0.75rem 1.5rem',
-                  background: (isAligningToSilence || !isReady) ? '#9ca3af' : '#0ea5e9',
+                  padding: '0.6rem 1rem',
+                  background: !isReady ? '#9ca3af' : '#ef4444',
+                  color: 'white', border: 'none', borderRadius: '6px',
+                  fontWeight: 700, cursor: !isReady ? 'not-allowed' : 'pointer',
+                  opacity: !isReady ? 0.7 : 1, fontSize: '0.875rem', whiteSpace: 'nowrap',
+                }}
+              >
+                ➕ Add Deleted Section
+              </button>
+              <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                Adds a 2s red region at playhead. Drag edges to resize.
+              </span>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <div style={S.toolGroup}>
+            <div style={S.toolGroupLabel}>Navigation</div>
+            <div style={S.btnRow}>
+              <button
+                onClick={handleSkipToNextDeleted}
+                disabled={!isReady}
+                title="Jump playhead to the start of the next deleted region"
+                style={{
+                  padding: '0.6rem 1rem',
+                  background: !isReady ? '#9ca3af' : '#8b5cf6',
                   color: 'white',
                   border: 'none',
                   borderRadius: '6px',
-                  fontWeight: 'bold',
-                  cursor: (isAligningToSilence || !isReady) ? 'not-allowed' : 'pointer',
-                  opacity: (isAligningToSilence || !isReady) ? 0.7 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
+                  fontWeight: 600,
+                  cursor: !isReady ? 'not-allowed' : 'pointer',
+                  opacity: !isReady ? 0.7 : 1,
+                  fontSize: '0.875rem',
                   whiteSpace: 'nowrap',
-                  height: '42px',
-                  fontSize: '0.95rem',
                 }}
               >
-                {isAligningToSilence ? '⏳ Aligning…' : '🎯 Align to Silence'}
+                ⏭ Next Deleted
               </button>
             </div>
-            {alignResult && (
-              <div style={S.resultPill}>
-                ✅ {alignResult.adjusted} adjusted · {alignResult.skipped} already aligned
-              </div>
-            )}
           </div>
 
-          {/* Edit Ops */}
+          {/* Save */}
           <div style={S.toolGroup}>
-            <div style={S.toolGroupLabel}>Edit Operations</div>
-            <div style={S.btnRow}>
-              <button style={S.btnMuted} disabled title="Coming soon">✂️ Cut</button>
-              <button style={S.btnMuted} disabled title="Coming soon">📋 Paste</button>
-              <button style={S.btnMuted} disabled title="Coming soon">🔊 Volume</button>
+            <div style={S.toolGroupLabel}>Save</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={handleSaveRegions}
+                disabled={isSaving || !isReady}
+                title="Save all dragged region timings to the database"
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  background: (isSaving || !isReady) ? '#9ca3af' : '#16a34a',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: 600,
+                  cursor: (isSaving || !isReady) ? 'not-allowed' : 'pointer',
+                  opacity: (isSaving || !isReady) ? 0.7 : 1,
+                  fontSize: '0.875rem',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {isSaving ? '⏳ Saving…' : '💾 Save Timings'}
+              </button>
+              {saveResult && (
+                <span style={{ fontSize: '0.875rem', color: saveResult.failed > 0 ? '#dc2626' : '#16a34a', fontWeight: 600 }}>
+                  {saveResult.failed === 0
+                    ? `✅ ${saveResult.saved} saved`
+                    : `✅ ${saveResult.saved} saved · ❌ ${saveResult.failed} failed`}
+                </span>
+              )}
             </div>
           </div>
 

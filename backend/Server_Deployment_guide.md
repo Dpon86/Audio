@@ -29,7 +29,11 @@ Backend code is managed via Git and deployed by pulling changes from the reposit
 #### 1. Connect to Server
 ```bash
 ssh nickd@82.165.221.205
+
+source /home/nickd/Packing_App/pouchtrackenv/bin/activate
+
 cd /opt/audioapp
+
 ```
 
 #### 2. Check for Updates
@@ -200,7 +204,11 @@ Instead of logging into the server directly to run commands, you can execute the
 
 ```powershell
 # Deploy frontend files and restart server processes in one command
-ssh -t nickd@82.165.221.205 "cd /opt/audioapp && sudo rsync -av --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r /opt/audioapp/frontend/build/ /opt/audioapp/frontend/audio-waveform-visualizer/build/ && FRONTEND_CONTAINER=\$(docker ps --format '{{.Names}}' | grep -E 'audioapp_frontend|_audioapp_frontend' | head -1) && if [ -n \"\$FRONTEND_CONTAINER\" ]; then sudo docker cp /opt/audioapp/frontend/build/. \$FRONTEND_CONTAINER:/usr/share/nginx/html/ && sudo docker restart \$FRONTEND_CONTAINER; fi && sudo chmod -R u=rwX,go=rX /opt/audioapp/frontend/audio-waveform-visualizer/build/ && sudo chown -R nickd:www-data /opt/audioapp/frontend/audio-waveform-visualizer/build/ && sudo systemctl reload nginx"
+$sshCmd = @'
+cd /opt/audioapp && sudo rsync -av --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r /opt/audioapp/frontend/build/ /opt/audioapp/frontend/audio-waveform-visualizer/build/ && FRONTEND_CONTAINER=$(docker ps --format '{{.Names}}' | grep -E 'audioapp_frontend|_audioapp_frontend' | head -1) && if [ -n "$FRONTEND_CONTAINER" ]; then sudo docker cp /opt/audioapp/frontend/build/. $FRONTEND_CONTAINER:/usr/share/nginx/html/ && sudo docker restart $FRONTEND_CONTAINER; fi && sudo chmod -R u=rwX,go=rX /opt/audioapp/frontend/audio-waveform-visualizer/build/ && sudo chown -R nickd:www-data /opt/audioapp/frontend/audio-waveform-visualizer/build/ && sudo systemctl reload nginx
+'@
+ssh -t nickd@82.165.221.205 $sshCmd
+
 ```
 *(You will be prompted for your SSH password, followed by your sudo password)*
 
@@ -228,6 +236,7 @@ sudo chown -R nickd:www-data /opt/audioapp/frontend/audio-waveform-visualizer/bu
 
 # Reload main nginx
 sudo systemctl reload nginx
+
 ```
 
 #### 3.1 Critical Check: Which Path Is Actually Serving Production?
