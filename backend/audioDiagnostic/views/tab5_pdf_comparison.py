@@ -188,6 +188,9 @@ class GetPDFTextView(APIView):
                 min_occurrence_ratio=0.4  # Pattern must appear on 40%+ of pages
             )
             
+            # Strip NUL bytes — PostgreSQL rejects \x00 in string literals
+            pdf_text = pdf_text.replace('\x00', '')
+
             # Save cleaned text to project for reuse in comparisons
             if not project.pdf_text or len(project.pdf_text) != len(pdf_text):
                 project.pdf_text = pdf_text

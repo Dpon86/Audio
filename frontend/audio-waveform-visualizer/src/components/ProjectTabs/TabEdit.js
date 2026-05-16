@@ -25,10 +25,11 @@ const TabEdit = () => {
   } = useProjectTab();
 
   /* ─── Refs ──────────────────────────────────────────────────────── */
-  const waveformRef   = useRef(null);
-  const timelineRef   = useRef(null);
-  const transcriptRef = useRef(null);
-  const regionsMapRef = useRef(new Map());
+  const waveformRef      = useRef(null);
+  const timelineRef      = useRef(null);
+  const transcriptRef    = useRef(null);
+  const regionsMapRef    = useRef(new Map());
+  const overlayScrollRef = useRef(null);
 
   /* ─── WaveSurfer state ───────────────────────────────────────────── */
   const [wavesurfer,       setWavesurfer]       = useState(null);
@@ -64,7 +65,19 @@ const TabEdit = () => {
       );
       if (resp.ok) {
         const data = await resp.json();
-        setTranscriptionData(data);
+        // Normalize segment keys: API returns start_time/end_time, context may use start/end
+        const rawSegs = data.segments || data.all_segments || [];
+        const normalized = rawSegs.map(seg => ({
+          ...seg,
+          start: seg.start !== undefined ? seg.start : (seg.start_time || 0),
+          end:   seg.end   !== undefined ? seg.end   : (seg.end_time   || 0),
+        }));
+        setTranscriptionData({
+          ...data,
+          all_segments: normalized,
+          word_count: data.transcription?.word_count || data.word_count || 0,
+          text: data.transcription?.full_text || data.text || '',
+        });
       }
     } catch (err) {
       console.error('TabEdit: failed to load transcription', err);
@@ -72,7 +85,7 @@ const TabEdit = () => {
   }, [selectedAudioFile, projectId, token, setTranscriptionData]);
 
   useEffect(() => {
-    if (selectedAudioFile && !transcriptionData) {
+    if (selectedAudioFile) {
       loadTranscription();
     }
   }, [selectedAudioFile]); // eslint-disable-line
@@ -231,6 +244,21 @@ const TabEdit = () => {
     if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [currentTime]);
 
+  /* ─── Sync waveform scroll → transcript overlay ─────────────────── */
+  useEffect(() => {
+    if (!wavesurfer || !isReady || !overlayScrollRef.current) return;
+    let wrapper;
+    try { wrapper = wavesurfer.getWrapper(); } catch (e) { return; }
+    if (!wrapper) return;
+    const handleScroll = () => {
+      if (overlayScrollRef.current) {
+        overlayScrollRef.current.scrollLeft = wrapper.scrollLeft;
+      }
+    };
+    wrapper.addEventListener('scroll', handleScroll);
+    return () => wrapper.removeEventListener('scroll', handleScroll);
+  }, [wavesurfer, isReady]);
+
   /* ────────────────────────────────────────────────────────────────── */
   /* Align to Silence                                                   */
   /* ────────────────────────────────────────────────────────────────── */
@@ -312,7 +340,13 @@ const TabEdit = () => {
   };
 
   /* ─── Derived data ──────────────────────────────────────────────── */
-  const segments = transcriptionData?.all_segments || [];
+  // Normalize segments from context (may use start/end or start_time/end_time)
+  const rawSegments = transcriptionData?.all_segments || transcriptionData?.segments || [];
+  const segments = rawSegments.map(seg => ({
+    ...seg,
+    start: seg.start !== undefined ? seg.start : (seg.start_time || 0),
+    end:   seg.end   !== undefined ? seg.end   : (seg.end_time   || 0),
+  }));
   const activeSegIdx = segments.findIndex((seg) => currentTime >= seg.start && currentTime < seg.end);
   const totalRegions   = duplicates.reduce((n, g) => n + (g.occurrences?.length || 0), 0);
   const deletedRegions = duplicates.reduce((n, g) => n + (g.occurrences?.filter(o => !o.is_kept).length || 0), 0);
@@ -388,6 +422,69 @@ const TabEdit = () => {
           )}
           <div ref={timelineRef} style={{ borderBottom: '1px solid #e2e8f0' }} />
           <div ref={waveformRef} style={{ width: '100%' }} />
+
+          {/* ── Transcript overlay: time-aligned text beneath the waveform ── */}
+          {segments.length > 0 && isReady && (
+            <div
+              ref={overlayScrollRef}
+              style={{
+                overflowX: 'hidden',
+                overflowY: 'hidden',
+                width: '100%',
+                height: `${Math.max(22, 13 + zoom * 1.5)}px`,
+                borderTop: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                position: 'relative',
+              }}
+            >
+              <div
+                style={{
+                  position: 'relative',
+                  width: `${Math.max(100, duration * 10 * zoom)}px`,
+                  height: '100%',
+                  minWidth: '100%',
+                }}
+              >
+                {segments.map((seg, idx) => {
+                  const pxPerSec = 10 * zoom;
+                  const left     = seg.start * pxPerSec;
+                  const segWidth = Math.max(1, (seg.end - seg.start) * pxPerSec);
+                  const fontSize = Math.max(7, Math.min(16, 5 + zoom * 0.75));
+                  const isActive = idx === activeSegIdx;
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => seekTo(seg.start)}
+                      title={`${formatTime(seg.start)} → ${formatTime(seg.end)}: ${seg.text}`}
+                      style={{
+                        position:   'absolute',
+                        left:       `${left}px`,
+                        width:      `${segWidth}px`,
+                        height:     '100%',
+                        overflow:   'hidden',
+                        whiteSpace: 'nowrap',
+                        textOverflow: 'ellipsis',
+                        fontSize:   `${fontSize}px`,
+                        lineHeight: 1,
+                        display:    'flex',
+                        alignItems: 'center',
+                        padding:    '0 3px',
+                        background: isActive ? 'rgba(254,249,195,0.95)' : 'transparent',
+                        color:      isActive ? '#92400e' : '#475569',
+                        fontWeight: isActive ? 600 : 400,
+                        cursor:     'pointer',
+                        borderLeft: '1px solid #cbd5e1',
+                        boxSizing:  'border-box',
+                        transition: 'background 0.15s',
+                      }}
+                    >
+                      {seg.text?.trim()}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Legend */}

@@ -28,7 +28,10 @@ def clean_pdf_text(text, remove_headers=True):
     """
     if not text:
         return text
-    
+
+    # Strip NUL bytes that PostgreSQL cannot store and JSON cannot encode
+    text = text.replace('\x00', '')
+
     # First pass: remove headers, footers, page numbers if requested
     if remove_headers:
         text = remove_headers_footers_and_numbers(text)

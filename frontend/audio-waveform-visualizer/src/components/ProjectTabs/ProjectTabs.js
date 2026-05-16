@@ -9,11 +9,11 @@ const ProjectTabs = ({ activeTab, onTabChange, tabCounts = {} }) => {
   const tabs = [
     { id: 'files', label: 'Upload & Transcribe', icon: '📁', description: 'Upload & transcribe audio files' },
     { id: 'duplicates', label: 'Duplicates', icon: '🔍', description: 'Find & remove repeats' },
+    { id: 'pdfedit', label: 'PDF Edit', icon: '📑', description: 'Structure & gap editor' },
     { id: 'edit', label: 'Edit', icon: '✂️', description: 'Advanced audio editing' },
     { id: 'results', label: 'Results', icon: '✅', description: 'View processed audio' },
     { id: 'review', label: 'Review', icon: '👁️', description: 'Compare processed vs original' },
     { id: 'compare', label: 'Compare PDF', icon: '📄', description: 'Validate against PDF' },
-    { id: 'pdfedit', label: 'PDF Edit', icon: '📑', description: 'Structure & gap editor' }
   ];
 
   return (

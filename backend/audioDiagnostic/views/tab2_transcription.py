@@ -101,7 +101,7 @@ class SingleFileTranscriptionResultView(APIView):
             'end_time': seg.end_time,
             'segment_index': seg.segment_index,
             'confidence_score': seg.confidence_score
-        } for seg in segments[:100]]  # Limit to first 100 for preview
+        } for seg in segments]
         
         return Response({
             'success': True,
