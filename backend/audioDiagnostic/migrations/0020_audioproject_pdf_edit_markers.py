@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('audioDiagnostic', '0019_audiofile_deleted_items'),
+        ('audioDiagnostic', '0018_add_client_transcription_duplicate_analysis_ai_models'),
     ]
 
     operations = [
