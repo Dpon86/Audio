@@ -49,9 +49,9 @@ const TabEdit = () => {
   /* ─── Align-to-Silence state ─────────────────────────────────────── */
   const [isAligningToSilence, setIsAligningToSilence] = useState(false);
   const [alignResult,         setAlignResult]          = useState(null);
-  const silenceThreshold   = -40;
-  const silenceSearchRange = 0.6;
-  const silenceMinDuration = 0.08;
+  const [silenceThreshold,   setSilenceThreshold]   = useState(-40);
+  const [silenceSearchRange, setSilenceSearchRange] = useState(0.6);
+  const [silenceMinDuration, setSilenceMinDuration] = useState(0.08);
 
   /* ────────────────────────────────────────────────────────────────── */
   /* Load transcription from API (mirrors Tab2 logic)                  */
@@ -246,17 +246,16 @@ const TabEdit = () => {
 
   /* ─── Sync waveform scroll → transcript overlay ─────────────────── */
   useEffect(() => {
-    if (!wavesurfer || !isReady || !overlayScrollRef.current) return;
-    let wrapper;
-    try { wrapper = wavesurfer.getWrapper(); } catch (e) { return; }
-    if (!wrapper) return;
-    const handleScroll = () => {
+    if (!wavesurfer || !isReady || !overlayScrollRef.current || !waveformRef.current) return;
+    const container = waveformRef.current;
+    const handleScroll = (e) => {
       if (overlayScrollRef.current) {
-        overlayScrollRef.current.scrollLeft = wrapper.scrollLeft;
+        overlayScrollRef.current.scrollLeft = e.target.scrollLeft;
       }
     };
-    wrapper.addEventListener('scroll', handleScroll);
-    return () => wrapper.removeEventListener('scroll', handleScroll);
+    // Use capture so we catch scroll on any child element (WaveSurfer shadow container)
+    container.addEventListener('scroll', handleScroll, true);
+    return () => container.removeEventListener('scroll', handleScroll, true);
   }, [wavesurfer, isReady]);
 
   /* ────────────────────────────────────────────────────────────────── */
@@ -473,7 +472,6 @@ const TabEdit = () => {
                         color:      isActive ? '#92400e' : '#475569',
                         fontWeight: isActive ? 600 : 400,
                         cursor:     'pointer',
-                        borderLeft: '1px solid #cbd5e1',
                         boxSizing:  'border-box',
                         transition: 'background 0.15s',
                       }}
@@ -552,15 +550,68 @@ const TabEdit = () => {
         <div style={S.toolsGrid}>
 
           {/* Align to Silence */}
-          <div style={S.toolGroup}>
+          <div style={{ ...S.toolGroup, gridColumn: '1 / -1' }}>
             <div style={S.toolGroupLabel}>Boundary Alignment</div>
-            <button
-              style={isAligningToSilence ? S.btnGray : S.btnIndigo}
-              onClick={handleAlignToSilence}
-              disabled={isAligningToSilence || !isReady}
-            >
-              {isAligningToSilence ? '⏳ Aligning…' : '🎯 Align to Silence'}
-            </button>
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '1.5rem',
+              alignItems: 'flex-end',
+              background: '#f8fafc',
+              padding: '1.25rem',
+              borderRadius: '8px',
+              border: '1px solid #f1f5f9',
+            }}>
+              <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:'180px' }}>
+                <label style={{ fontSize:'0.875rem', fontWeight:600, color:'#334155', marginBottom:'0.4rem' }}>
+                  Silence Threshold: {silenceThreshold} dB
+                </label>
+                <input type="range" min="-60" max="-20" value={silenceThreshold}
+                  onChange={(e) => setSilenceThreshold(Number(e.target.value))}
+                  style={{ width:'100%', accentColor:'#0ea5e9' }} />
+                <span style={{ fontSize:'0.75rem', color:'#64748b', marginTop:'0.25rem' }}>Lower = stricter silence requirement</span>
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:'180px' }}>
+                <label style={{ fontSize:'0.875rem', fontWeight:600, color:'#334155', marginBottom:'0.4rem' }}>
+                  Search Range: {silenceSearchRange}s
+                </label>
+                <input type="range" min="0.1" max="2.0" step="0.1" value={silenceSearchRange}
+                  onChange={(e) => setSilenceSearchRange(Number(e.target.value))}
+                  style={{ width:'100%', accentColor:'#0ea5e9' }} />
+                <span style={{ fontSize:'0.75rem', color:'#64748b', marginTop:'0.25rem' }}>How far to look from current boundary</span>
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:'180px' }}>
+                <label style={{ fontSize:'0.875rem', fontWeight:600, color:'#334155', marginBottom:'0.4rem' }}>
+                  Min Silence Duration: {silenceMinDuration}s
+                </label>
+                <input type="range" min="0.01" max="0.5" step="0.01" value={silenceMinDuration}
+                  onChange={(e) => setSilenceMinDuration(Number(e.target.value))}
+                  style={{ width:'100%', accentColor:'#0ea5e9' }} />
+                <span style={{ fontSize:'0.75rem', color:'#64748b', marginTop:'0.25rem' }}>Required length of silent section</span>
+              </div>
+              <button
+                onClick={handleAlignToSilence}
+                disabled={isAligningToSilence || !isReady}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: (isAligningToSilence || !isReady) ? '#9ca3af' : '#0ea5e9',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: 'bold',
+                  cursor: (isAligningToSilence || !isReady) ? 'not-allowed' : 'pointer',
+                  opacity: (isAligningToSilence || !isReady) ? 0.7 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  whiteSpace: 'nowrap',
+                  height: '42px',
+                  fontSize: '0.95rem',
+                }}
+              >
+                {isAligningToSilence ? '⏳ Aligning…' : '🎯 Align to Silence'}
+              </button>
+            </div>
             {alignResult && (
               <div style={S.resultPill}>
                 ✅ {alignResult.adjusted} adjusted · {alignResult.skipped} already aligned

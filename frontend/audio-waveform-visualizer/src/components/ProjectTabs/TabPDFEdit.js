@@ -35,6 +35,7 @@ const TabPDFEdit = () => {
     projectData,
     selectedAudioFile,
     transcriptionData,
+    setTranscriptionData,
     pdfEditMarkers,
     setPdfEditMarkers,
     pdfRoomTone,
@@ -124,6 +125,32 @@ const TabPDFEdit = () => {
   }, [projectId, token]);
 
   useEffect(() => { loadPDFStructure(); }, [loadPDFStructure]);
+
+  /* ─────────────────────────────────────────────────────────────────  */
+  /* Load transcription (so Map All to Timestamps works even if the     */
+  /* user hasn't visited the Edit tab yet)                              */
+  /* ─────────────────────────────────────────────────────────────────  */
+  useEffect(() => {
+    if (!selectedAudioFile || !projectId || !token) return;
+    if (transcriptionData?.all_segments?.length) return; // already loaded
+    (async () => {
+      try {
+        const resp = await fetch(
+          `${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/transcription/`,
+          { headers: { Authorization: `Token ${token}` } }
+        );
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const rawSegs = data.segments || data.all_segments || [];
+        const normalized = rawSegs.map(seg => ({
+          ...seg,
+          start: seg.start !== undefined ? seg.start : (seg.start_time || 0),
+          end:   seg.end   !== undefined ? seg.end   : (seg.end_time   || 0),
+        }));
+        setTranscriptionData({ ...data, all_segments: normalized });
+      } catch (_) {}
+    })();
+  }, [selectedAudioFile, projectId, token]); // eslint-disable-line
 
   /* ─────────────────────────────────────────────────────────────────  */
   /* Backend persistence: load, save, revert, undo                      */
