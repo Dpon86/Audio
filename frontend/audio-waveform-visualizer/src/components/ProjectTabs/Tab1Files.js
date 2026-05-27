@@ -748,17 +748,6 @@ const Tab1Files = () => {
 
   return (
     <div className="tab1-container">
-      {/* Client-Side Processing Info Banner */}
-      <div className="client-side-info-banner">
-        <p>
-          🖥️ <strong>Processing on Your Device</strong><br />
-          All transcription happens in your browser for faster, private processing.
-          Your audio files never leave your device. Results are saved locally in your browser.
-        </p>
-      </div>
-
-
-
       {/* Processing Mode Toggle - DISABLED (server has low memory) */}
       {false && clientSideSupported && (
         <div className="processing-mode-selector">
@@ -806,7 +795,7 @@ const Tab1Files = () => {
         </div>
       )}
 
-      {/* Upload Area - Compact when files are transcribed */}
+      {/* Upload Row: green info banner (25%) + upload area (75%) */}
       {hasTranscribedFiles && !showUploadSection ? (
         <div style={{
           background: '#f8fafc',
@@ -839,46 +828,58 @@ const Tab1Files = () => {
         </div>
       ) : (
         <div style={{
-          marginBottom: '1rem',
-          transition: 'all 0.3s ease'
+          display: 'flex',
+          gap: '1rem',
+          alignItems: 'stretch',
+          marginBottom: '1rem'
         }}>
-          {hasTranscribedFiles && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              marginBottom: '0.5rem'
-            }}>
-              <button
-                onClick={() => setShowUploadSection(false)}
-                style={{
-                  padding: '0.4rem 0.6rem',
-                  borderRadius: '6px',
-                  border: '1px solid #e2e8f0',
-                  background: 'white',
-                  color: '#64748b',
-                  fontSize: '0.8rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Hide Upload Section
-              </button>
-            </div>
-          )}
-          <div 
-            className={`upload-area ${dragActive ? 'drag-active' : ''} ${hasTranscribedFiles ? 'compact' : ''}`}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-            style={{
-              minHeight: hasTranscribedFiles ? '120px' : '200px',
-              transition: 'min-height 0.3s ease'
-            }}
-          >
-        <div className="upload-icon">📁</div>
-        <h3>Upload Audio Files</h3>
-        <p>Drag & drop files here, or click to browse</p>
-        <p className="upload-hint">Supported formats: MP3, WAV, M4A, FLAC, OGG (max 500MB each)</p>
+          {/* Green info banner — 25% */}
+          <div className="client-side-info-banner" style={{ flex: '0 0 25%', marginBottom: 0, display: 'flex', alignItems: 'center' }}>
+            <p style={{ margin: 0 }}>
+              🖥️ <strong>Processing on Your Device</strong><br />
+              All transcription happens in your browser for faster, private processing.
+              Your audio files never leave your device. Results are saved locally in your browser.
+            </p>
+          </div>
+
+          {/* Upload section — 75% */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            {hasTranscribedFiles && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setShowUploadSection(false)}
+                  style={{
+                    padding: '0.3rem 0.5rem',
+                    borderRadius: '6px',
+                    border: '1px solid #e2e8f0',
+                    background: 'white',
+                    color: '#64748b',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Hide Upload Section
+                </button>
+              </div>
+            )}
+            <div
+              className={`upload-area upload-area-compact ${dragActive ? 'drag-active' : ''}`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', width: '100%' }}>
+                <div style={{ fontSize: '2rem', flexShrink: 0 }}>📁</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: '1rem', color: 'white', marginBottom: '0.2rem' }}>Upload Audio Files</div>
+                  <div style={{ fontSize: '0.85rem', opacity: 0.9, color: 'white' }}>Drag &amp; drop files here, or click to browse</div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.75, color: 'white', marginTop: '0.1rem' }}>MP3, WAV, M4A, FLAC, OGG · max 500MB each</div>
+                </div>
+                <label htmlFor="file-upload" className="upload-button" style={{ flexShrink: 0, margin: 0, padding: '0.6rem 1.5rem', fontSize: '0.9rem' }}>
+                  Select Files
+                </label>
+              </div>
         
         <input
           type="file"
@@ -888,10 +889,6 @@ const Tab1Files = () => {
           onChange={(e) => handleFileUpload(e.target.files)}
           style={{ display: 'none' }}
         />
-        <label htmlFor="file-upload" className="upload-button">
-          Select Files
-        </label>
-
         {uploading && (
           <div className="upload-progress-overlay">
             <div className="progress-modal">
@@ -992,6 +989,7 @@ const Tab1Files = () => {
             </div>
           </div>
         )}
+            </div>
           </div>
         </div>
       )}

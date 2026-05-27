@@ -5,6 +5,8 @@ import { getApiUrl, API_BASE_URL, resolveMediaUrl } from '../../config/api';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import TimelinePlugin from 'wavesurfer.js/dist/plugins/timeline.esm.js';
+import clientAudioAssembly from '../../services/clientAudioAssembly';
+import clientAudioStorage from '../../services/clientAudioStorage';
 import './ProjectTabs.css';
 
 /**
@@ -19,10 +21,20 @@ const TabEdit = () => {
     selectedAudioFile,
     audioFiles,
     selectAudioFile,
+    setActiveTab,
     transcriptionData,
     setTranscriptionData,
     pdfEditMarkers,
+    sharedDuplicateGroups,
+    sharedSelectedDeletions,
+    setSharedSelectedDeletions,
   } = useProjectTab();
+
+  /* ─── Assembly state ─────────────────────────────────────────────── */
+  const [isAssemblingAudio, setIsAssemblingAudio] = useState(false);
+  const [assemblyProgress, setAssemblyProgress] = useState({ current: 0, total: 0, status: '' });
+  const [assembledAudioBlob, setAssembledAudioBlob] = useState(null);
+  const [assemblyInfo, setAssemblyInfo] = useState(null);
 
   /* ─── Refs ──────────────────────────────────────────────────────── */
   const waveformRef      = useRef(null);
@@ -69,6 +81,12 @@ const TabEdit = () => {
 
   /* ─── UI toggle state ────────────────────────────────────────────── */
   const [showAlignPanel, setShowAlignPanel] = useState(false);
+
+  /* ─── Waveform height (user-resizable) ──────────────────────────── */
+  const [waveformHeight, setWaveformHeight] = useState(120);
+  const waveformHeightRef = useRef(120);
+  // Keep ref in sync with state so drag closure always reads latest height
+  waveformHeightRef.current = waveformHeight;
 
   /* ────────────────────────────────────────────────────────────────── */
   /* Load transcription from API (mirrors Tab2 logic)                  */
@@ -163,7 +181,7 @@ const TabEdit = () => {
       barWidth:      2,
       barGap:        2,
       barRadius:     3,
-      height:        120,
+      height:        waveformHeight,
       normalize:     true,
       minPxPerSec:   10 * zoom,
     });
@@ -282,6 +300,30 @@ const TabEdit = () => {
     wavesurfer.on('timeupdate', handleTimeUpdate);
     return () => { try { wavesurfer.un('timeupdate', handleTimeUpdate); } catch(e){} };
   }, [wavesurfer, isReady, skipDeleted]);
+
+  /* ─── Sync WaveSurfer canvas height when user resizes ─────────── */
+  useEffect(() => {
+    if (!wavesurfer || !isReady) return;
+    wavesurfer.setOptions({ height: waveformHeight });
+  }, [waveformHeight, wavesurfer, isReady]);
+
+  /* ─── Resize drag handler ──────────────────────────────────────── */
+  const handleResizeMouseDown = useCallback((e) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startH = waveformHeightRef.current;
+    const onMove = (ev) => {
+      const newH = Math.max(60, Math.min(500, startH + ev.clientY - startY));
+      waveformHeightRef.current = newH;
+      setWaveformHeight(newH);
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, []);
 
   /* ─── Locked scrollbar: single scrollbar controls waveform + text ─ */
   // Keep refs in sync with state so RAF closures always read current values
@@ -588,15 +630,158 @@ const TabEdit = () => {
   /* ─── Derived data ──────────────────────────────────────────────── */
   // Normalize segments from context (may use start/end or start_time/end_time)
   const rawSegments = transcriptionData?.all_segments || transcriptionData?.segments || [];
-  const segments = rawSegments.map(seg => ({
-    ...seg,
-    start: seg.start !== undefined ? seg.start : (seg.start_time || 0),
-    end:   seg.end   !== undefined ? seg.end   : (seg.end_time   || 0),
-  }));
+  const segments = rawSegments
+    .map(seg => ({
+      ...seg,
+      start: typeof seg.start     === 'number' ? seg.start     : (typeof seg.start_time === 'number' ? seg.start_time : 0),
+      end:   typeof seg.end       === 'number' ? seg.end       : (typeof seg.end_time   === 'number' ? seg.end_time   : 0),
+    }))
+    .filter(seg => seg.end > seg.start)        // drop zero-width / invalid segments
+    .sort((a, b) => a.start - b.start);        // guarantee time order
   const activeSegIdx = segments.findIndex((seg) => currentTime >= seg.start && currentTime < seg.end);
   const totalRegions   = duplicates.reduce((n, g) => n + (g.occurrences?.length || 0), 0);
   const deletedRegions = duplicates.reduce((n, g) => n + (g.occurrences?.filter(o => !o.is_kept).length || 0), 0);
   const keptRegions    = totalRegions - deletedRegions;
+
+  /* ─── Assembly handlers ─────────────────────────────────────────── */
+  const handleAssembleAudio = async () => {
+    if (sharedSelectedDeletions.length === 0) {
+      alert('No segments selected for removal. Go to the "Find Duplicates" tab first to detect and select duplicate segments.');
+      return;
+    }
+
+    const isClientOnly = selectedAudioFile?.client_only || selectedAudioFile?.client_processed;
+
+    if (!isClientOnly) {
+      // Server-side assembly
+      const confirmed = window.confirm(
+        `Server-Side Assembly\n\n` +
+        `This will send your ${sharedSelectedDeletions.length} selected deletions to the server for processing.\n` +
+        `Continue?`
+      );
+      if (!confirmed) return;
+
+      try {
+        setIsAssemblingAudio(true);
+        setAssemblyProgress({ current: 0, total: 100, status: 'Sending to server...' });
+        const confirmed_deletions = sharedSelectedDeletions.map(id => ({ segment_id: id }));
+        const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/files/${selectedAudioFile.id}/confirm-deletions/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
+          body: JSON.stringify({ confirmed_deletions })
+        });
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'Server assembly failed');
+        }
+        const result = await response.json();
+        const taskId = result.task_id;
+        let complete = false;
+        let attempts = 0;
+        while (!complete && attempts < 720) {
+          await new Promise(r => setTimeout(r, 2500));
+          const statusRes = await fetch(`${API_BASE_URL}/api/tasks/${taskId}/status/`, { headers: { 'Authorization': `Token ${token}` } });
+          if (statusRes.ok) {
+            const status = await statusRes.json();
+            if (status.progress) setAssemblyProgress({ current: status.progress, total: 100, status: status.message || 'Processing...' });
+            if (status.status === 'completed' || status.status === 'success' || status.task_state === 'SUCCESS') {
+              complete = true;
+              setIsAssemblingAudio(false);
+              alert('Server assembly complete! Switching to Results tab.');
+              setActiveTab('results');
+            } else if (status.status === 'failed' || status.task_state === 'FAILURE') {
+              throw new Error(status.error || 'Task failed');
+            }
+          }
+          attempts++;
+        }
+        if (!complete) {
+          setIsAssemblingAudio(false);
+          alert('Assembly is still running on the server. Check the Results tab in a few minutes.');
+        }
+      } catch (error) {
+        setIsAssemblingAudio(false);
+        alert(`Assembly failed: ${error.message}`);
+      }
+      return;
+    }
+
+    // Client-side assembly
+    let originalFile = selectedAudioFile.local_file;
+    if (!originalFile && selectedAudioFile.has_local_audio) {
+      try {
+        const stored = await clientAudioStorage.getFile(selectedAudioFile.id);
+        if (stored?.file) originalFile = stored.file;
+      } catch (e) {
+        console.error('[TabEdit] Failed to load from IndexedDB:', e);
+      }
+    }
+    if (!originalFile) {
+      alert('Original audio file not found in browser storage. Please re-upload and transcribe the file.');
+      return;
+    }
+
+    // Get all segments
+    let allSegments = [];
+    const storageKey = `duplicates_${selectedAudioFile.id}_${projectId}`;
+    const duplicatesStorage = localStorage.getItem(storageKey);
+    if (duplicatesStorage) {
+      try {
+        const parsed = JSON.parse(duplicatesStorage);
+        if (parsed.processedSegments?.length > 0) allSegments = parsed.processedSegments;
+        else if (parsed.duplicate_groups?.length > 0) {
+          const segMap = new Map();
+          parsed.duplicate_groups.forEach(g => (g.segments || []).forEach(s => { if (s.id && !segMap.has(s.id)) segMap.set(s.id, s); }));
+          allSegments = Array.from(segMap.values()).sort((a, b) => a.start_time - b.start_time);
+        }
+      } catch (e) { console.error('[TabEdit] Error parsing duplicates storage:', e); }
+    }
+    if (allSegments.length === 0 && selectedAudioFile.transcription?.all_segments) {
+      allSegments = selectedAudioFile.transcription.all_segments;
+    }
+    if (allSegments.length === 0) {
+      alert('No transcription segments found. Please run duplicate detection first.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Assemble audio?\n\nSegments to remove: ${sharedSelectedDeletions.length}\nSegments to keep: ${allSegments.length - sharedSelectedDeletions.length}\n\nThis will process the audio in your browser.\n\nContinue?`
+    );
+    if (!confirmed) return;
+
+    setIsAssemblingAudio(true);
+    setAssemblyProgress({ current: 0, total: 0, status: 'Starting...' });
+    try {
+      const result = await clientAudioAssembly.assembleAudio(
+        originalFile, allSegments, sharedSelectedDeletions,
+        (current, total, status) => setAssemblyProgress({ current, total, status })
+      );
+      setAssembledAudioBlob(result.blob);
+      setAssemblyInfo(result.info);
+      alert(
+        `✅ Assembly Complete!\n\n` +
+        `Removed: ${clientAudioAssembly.formatDuration(result.info.removedDuration)}\n` +
+        `New Duration: ${clientAudioAssembly.formatDuration(result.info.assembledDuration)}`
+      );
+    } catch (error) {
+      alert(`Assembly failed: ${error.message}`);
+    } finally {
+      setIsAssemblingAudio(false);
+      setAssemblyProgress({ current: 0, total: 0, status: '' });
+    }
+  };
+
+  const handleDownloadAssembledAudio = () => {
+    if (!assembledAudioBlob) { alert('No assembled audio available. Please assemble first.'); return; }
+    const url = URL.createObjectURL(assembledAudioBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedAudioFile.filename.replace(/\.[^/.]+$/, '')}_assembled.wav`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   /* ────────────────────────────────────────────────────────────────── */
   /* Render — empty state                                               */
@@ -633,8 +818,94 @@ const TabEdit = () => {
         </div>
       </div>
 
-      {/* ── Waveform Card ───────────────────────────────────────────── */}
+      {/* ── Step 1: Align to Silence ────────────────────────────────── */}
+      <div style={{ ...S.card, padding: 0, overflow: 'hidden' }}>
+        <button
+          onClick={() => setShowAlignPanel(v => !v)}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'flex-start', gap: '12px',
+            padding: '16px 20px', background: 'none', border: 'none',
+            cursor: 'pointer', textAlign: 'left',
+          }}
+        >
+          <span style={S.stepBadge}>Step 1</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'Arial, sans-serif' }}>
+              🎯 Align Regions to Silence
+              <span style={{ fontWeight: 400, color: '#64748b', fontSize: '0.88rem' }}>(Optional)</span>
+            </div>
+            <div style={{ fontSize: '0.82rem', color: '#0369a1', marginTop: '5px', lineHeight: 1.5, fontFamily: 'Arial, sans-serif' }}>
+              Snap the boundaries of all DELETE regions to the nearest silence point. This ensures cleaner cuts with no abrupt audio interruptions before assembling.
+            </div>
+          </div>
+          <span style={{ flexShrink: 0, color: '#94a3b8', fontSize: '0.9rem', marginTop: '3px' }}>
+            {showAlignPanel ? '▲' : '▼'}
+          </span>
+        </button>
+        {showAlignPanel && (
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'flex-end',
+            background: '#f0f9ff', padding: '1rem 1.25rem 1.25rem',
+            borderTop: '1px solid #bae6fd',
+          }}>
+            <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:'160px' }}>
+              <label style={{ fontSize:'0.8rem', fontWeight:600, color:'#334155', marginBottom:'0.3rem', fontFamily:'Arial,sans-serif' }}>
+                Silence Threshold: {silenceThreshold} dB
+              </label>
+              <input type="range" min="-60" max="-20" value={silenceThreshold}
+                onChange={(e) => setSilenceThreshold(Number(e.target.value))}
+                style={{ width:'100%', accentColor:'#0ea5e9' }} />
+              <span style={{ fontSize:'0.7rem', color:'#64748b', marginTop:'0.2rem', fontFamily:'Arial,sans-serif' }}>Lower = stricter silence requirement</span>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:'160px' }}>
+              <label style={{ fontSize:'0.8rem', fontWeight:600, color:'#334155', marginBottom:'0.3rem', fontFamily:'Arial,sans-serif' }}>
+                Search Range: {silenceSearchRange}s
+              </label>
+              <input type="range" min="0.1" max="2.0" step="0.1" value={silenceSearchRange}
+                onChange={(e) => setSilenceSearchRange(Number(e.target.value))}
+                style={{ width:'100%', accentColor:'#0ea5e9' }} />
+              <span style={{ fontSize:'0.7rem', color:'#64748b', marginTop:'0.2rem', fontFamily:'Arial,sans-serif' }}>How far to look from current boundary</span>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:'160px' }}>
+              <label style={{ fontSize:'0.8rem', fontWeight:600, color:'#334155', marginBottom:'0.3rem', fontFamily:'Arial,sans-serif' }}>
+                Min Silence Duration: {silenceMinDuration}s
+              </label>
+              <input type="range" min="0.01" max="0.5" step="0.01" value={silenceMinDuration}
+                onChange={(e) => setSilenceMinDuration(Number(e.target.value))}
+                style={{ width:'100%', accentColor:'#0ea5e9' }} />
+              <span style={{ fontSize:'0.7rem', color:'#64748b', marginTop:'0.2rem', fontFamily:'Arial,sans-serif' }}>Required length of silent section</span>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
+              <button
+                onClick={handleAlignToSilence}
+                disabled={isAligningToSilence || !isReady}
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  background: (isAligningToSilence || !isReady) ? '#9ca3af' : '#0ea5e9',
+                  color: 'white', border: 'none', borderRadius: '6px',
+                  fontWeight: 'bold', cursor: (isAligningToSilence || !isReady) ? 'not-allowed' : 'pointer',
+                  opacity: (isAligningToSilence || !isReady) ? 0.7 : 1,
+                  whiteSpace: 'nowrap', fontSize: '0.9rem', fontFamily: 'Arial,sans-serif',
+                }}
+              >
+                {isAligningToSilence ? '⏳ Aligning…' : '🎯 Auto-Align to Silence'}
+              </button>
+              {alignResult && (
+                <span style={{ fontSize: '0.78rem', color: '#0369a1', fontWeight: 600, fontFamily: 'Arial,sans-serif' }}>
+                  ✅ {alignResult.adjusted} adjusted · {alignResult.skipped} at boundary · {alignResult.total} total
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Step 2: Waveform ─────────────────────────────────────────── */}
       <div style={S.card}>
+        <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'12px' }}>
+          <span style={S.stepBadge}>Step 2</span>
+          <span style={{ fontSize:'1rem', fontWeight:700, color:'#0f172a', fontFamily:'Arial,sans-serif' }}>🔊 Audio Waveform</span>
+        </div>
 
         {/* Toolbar */}
         <div style={S.toolbar}>
@@ -685,90 +956,8 @@ const TabEdit = () => {
             >
               ➕ Add Deleted
             </button>
-            {/* Align to Silence toggle */}
-            <button
-              onClick={() => setShowAlignPanel(v => !v)}
-              disabled={!isReady}
-              title="Snap deleted region boundaries to nearest silence"
-              style={{
-                padding: '0.45rem 0.9rem',
-                background: !isReady ? '#9ca3af' : (showAlignPanel ? '#0369a1' : '#0ea5e9'),
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                fontWeight: 700,
-                cursor: !isReady ? 'not-allowed' : 'pointer',
-                opacity: !isReady ? 0.7 : 1,
-                fontSize: '0.82rem',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              🎯 Align to Silence
-            </button>
           </div>
         </div>
-
-        {/* Align-to-Silence panel — shown when toggled on */}
-        {showAlignPanel && (
-          <div style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '1.25rem',
-            alignItems: 'flex-end',
-            background: '#f0f9ff',
-            padding: '1rem 1.25rem',
-            borderBottom: '1px solid #bae6fd',
-          }}>
-            <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:'160px' }}>
-              <label style={{ fontSize:'0.8rem', fontWeight:600, color:'#334155', marginBottom:'0.3rem' }}>
-                Threshold: {silenceThreshold} dB
-              </label>
-              <input type="range" min="-60" max="-20" value={silenceThreshold}
-                onChange={(e) => setSilenceThreshold(Number(e.target.value))}
-                style={{ width:'100%', accentColor:'#0ea5e9' }} />
-              <span style={{ fontSize:'0.7rem', color:'#64748b', marginTop:'0.2rem' }}>Lower = stricter</span>
-            </div>
-            <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:'160px' }}>
-              <label style={{ fontSize:'0.8rem', fontWeight:600, color:'#334155', marginBottom:'0.3rem' }}>
-                Search Range: {silenceSearchRange}s
-              </label>
-              <input type="range" min="0.1" max="2.0" step="0.1" value={silenceSearchRange}
-                onChange={(e) => setSilenceSearchRange(Number(e.target.value))}
-                style={{ width:'100%', accentColor:'#0ea5e9' }} />
-              <span style={{ fontSize:'0.7rem', color:'#64748b', marginTop:'0.2rem' }}>Range from boundary to search</span>
-            </div>
-            <div style={{ display:'flex', flexDirection:'column', flex:1, minWidth:'160px' }}>
-              <label style={{ fontSize:'0.8rem', fontWeight:600, color:'#334155', marginBottom:'0.3rem' }}>
-                Min Silence: {silenceMinDuration}s
-              </label>
-              <input type="range" min="0.01" max="0.5" step="0.01" value={silenceMinDuration}
-                onChange={(e) => setSilenceMinDuration(Number(e.target.value))}
-                style={{ width:'100%', accentColor:'#0ea5e9' }} />
-              <span style={{ fontSize:'0.7rem', color:'#64748b', marginTop:'0.2rem' }}>Min gap to qualify</span>
-            </div>
-            <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
-              <button
-                onClick={handleAlignToSilence}
-                disabled={isAligningToSilence || !isReady}
-                style={{
-                  padding: '0.6rem 1.25rem',
-                  background: (isAligningToSilence || !isReady) ? '#9ca3af' : '#0ea5e9',
-                  color: 'white', border: 'none', borderRadius: '6px',
-                  fontWeight: 'bold', cursor: (isAligningToSilence || !isReady) ? 'not-allowed' : 'pointer',
-                  opacity: (isAligningToSilence || !isReady) ? 0.7 : 1,
-                  whiteSpace: 'nowrap', fontSize: '0.9rem',
-                }}
-              >
-                {isAligningToSilence ? '⏳ Aligning…' : '🎯 Run Alignment'}
-              </button>
-              {alignResult && (
-                <span style={{ fontSize: '0.78rem', color: '#0369a1', fontWeight: 600 }}>
-                  ✅ {alignResult.adjusted} adjusted · {alignResult.skipped} at boundary · {alignResult.total} total
-                </span>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Waveform with loading spinner */}
         <div style={S.waveOuter}>
@@ -789,7 +978,7 @@ const TabEdit = () => {
                 overflowX: 'scroll',
                 overflowY: 'hidden',
                 width: '100%',
-                height: `${Math.max(30, 18 + zoom * 2)}px`,
+                height: `${Math.max(52, 32 + zoom * 3)}px`,
                 borderTop: '1px solid #e2e8f0',
                 background: '#f8fafc',
                 position: 'relative',
@@ -819,9 +1008,12 @@ const TabEdit = () => {
                 {segments.map((seg, idx) => {
                   const pxPerSec = 10 * zoom;
                   const left     = seg.start * pxPerSec;
-                  const segWidth = Math.max(1, (seg.end - seg.start) * pxPerSec);
-                  const fontSize = Math.max(8, Math.min(13, 6 + zoom * 0.7));
-                  const isActive = idx === activeSegIdx;
+                  // Clamp visual width so this segment never overlaps the next one
+                  const nextStart = segments[idx + 1]?.start ?? seg.end;
+                  const visEnd    = Math.min(seg.end, nextStart);
+                  const segWidth  = Math.max(1, (visEnd - seg.start) * pxPerSec);
+                  const fontSize  = Math.max(8, Math.min(13, 6 + zoom * 0.7));
+                  const isActive  = idx === activeSegIdx;
                   return (
                     <div
                       key={idx}
@@ -832,15 +1024,17 @@ const TabEdit = () => {
                         left:       `${left}px`,
                         width:      `${segWidth}px`,
                         height:     '100%',
+                        top:        '0',
                         overflow:   'hidden',
                         whiteSpace: 'nowrap',
                         textOverflow: 'ellipsis',
                         fontSize:   `${fontSize}px`,
+                        fontFamily: 'Arial, sans-serif',
                         lineHeight: 1,
                         display:    'flex',
                         alignItems: 'center',
                         padding:    '0 3px',
-                        background: isActive ? 'rgba(254,249,195,0.95)' : 'transparent',
+                        background: isActive ? 'rgba(254,249,195,0.95)' : 'rgba(248,250,252,0.92)',
                         color:      isActive ? '#92400e' : '#475569',
                         fontWeight: isActive ? 600 : 400,
                         cursor:     'pointer',
@@ -855,6 +1049,23 @@ const TabEdit = () => {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Resize handle */}
+        <div
+          onMouseDown={handleResizeMouseDown}
+          title="Drag to resize the waveform"
+          style={{
+            height: '10px',
+            cursor: 'ns-resize',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: '4px',
+            userSelect: 'none',
+          }}
+        >
+          <div style={{ width: '48px', height: '4px', background: '#cbd5e1', borderRadius: '2px' }} />
         </div>
 
         {/* Legend */}
@@ -872,7 +1083,7 @@ const TabEdit = () => {
         </div>
       </div>
 
-      {/* ── Editing Tools Card ───────────────────────────────────────── */}
+      {/* ── Editing Tools ────────────────────────────────────── */}
       <div style={S.card}>
         <div style={S.cardHead}>
           <h3 style={S.cardTitle}>🛠 Editing Tools</h3>
@@ -984,6 +1195,82 @@ const TabEdit = () => {
         </div>
       </div>
 
+      {/* ── Step 3: Assemble Audio ───────────────────────────────────── */}
+      <div style={S.card}>
+        <div style={S.cardHead}>
+          <span style={S.stepBadge}>Step 3</span>
+          <h3 style={S.cardTitle}>🖥️ Assemble Audio</h3>
+          <span style={S.cardMeta}>
+            {sharedSelectedDeletions.length > 0
+              ? `${sharedSelectedDeletions.length} segments selected for removal from Find Duplicates tab`
+              : 'Go to "Find Duplicates" tab first to detect and select duplicate segments'}
+          </span>
+        </div>
+
+        {sharedSelectedDeletions.length === 0 && (
+          <div style={{ padding: '1rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', color: '#92400e', fontSize: '0.9rem' }}>
+            ⚠️ No duplicate segments selected yet. First go to the <strong>Find Duplicates</strong> tab, run detection, and select which segments to remove. Then come back here to assemble.
+          </div>
+        )}
+
+        {sharedSelectedDeletions.length > 0 && (
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <div style={{ fontSize: '0.9rem', color: '#475569' }}>
+              <strong style={{ color: '#1e293b' }}>{sharedSelectedDeletions.length}</strong> duplicate segments selected for removal
+              {sharedDuplicateGroups.length > 0 && ` across ${sharedDuplicateGroups.length} groups`}
+            </div>
+            <button
+              onClick={handleAssembleAudio}
+              disabled={isAssemblingAudio}
+              style={{
+                padding: '0.75rem 1.5rem',
+                fontSize: '1rem',
+                fontWeight: '600',
+                color: 'white',
+                background: isAssemblingAudio ? '#f59e0b' : '#22c55e',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: isAssemblingAudio ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              {isAssemblingAudio
+                ? <><span>⏳</span> Assembling Audio...</>
+                : ((selectedAudioFile?.client_only || selectedAudioFile?.client_processed)
+                  ? `🎵 Assemble Audio (Remove ${sharedSelectedDeletions.length} segments)`
+                  : `🖥️ Assemble on Server (Remove ${sharedSelectedDeletions.length} segments)`)}
+            </button>
+          </div>
+        )}
+
+        {isAssemblingAudio && assemblyProgress.status && (
+          <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#fefce8', border: '1px solid #fde68a', borderRadius: '8px' }}>
+            <p style={{ margin: '0 0 0.5rem 0', fontWeight: '600', color: '#92400e' }}>{assemblyProgress.status}</p>
+            {assemblyProgress.total > 0 && (
+              <div style={{ background: '#e2e8f0', borderRadius: '4px', height: '8px', overflow: 'hidden' }}>
+                <div style={{ background: '#f59e0b', height: '100%', width: `${(assemblyProgress.current / assemblyProgress.total) * 100}%`, transition: 'width 0.3s' }} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {assembledAudioBlob && assemblyInfo && (
+          <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <span style={{ color: '#166534', fontWeight: '600' }}>
+              ✅ Audio Ready — {clientAudioAssembly.formatDuration(assemblyInfo.assembledDuration)}
+            </span>
+            <button
+              onClick={handleDownloadAssembledAudio}
+              style={{ padding: '0.5rem 1rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '0.9rem' }}
+            >
+              📥 Download Assembled Audio
+            </button>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 };
@@ -1006,6 +1293,7 @@ const S = {
 
   /* Card */
   card:     { background:'#fff', borderRadius:'12px', border:'1px solid #e2e8f0', padding:'16px 20px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' },
+  stepBadge:{ padding:'3px 10px', background:'#3b82f6', color:'#fff', borderRadius:'20px', fontSize:'0.78rem', fontWeight:700, flexShrink:0, fontFamily:'Arial,sans-serif' },
   cardHead: { display:'flex', alignItems:'center', gap:'10px', marginBottom:'14px', flexWrap:'wrap' },
   cardTitle:{ margin:0, fontSize:'1em', fontWeight:700, color:'#334155' },
   cardMeta: { fontSize:'0.8em', color:'#94a3b8', flex:1 },

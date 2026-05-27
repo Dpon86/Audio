@@ -12,6 +12,7 @@ import Tab4Review from "../components/Tab4Review";
 import Tab5ComparePDF from "../components/ProjectTabs/Tab5ComparePDF";
 import TabPDFEdit from "../components/ProjectTabs/TabPDFEdit";
 import ErrorBoundary from "../components/ErrorBoundary";
+import TutorialOverlay, { useTutorialState } from "../components/Tutorial/TutorialOverlay";
 import "./ProjectDetailPageNew.css";
 
 /**
@@ -20,6 +21,7 @@ import "./ProjectDetailPageNew.css";
 const ProjectDetailContent = ({ projectData, loading }) => {
   const navigate = useNavigate();
   const { activeTab, setActiveTab } = useProjectTab();
+  const { tutEnabled, enable: enableTutorial, disable: disableTutorial } = useTutorialState();
 
   if (loading) {
     return (
@@ -41,6 +43,7 @@ const ProjectDetailContent = ({ projectData, loading }) => {
 
   return (
     <div className="project-detail-page-new">
+      <TutorialOverlay tutEnabled={tutEnabled} onEnable={enableTutorial} onDisable={disableTutorial} />
       {/* Header */}
       <div className="project-header">
         <button className="back-button" onClick={() => navigate('/projects')}>
@@ -61,6 +64,19 @@ const ProjectDetailContent = ({ projectData, loading }) => {
               ✅ PDF Uploaded
             </span>
           )}
+          <button
+            onClick={tutEnabled ? disableTutorial : enableTutorial}
+            style={{
+              padding: '5px 14px', borderRadius: '6px',
+              border: `1.5px solid ${tutEnabled ? '#3b82f6' : '#cbd5e1'}`,
+              background: tutEnabled ? '#eff6ff' : '#fff',
+              color: tutEnabled ? '#1d4ed8' : '#64748b',
+              fontFamily: 'Arial, sans-serif', fontSize: '0.8rem', fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            📖 Tutorial {tutEnabled ? 'On' : tutEnabled === false ? 'Off' : ''}
+          </button>
         </div>
       </div>
 

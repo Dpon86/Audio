@@ -157,12 +157,23 @@ class StartPrecisePDFComparisonView(APIView):
 
 class GetPDFTextView(APIView):
     """
-    GET: Get PDF text content for manual region selection
-    Returns the full PDF text so frontend can display and allow user to select region
+    GET:   Get PDF text content for manual region selection.
+    PATCH: Save edited PDF text back to project.pdf_text.
     """
     authentication_classes = [SessionAuthentication, ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
-    
+
+    def patch(self, request, project_id):
+        """Persist manually-edited PDF text so it survives page/tab refreshes."""
+        project = get_object_or_404(AudioProject, id=project_id, user=request.user)
+        pdf_text = request.data.get('pdf_text')
+        if pdf_text is None:
+            return Response({'error': 'pdf_text is required'}, status=status.HTTP_400_BAD_REQUEST)
+        # Strip NUL bytes — PostgreSQL rejects \x00 in string literals
+        project.pdf_text = pdf_text.replace('\x00', '')
+        project.save(update_fields=['pdf_text'])
+        return Response({'success': True, 'total_chars': len(project.pdf_text)})
+
     def get(self, request, project_id):
         """Get PDF text content with headers/footers removed and text cleaned"""
         from PyPDF2 import PdfReader
@@ -178,43 +189,77 @@ class GetPDFTextView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            # Use intelligent pattern detection to remove headers/footers
-            # This analyzes the PDF structure to find repeating patterns at top/bottom of pages
-            # Works for ANY book format, not just specific regex patterns
-            pdf_text = clean_pdf_text_with_pattern_detection(
-                project.pdf_file.path,
-                header_lines=3,  # Check top 3 lines of each page
-                footer_lines=3,  # Check bottom 3 lines of each page
-                min_occurrence_ratio=0.4  # Pattern must appear on 40%+ of pages
-            )
-            
-            # Strip NUL bytes — PostgreSQL rejects \x00 in string literals
-            pdf_text = pdf_text.replace('\x00', '')
-
-            # Save cleaned text to project for reuse in comparisons
-            if not project.pdf_text or len(project.pdf_text) != len(pdf_text):
+            # If a saved (possibly user-edited) text already exists, use it directly.
+            # Only re-extract from the PDF file when nothing is stored yet.
+            if project.pdf_text:
+                pdf_text = project.pdf_text
+            else:
+                # Use intelligent pattern detection to remove headers/footers
+                pdf_text = clean_pdf_text_with_pattern_detection(
+                    project.pdf_file.path,
+                    header_lines=3,  # Check top 3 lines of each page
+                    footer_lines=3,  # Check bottom 3 lines of each page
+                    min_occurrence_ratio=0.4  # Pattern must appear on 40%+ of pages
+                )
+                # Strip NUL bytes — PostgreSQL rejects \x00 in string literals
+                pdf_text = pdf_text.replace('\x00', '')
                 project.pdf_text = pdf_text
                 project.save(update_fields=['pdf_text'])
             
-            # Get page count for building approximate page breaks
+            # Get page count and build page breaks by searching for actual page
+            # content in the cleaned text (falls back to snapped arithmetic)
             reader = PdfReader(project.pdf_file.path)
             num_pages = len(reader.pages)
-            
-            # Build page breaks (approximate, since we cleaned the text)
-            # This is mainly for display purposes
+
+            def _snap_word_start(text, pos):
+                """Move pos back to the start of any word it is inside."""
+                if pos <= 0:
+                    return 0
+                while pos > 0 and text[pos - 1] not in (' ', '\n', '\t', '\r'):
+                    pos -= 1
+                return pos
+
             page_breaks = []
+            search_from = 0
             approx_chars_per_page = len(pdf_text) // num_pages if num_pages > 0 else len(pdf_text)
-            
-            for i in range(num_pages):
-                start_char = i * approx_chars_per_page
-                end_char = (i + 1) * approx_chars_per_page if i < num_pages - 1 else len(pdf_text)
-                
+
+            for i, page in enumerate(reader.pages):
+                raw_text = page.extract_text() or ''
+                # Split into non-empty lines; skip obvious header/footer (first & last)
+                lines = [l.strip() for l in raw_text.split('\n') if l.strip()]
+                inner_lines = lines[1:-1] if len(lines) > 2 else lines
+
+                found_pos = -1
+                # Try inner lines first (body content), then fall back to all lines
+                for line in (inner_lines or lines):
+                    if len(line) < 15:
+                        continue
+                    # Normalise spaces so minor PDF extraction differences don't break the match
+                    snip = ' '.join(line.split())[:35]
+                    pos = pdf_text.find(snip, search_from)
+                    if pos != -1:
+                        found_pos = pos
+                        break
+
+                if found_pos != -1:
+                    start_char = _snap_word_start(pdf_text, found_pos)
+                    search_from = start_char
+                else:
+                    # Arithmetic fallback – still snap to a word boundary
+                    start_char = _snap_word_start(pdf_text, i * approx_chars_per_page)
+
                 page_breaks.append({
                     'page_num': i + 1,
                     'start_char': start_char,
-                    'end_char': min(end_char, len(pdf_text)),
+                    'end_char': len(pdf_text),   # updated in the pass below
                     'preview': pdf_text[start_char:start_char + 200] if start_char < len(pdf_text) else ''
                 })
+
+            # Fill end_chars from next page's start
+            for j in range(len(page_breaks) - 1):
+                page_breaks[j]['end_char'] = page_breaks[j + 1]['start_char']
+            if page_breaks:
+                page_breaks[-1]['end_char'] = len(pdf_text)
             
             # Split into sentences for better selection UI
             sentence_pattern = r'([^.!?]+[.!?]+)'

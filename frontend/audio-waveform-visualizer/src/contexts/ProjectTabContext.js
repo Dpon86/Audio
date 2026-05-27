@@ -16,6 +16,10 @@ export const ProjectTabProvider = ({ children, projectId }) => {
   // Tab-specific state
   const [transcriptionData, setTranscriptionData] = useState(null);
   const [duplicatesData, setDuplicatesData] = useState(null);
+
+  // Shared duplicate detection state (used by Tab3 for review, TabEdit for assemble)
+  const [sharedDuplicateGroups, setSharedDuplicateGroups] = useState([]);
+  const [sharedSelectedDeletions, setSharedSelectedDeletions] = useState([]);
   const [pdfComparisonData, setPdfComparisonData] = useState(null);
   const [duplicateDetectionMode, setDuplicateDetectionMode] = useState('algorithm');
 
@@ -104,6 +108,8 @@ export const ProjectTabProvider = ({ children, projectId }) => {
     setDuplicatesData(null);
     setPdfComparisonData(null);
     setPendingDeletions(null);
+    setSharedDuplicateGroups([]);
+    setSharedSelectedDeletions([]);
   }, []);
 
   // Clear selected file
@@ -114,6 +120,8 @@ export const ProjectTabProvider = ({ children, projectId }) => {
     setPdfComparisonData(null);
     setPendingDeletions(null);
     setProcessingDeletion(null);
+    setSharedDuplicateGroups([]);
+    setSharedSelectedDeletions([]);
   }, []);
 
   // Update audio file in the list after status change
@@ -170,6 +178,12 @@ export const ProjectTabProvider = ({ children, projectId }) => {
     setDuplicateDetectionMode,
     pdfComparisonData,
     setPdfComparisonData,
+
+    // Shared duplicate state (Tab3 sets these; TabEdit reads for assemble)
+    sharedDuplicateGroups,
+    setSharedDuplicateGroups,
+    sharedSelectedDeletions,
+    setSharedSelectedDeletions,
 
     // PDF Edit
     pdfEditMarkers,

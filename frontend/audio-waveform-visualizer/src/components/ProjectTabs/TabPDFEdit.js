@@ -82,7 +82,10 @@ const TabPDFEdit = () => {
   const [textAnnotations, setTextAnnotations] = useState([]);   // [{id,start,end,type,text}]
   const [isEditMode,      setIsEditMode]      = useState(false);
   const [editedText,      setEditedText]      = useState('');
+  const [isTextSaving,    setIsTextSaving]    = useState(false);
+  const [textSaveError,   setTextSaveError]   = useState('');
   const [selectionInfo,   setSelectionInfo]   = useState(null); // {x,y,start,end}
+  const [selectedMarkerId, setSelectedMarkerId] = useState(null); // marker id focused in both panels
 
   /* ─────────────────────────────────────────────────────────────────  */
   /* Derived — PDF file URL                                             */
@@ -277,11 +280,18 @@ const TabPDFEdit = () => {
     const re = /\n{2,}/g;
     let match;
     let prev = 0;
+
+    // Advance idx past any leading whitespace to land on the first word character
+    const snapToWordStart = (idx, limit) => {
+      while (idx < limit && /[\s]/.test(text[idx])) idx++;
+      return idx;
+    };
+
     while ((match = re.exec(text)) !== null) {
       const blockText = text.slice(prev, match.index).trim();
       if (blockText.length > 40) {
         results.push({
-          start_char: prev,
+          start_char: snapToWordStart(prev, match.index),
           end_char: match.index,
           preview: blockText.slice(0, 80),
         });
@@ -291,7 +301,37 @@ const TabPDFEdit = () => {
     // Last block
     const lastBlock = text.slice(prev).trim();
     if (lastBlock.length > 40) {
-      results.push({ start_char: prev, end_char: text.length, preview: lastBlock.slice(0, 80) });
+      results.push({ start_char: snapToWordStart(prev, text.length), end_char: text.length, preview: lastBlock.slice(0, 80) });
+    }
+    return results;
+  };
+
+  /* ─────────────────────────────────────────────────────────────────  */
+  /* Chapter detection (client-side)                                    */
+  /* ─────────────────────────────────────────────────────────────────  */
+  const detectChapters = (text) => {
+    const results = [];
+    const re = /\n{2,}/g;
+    let match;
+    while ((match = re.exec(text)) !== null) {
+      const afterBreak = match.index + match[0].length;
+      const lineEnd = text.indexOf('\n', afterBreak);
+      const lineText = lineEnd === -1 ? text.slice(afterBreak) : text.slice(afterBreak, lineEnd);
+      const trimmed = lineText.trim();
+      if (!trimmed) continue;
+
+      const isChapter = (
+        /^\d{1,3}$/.test(trimmed) ||                                      // lone number: 1, 42
+        /^[IVXLC]{1,7}$/.test(trimmed) ||                                 // roman numeral: I, XIV
+        /^chapter\s+\S/i.test(trimmed) ||                                 // Chapter 1 / Chapter One
+        /^(prologue|epilogue|preface|introduction|part\s+\S)/i.test(trimmed) // Prologue / Part 2
+      );
+
+      if (isChapter && trimmed.length <= 80) {
+        let startChar = afterBreak;
+        while (startChar < text.length && /[ \t]/.test(text[startChar])) startChar++;
+        results.push({ start_char: startChar, heading: trimmed });
+      }
     }
     return results;
   };
@@ -352,20 +392,21 @@ const TabPDFEdit = () => {
     const audioDuration = selectedAudioFile?.duration || 0;
     const newMarkers    = [];
 
-    // Page breaks
-    setMappingStatus(`Mapping ${pageBreaks.length} page breaks…`);
+    // Chapters — detected by looking for standalone numbers / "Chapter N" headings
+    const chapterList = detectChapters(pdfText);
+    setMappingStatus(`Mapping ${chapterList.length} chapters…`);
     await new Promise(r => setTimeout(r, 20));
-    pageBreaks.forEach((pb) => {
+    chapterList.forEach((ch) => {
       newMarkers.push({
         id:         mkId(),
-        type:       'page_break',
-        label:      `Page ${pb.page_num}`,
-        pdfCharPos: pb.start_char,
-        pdfPage:    pb.page_num,
-        audioTime:  charToTime(pb.start_char, wordTimeMap, audioDuration),
+        type:       'chapter',
+        label:      `Chapter ${ch.heading}`,
+        pdfCharPos: ch.start_char,
+        pdfPage:    null,
+        audioTime:  charToTime(ch.start_char, wordTimeMap, audioDuration),
         gapSeconds: 2,
         useRoomTone: false,
-        color:      MARKER_COLORS.page_break,
+        color:      MARKER_COLORS.chapter,
       });
     });
 
@@ -482,6 +523,13 @@ const TabPDFEdit = () => {
     if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [findMatchIdx, findMatches]);
 
+  /* ─── Scroll text view to selected marker badge ─────────────────── */
+  useEffect(() => {
+    if (!selectedMarkerId) return;
+    const pin = document.getElementById(`mpid-${selectedMarkerId}`);
+    if (pin) pin.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [selectedMarkerId]);
+
   /* ─── Dismiss selection toolbar on outside click ────────────────── */
   useEffect(() => {
     if (!selectionInfo) return;
@@ -514,6 +562,12 @@ const TabPDFEdit = () => {
       if (r.start >= 0 && r.start <= text.length) points.add(r.start);
       if (r.end   >= 0 && r.end   <= text.length) points.add(r.end);
     });
+    // Add each visible marker's char position as a split point so badges
+    // land exactly at segment boundaries and don't break existing spans.
+    pdfEditMarkers.forEach(m => {
+      if (m.pdfCharPos != null && m.pdfCharPos >= 0 && m.pdfCharPos <= text.length)
+        points.add(m.pdfCharPos);
+    });
     const sorted = [...points].sort((a, b) => a - b);
     return sorted.slice(0, -1).map((start, i) => {
       const end    = sorted[i + 1];
@@ -522,10 +576,67 @@ const TabPDFEdit = () => {
     });
   };
 
+  // Build a charPos → marker[] lookup for fast badge insertion
+  const markerPinMap = React.useMemo(() => {
+    const map = new Map();
+    pdfEditMarkers.forEach(m => {
+      if (m.pdfCharPos == null) return;
+      if (!map.has(m.pdfCharPos)) map.set(m.pdfCharPos, []);
+      map.get(m.pdfCharPos).push(m);
+    });
+    return map;
+  }, [pdfEditMarkers]);
+
+  const renderMarkerBadge = (pin) => {
+    const labelColor = MARKER_LABEL_COLORS[pin.type] || '#374151';
+    const bgColor    = MARKER_COLORS[pin.type]       || '#e5e7eb';
+    const icon = pin.type === 'page_break' ? '📄' : pin.type === 'paragraph' ? '¶' : pin.type === 'chapter' ? '📖' : '📍';
+    const isSelected = selectedMarkerId === pin.id;
+    return (
+      <span
+        key={`mpid-${pin.id}`}
+        id={`mpid-${pin.id}`}
+        onClick={() => {
+          setSelectedMarkerId(pin.id);
+          setActiveSection('markers');
+          setFilterType('all');
+          // Scroll the right panel card into view
+          const card = document.getElementById(`mcard-${pin.id}`);
+          if (card) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }}
+        title={`${pin.label} · ${formatTime(pin.audioTime)} — click to select in panel`}
+        style={{
+          display: 'inline-block',
+          background: bgColor,
+          color: labelColor,
+          fontSize: '0.68em',
+          fontWeight: 700,
+          padding: '1px 4px',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          margin: '0 2px',
+          border: isSelected ? `1.5px solid ${labelColor}` : '1.5px solid transparent',
+          boxShadow: isSelected ? `0 0 0 2px ${bgColor}` : 'none',
+          verticalAlign: 'middle',
+          lineHeight: '1.3',
+          userSelect: 'none',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {icon}{pin.type !== 'paragraph' ? ` ${pin.label}` : ''}
+      </span>
+    );
+  };
+
   const renderAnnotatedText = (text) => {
     const segs = buildStyledSegments(text);
     const els  = [];
     segs.forEach((seg, si) => {
+      // Insert marker badges at this segment's start position
+      if (markerPinMap.has(seg.start)) {
+        markerPinMap.get(seg.start).forEach(pin => els.push(renderMarkerBadge(pin)));
+      }
+
       let bg = null, td = null, color = null, isCurrent = false;
       seg.active.forEach(r => {
         if      (r.kind === 'find-current')              { bg = '#fbbf24'; isCurrent = true; }
@@ -777,12 +888,40 @@ const TabPDFEdit = () => {
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 0 }}>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: '0.78em', color: '#64748b', flex: 1 }}>
-                    Edit extracted text — changes are local only
+                    Edit extracted text — changes are saved to the server
                   </span>
-                  <button style={S.btnSuccess} onClick={() => { setPdfText(editedText); setIsEditMode(false); setActiveTextTool('none'); }}>
-                    ✅ Apply
+                  {textSaveError && (
+                    <span style={{ fontSize: '0.78em', color: '#b91c1c' }}>{textSaveError}</span>
+                  )}
+                  <button
+                    style={isTextSaving ? S.btnGray : S.btnSuccess}
+                    disabled={isTextSaving}
+                    onClick={async () => {
+                      setIsTextSaving(true);
+                      setTextSaveError('');
+                      try {
+                        const resp = await fetch(
+                          `${API_BASE_URL}/api/projects/${projectId}/pdf-text/`,
+                          {
+                            method: 'PATCH',
+                            headers: { Authorization: `Token ${token}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ pdf_text: editedText }),
+                          }
+                        );
+                        if (!resp.ok) throw new Error(`Server error ${resp.status}`);
+                        setPdfText(editedText);
+                        setIsEditMode(false);
+                        setActiveTextTool('none');
+                      } catch (err) {
+                        setTextSaveError('Save failed: ' + err.message);
+                      } finally {
+                        setIsTextSaving(false);
+                      }
+                    }}
+                  >
+                    {isTextSaving ? '⏳ Saving…' : '✅ Apply & Save'}
                   </button>
-                  <button style={S.btnGhost} onClick={() => { setIsEditMode(false); setActiveTextTool('none'); }}>
+                  <button style={S.btnGhost} onClick={() => { setIsEditMode(false); setActiveTextTool('none'); setTextSaveError(''); }}>
                     Cancel
                   </button>
                 </div>
@@ -883,13 +1022,36 @@ const TabPDFEdit = () => {
                 ) : (
                   <div style={S.markerList}>
                     {filteredMarkers.map((marker) => (
-                      <div key={marker.id} style={{ ...S.markerRow, borderLeft: `4px solid ${MARKER_LABEL_COLORS[marker.type] || '#6b7280'}` }}>
+                      <div
+                        key={marker.id}
+                        id={`mcard-${marker.id}`}
+                        style={{
+                          ...S.markerRow,
+                          borderLeft: `4px solid ${MARKER_LABEL_COLORS[marker.type] || '#6b7280'}`,
+                          background: selectedMarkerId === marker.id ? 'rgba(99,102,241,0.07)' : undefined,
+                        }}
+                      >
                         <div style={S.markerMeta}>
                           <span style={{ ...S.typePill, background: marker.color, color: MARKER_LABEL_COLORS[marker.type] }}>
                             {marker.type === 'page_break' ? '🟣' : marker.type === 'paragraph' ? '🟠' : marker.type === 'chapter' ? '🩷' : '🩵'}
                             {' '}{marker.label}
                           </span>
                           <span style={S.markerTime}>⏱ {formatTime(marker.audioTime)}</span>
+                          {marker.pdfCharPos != null && (
+                            <button
+                              style={{ ...S.btnXS, fontSize: '0.72em' }}
+                              title="Jump to this position in the extracted text"
+                              onClick={() => {
+                                setSelectedMarkerId(marker.id);
+                                if (viewMode === 'pdf') setViewMode('text');
+                                // scroll text panel to the badge
+                                setTimeout(() => {
+                                  const pin = document.getElementById(`mpid-${marker.id}`);
+                                  if (pin) pin.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                                }, 50);
+                              }}
+                            >📝</button>
+                          )}
                           <button style={S.btnXS} onClick={() => removeMarker(marker.id)}>✕</button>
                         </div>
 

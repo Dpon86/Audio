@@ -35,7 +35,9 @@ const Tab3Duplicates = () => {
     setPendingDeletions,
     duplicateDetectionMode,
     setDuplicateDetectionMode,
-    projectData
+    projectData,
+    setSharedDuplicateGroups,
+    setSharedSelectedDeletions,
   } = useProjectTab();
 
   const hasPdf = !!(projectData?.pdf_file || projectData?.has_pdf);
@@ -79,7 +81,7 @@ const Tab3Duplicates = () => {
   const [isProcessingDeletions, setIsProcessingDeletions] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState({});
   const [isDetectionExpanded, setIsDetectionExpanded] = useState(true);
-  const [isReviewExpanded, setIsReviewExpanded] = useState(false);
+  const [isReviewExpanded, setIsReviewExpanded] = useState(true);
 
   // Auto-collapse detection when results are found
   useEffect(() => {
@@ -89,6 +91,15 @@ const Tab3Duplicates = () => {
       setIsDetectionExpanded(true);
     }
   }, [duplicateGroups.length]);
+
+  // Sync duplicate groups and selections to shared context (for TabEdit Assemble step)
+  useEffect(() => {
+    setSharedDuplicateGroups(duplicateGroups);
+  }, [duplicateGroups, setSharedDuplicateGroups]);
+
+  useEffect(() => {
+    setSharedSelectedDeletions(selectedDeletions);
+  }, [selectedDeletions, setSharedSelectedDeletions]);
 
   const toggleDebugInfo = (segmentId, e) => {
     if (e) e.stopPropagation();
@@ -200,21 +211,18 @@ const Tab3Duplicates = () => {
         
         if (serverAnalysis) {
           console.log(`[Tab3Duplicates] Loaded duplicates from server for ${selectedAudioFile.filename}`);
-          setDuplicateGroups(serverAnalysis.duplicate_groups || []);
           
-          if (serverAnalysis.selected_deletions) {
-            setSelectedDeletions(serverAnalysis.selected_deletions);
+          // Use analysis ONLY for selections and assembly info.
+          // Do NOT set groups from analysis — the analysis JSON has no segment
+          // timing data (segments: []), which causes empty expanded group content.
+          // Groups with full segment data come from the /duplicates/ endpoint below.
+          const savedDeletions = serverAnalysis.selected_deletions || null;
+          if (savedDeletions) {
+            setSelectedDeletions(savedDeletions);
           }
           
           if (serverAnalysis.assembly_info) {
             setAssemblyInfo(serverAnalysis.assembly_info);
-          }
-          
-          // Expand first 3 groups
-          if (serverAnalysis.duplicate_groups && serverAnalysis.duplicate_groups.length > 0) {
-            const firstThree = new Set();
-            serverAnalysis.duplicate_groups.slice(0, 3).forEach(g => firstThree.add(g.group_id));
-            setExpandedGroups(firstThree);
           }
           
           // Update localStorage to match server (keep in sync)
@@ -228,10 +236,18 @@ const Tab3Duplicates = () => {
             server_synced: true
           }));
           
-          if (serverAnalysis.selected_deletions) {
-            localStorage.setItem(`${storageKey}_selectedDeletions`, JSON.stringify(serverAnalysis.selected_deletions));
+          if (savedDeletions) {
+            localStorage.setItem(`${storageKey}_selectedDeletions`, JSON.stringify(savedDeletions));
           }
           
+          // Load groups WITH full segment data from /duplicates/ endpoint.
+          // Pass savedDeletions so the function restores them instead of
+          // auto-overwriting with freshly detected deletions.
+          if (!selectedAudioFile.client_only) {
+            loadDuplicateGroups(savedDeletions);
+          } else if (serverAnalysis.duplicate_groups) {
+            setDuplicateGroups(serverAnalysis.duplicate_groups);
+          }
           return;
         }
         
@@ -317,7 +333,7 @@ const Tab3Duplicates = () => {
     }
   };
 
-  const loadDuplicateGroups = async () => {
+  const loadDuplicateGroups = async (preserveSelections = null) => {
     if (!selectedAudioFile) return;
     
     try {
@@ -377,8 +393,14 @@ const Tab3Duplicates = () => {
             }
           });
           
-          console.log(`Auto-selected ${toDelete.length} segments for deletion:`, toDelete);
-          setSelectedDeletions(toDelete);
+          if (preserveSelections) {
+            // Restore user's saved selections rather than auto-overwriting
+            console.log(`[Tab3Duplicates] Restoring ${preserveSelections.length} saved selections from analysis`);
+            setSelectedDeletions(preserveSelections);
+          } else {
+            console.log(`Auto-selected ${toDelete.length} segments for deletion:`, toDelete);
+            setSelectedDeletions(toDelete);
+          }
           
           // Expand first 3 groups
           const firstThree = data.duplicate_groups.slice(0, 3).map(g => g.group_id);
@@ -2180,7 +2202,7 @@ const Tab3Duplicates = () => {
           padding: '1.5rem',
           marginBottom: '2rem'
         }}>
-          <div className="step-card-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem', cursor: 'pointer' }} onClick={() => setIsReviewExpanded(!isReviewExpanded)}>
+          <div className="step-card-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '0.75rem' }}>
             <span className="step-badge step-badge-3" style={{
               background: '#0ea5e9',
               color: 'white',
@@ -2193,56 +2215,49 @@ const Tab3Duplicates = () => {
             <h4 className="step-card-title" style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b' }}>
               📋 Review Detected Duplicates
             </h4>
-            
             <p className="selection-summary" style={{ margin: '0 0 0 auto', color: '#475569', fontSize: '0.9rem', fontWeight: '500' }}>
-              Selected: <span style={{ color: '#ef4444', fontWeight: 'bold' }}>{selectedDeletions.length}</span>
+              Selected for removal: <span style={{ color: '#ef4444', fontWeight: 'bold' }}>{selectedDeletions.length}</span>
+              {' '}/ {duplicateGroups.length} groups
             </p>
           </div>
           
-          <p className="step-card-description" style={{ color: '#475569', marginBottom: '1.5rem' }}>
-            Verify the automatically detected duplicates and make manual adjustments if needed.
+          <p style={{ color: '#475569', marginBottom: '1rem', fontSize: '0.9rem' }}>
+            Click a group to jump to it in the waveform above and listen. Tick the checkbox to mark a segment for removal.
           </p>
 
-          {!isReviewExpanded ? (
+          {/* Quick action buttons */}
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
             <button
-              onClick={() => setIsReviewExpanded(true)}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                background: '#f8fafc',
-                border: '1px dashed #cbd5e1',
-                borderRadius: '8px',
-                color: '#3b82f6',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.background = '#f1f5f9'}
-              onMouseOut={(e) => e.currentTarget.style.background = '#f8fafc'}
+              onClick={handleSelectAllDuplicates}
+              style={{ padding: '0.4rem 0.9rem', background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' }}
             >
-              <span>👁️ Review each duplicate (Expand List)</span>
+              ✓ Select All Duplicates
             </button>
-          ) : (
-            <div className="duplicate-results" style={{ marginTop: '1rem' }}>
-              <div className="duplicate-groups-list">
+            <button
+              onClick={handleDeselectAll}
+              disabled={selectedDeletions.length === 0}
+              style={{ padding: '0.4rem 0.9rem', background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '6px', fontWeight: '600', cursor: selectedDeletions.length === 0 ? 'not-allowed' : 'pointer', fontSize: '0.85rem', opacity: selectedDeletions.length === 0 ? 0.5 : 1 }}
+            >
+              ✗ Deselect All
+            </button>
+          </div>
 
-                {duplicateGroups.map((group, groupIndex) => {
+          {/* Groups list - always visible */}
+          <div style={{ maxHeight: '500px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.5rem' }}>
+            {duplicateGroups.map((group, groupIndex) => {
               const isExpanded = expandedGroups.has(group.group_id);
               const segments = group.segments || group.occurrences || [];
               const isSelected = selectedGroupId === group.group_id;
+              const groupDeleteCount = segments.filter(s => selectedDeletions.includes(s.id)).length;
               
               return (
                 <div 
                   key={group.group_id} 
-                  className={`duplicate-group-card ${isSelected ? 'selected' : ''}`}
                   data-group-id={group.group_id}
+                  style={{ marginBottom: '0.5rem', borderRadius: '6px', border: isSelected ? '2px solid #3b82f6' : '1px solid #e2e8f0', background: isSelected ? '#eff6ff' : '#fff', overflow: 'hidden' }}
                 >
                   <div 
-                    className="group-header" 
+                    style={{ padding: '0.6rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', background: isSelected ? '#eff6ff' : '#f8fafc', minHeight: '44px' }}
                     onClick={() => {
                       toggleGroup(group.group_id);
                       handleGroupSelect(group.group_id);
@@ -2251,92 +2266,66 @@ const Tab3Duplicates = () => {
                       }
                     }}
                   >
-                    <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
-                    <span className="group-title">Group {groupIndex + 1}</span>
-                    <span className="group-text-inline">"{group.duplicate_text?.substring(0, 60) || (segments[0]?.text?.substring(0, 60)) || 'No text'}{(group.duplicate_text?.length > 60 || segments[0]?.text?.length > 60) ? '...' : ''}"</span>
-                    <span className="group-meta-inline">
-                      📊 {group.occurrence_count || segments.length} · ⏱️ {(group.total_duration_seconds || segments.reduce((sum, s) => sum + (s.end_time - s.start_time), 0)).toFixed(1)}s
+                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{isExpanded ? '▼' : '▶'}</span>
+                    <span style={{ fontWeight: '600', color: '#334155', fontSize: '0.9rem', minWidth: '60px' }}>Group {groupIndex + 1}</span>
+                    <span style={{ flex: 1, color: '#475569', fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      "{group.duplicate_text?.substring(0, 70) || (segments[0]?.text?.substring(0, 70)) || 'No text'}{(group.duplicate_text?.length > 70 || segments[0]?.text?.length > 70) ? '...' : ''}"
                     </span>
+                    <span style={{ fontSize: '0.78rem', color: '#64748b', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>
+                      {group.occurrence_count || segments.length} occurrences · {(group.total_duration_seconds || segments.reduce((sum, s) => sum + (s.end_time - s.start_time), 0)).toFixed(1)}s
+                    </span>
+                    {groupDeleteCount > 0 && (
+                      <span style={{ background: '#fee2e2', color: '#991b1b', padding: '0.15rem 0.5rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                        −{groupDeleteCount}
+                      </span>
+                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); if (segments.length > 0 && segments[0].start_time != null) seekToTime(segments[0].start_time); }}
+                      style={{ padding: '0.2rem 0.5rem', background: '#dbeafe', color: '#1d4ed8', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', whiteSpace: 'nowrap' }}
+                      title="Play from start of this group"
+                    >
+                      ▶ Play
+                    </button>
                   </div>
 
                   {isExpanded && segments.length > 0 && (
-                    <div className="group-occurrences">
+                    <div className="group-occurrences" style={{ padding: '0 0.75rem 0.75rem 0.75rem', borderTop: '1px solid #f1f5f9' }}>
                       {segments.map((segment, index) => {
-                        // Backend flags:
-                        // - is_duplicate = true → DELETE (all except last)
-                        // - is_duplicate = false → KEEP (last occurrence)
-                        // - is_kept = true → explicitly marked to keep
                         const shouldDelete = segment.is_duplicate === true;
                         const shouldKeep = segment.is_kept === true || !shouldDelete;
+                        const isChecked = selectedDeletions.includes(segment.id);
                         
                         return (
                           <div
                             key={segment.id}
                             className={`occurrence-card ${shouldKeep ? 'last-occurrence' : ''}`}
-                            style={{ padding: '0.5rem 0.75rem', marginBottom: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+                            style={{ padding: '0.5rem 0.75rem', marginBottom: '0.4rem', marginTop: '0.4rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', borderRadius: '6px', border: '1px solid #e2e8f0', background: shouldKeep ? '#f0fdf4' : (isChecked ? '#fef2f2' : '#fff') }}
                           >
-                            <div className="occurrence-header" style={{ marginBottom: '0.25rem' }}>
-                              <label className="checkbox-container" style={{ fontSize: '0.85rem' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={selectedDeletions.includes(segment.id)}
-                                  onChange={() => toggleDeletion(segment.id)}
-                                  disabled={shouldKeep}
-                                />
-                                <span className="occurrence-title" style={{ fontSize: '0.85rem' }}>
-                                  Occurrence #{segment.occurrence_number || segment.segment_index || (index + 1)}
-                                  {shouldKeep && ' (LAST - Keep)'}
-                                </span>
-                              </label>
-                              <span className={`action-badge ${shouldKeep ? 'keep' : 'delete'}`} style={{ padding: '0.15rem 0.4rem', fontSize: '0.7rem' }}>
-                                {shouldKeep ? 'KEEP' : 'DELETE'}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => toggleDeletion(segment.id)}
+                                disabled={shouldKeep}
+                                style={{ width: '16px', height: '16px', cursor: shouldKeep ? 'not-allowed' : 'pointer' }}
+                              />
+                              <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#334155' }}>
+                                Occurrence #{segment.occurrence_number || segment.segment_index || (index + 1)}
+                              </span>
+                              <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '700', background: shouldKeep ? '#dcfce7' : '#fee2e2', color: shouldKeep ? '#166534' : '#991b1b' }}>
+                                {shouldKeep ? 'KEEP' : (isChecked ? 'REMOVE' : 'SKIP')}
+                              </span>
+                              <span
+                                onClick={(e) => { e.stopPropagation(); seekToTime(segment.start_time); }}
+                                style={{ marginLeft: 'auto', cursor: 'pointer', color: '#2563eb', fontSize: '0.82rem', fontWeight: '600' }}
+                                title="Click to jump to this timestamp"
+                              >
+                                🎯 {segment.start_time?.toFixed(1)}s – {segment.end_time?.toFixed(1)}s ({(segment.end_time - segment.start_time)?.toFixed(1)}s)
                               </span>
                             </div>
-
-                            <div className="occurrence-details" style={{ marginTop: '0', fontSize: '0.85rem' }}>
-                              <p style={{ margin: '0 0 0.25rem 0' }}>
-                                <strong>Time:</strong> 
-                                <span 
-                                  className="timestamp-link"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    seekToTime(segment.start_time);
-                                  }}
-                                  title="Click to jump to this timestamp in audio"
-                                  style={{ margin: '0 0.25rem' }}
-                                >
-                                  🎯 {segment.start_time?.toFixed(1)}s - {segment.end_time?.toFixed(1)}s
-                                </span>
-                                <span style={{ color: '#64748b' }}>({(segment.end_time - segment.start_time)?.toFixed(1)}s)</span>
-                              </p>
-                              <p className="occurrence-text" style={{ margin: '0', lineHeight: '1.3' }}>
-                                <strong>Text:</strong> "{renderHighlightedDuplicateText(segment.text, segments)}"
-                              </p>
-                              
-                              <div style={{ marginTop: '0.35rem' }}>
-                                <button 
-                                  onClick={(e) => toggleDebugInfo(segment.id, e)}
-                                  style={{
-                                    background: 'none', 
-                                    border: 'none', 
-                                    color: '#94a3b8', 
-                                    fontSize: '0.75rem', 
-                                    cursor: 'pointer', 
-                                    padding: '0',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.25rem'
-                                  }}
-                                >
-                                  {showDebugInfo[segment.id] ? '▼ Hide Debug' : '▶ Show Debug'}
-                                </button>
-                                {showDebugInfo[segment.id] && (
-                                  <p style={{fontSize: '0.75rem', color: '#666', marginTop: '0.25rem', background: '#f1f5f9', padding: '0.25rem', borderRadius: '4px'}}>
-                                    <strong>DEBUG:</strong> is_duplicate={String(segment.is_duplicate)}, is_kept={String(segment.is_kept)}, is_last_occurrence={String(segment.is_last_occurrence)}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
+                            <p style={{ margin: '0', fontSize: '0.82rem', color: '#475569', paddingLeft: '1.5rem' }}>
+                              "{renderHighlightedDuplicateText(segment.text, segments)}"
+                            </p>
                           </div>
                         );
                       })}
@@ -2345,159 +2334,7 @@ const Tab3Duplicates = () => {
                 </div>
               );
             })}
-              </div>
-
-              <button
-                onClick={() => setIsReviewExpanded(false)}
-                style={{
-                  marginTop: '1rem',
-                  padding: '0.5rem',
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#64748b',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                  margin: '1rem auto 0 auto'
-                }}
-              >
-                ▲ Collapse Review List
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Action Buttons - Step 4: Assemble Step */}
-      {duplicateGroups.length > 0 && (
-        <div className="assemble-step-card" style={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-          border: '1px solid #e2e8f0',
-          padding: '1.5rem',
-          marginBottom: '2rem'
-        }}>
-          <div className="step-card-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-            <span className="step-badge step-badge-4" style={{
-              background: '#2563eb',
-              color: 'white',
-              padding: '0.25rem 0.75rem',
-              borderRadius: '9999px',
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              marginRight: '0.75rem'
-            }}>Step 4</span>
-            <h4 className="step-card-title" style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b' }}>🖥️ Assemble Audio</h4>
           </div>
-          <p className="step-card-description" style={{ color: '#475569', marginBottom: '1.5rem' }}>
-            Select the duplicate segments to remove, then assemble the clean audio file.
-          </p>
-          {selectedAudioFile && (
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-              <div style={{ display: 'flex', gap: '0.5rem', borderRight: '1px solid #cbd5e1', paddingRight: '1rem' }}>
-                <button
-                  onClick={handleSelectAllDuplicates}
-                  disabled={processing || isAssemblingAudio}
-                  className="secondary-button"
-                  style={{
-                    padding: '0.6rem 1.25rem',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    color: '#0f172a',
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    cursor: (processing || isAssemblingAudio) ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => !e.currentTarget.disabled && (e.currentTarget.style.background = '#f1f5f9')}
-                  onMouseOut={(e) => !e.currentTarget.disabled && (e.currentTarget.style.background = '#ffffff')}
-                >
-                  <span style={{ color: '#10b981' }}>✓</span> Select All
-                </button>
-
-                <button
-                  onClick={handleDeselectAll}
-                  disabled={processing || isAssemblingAudio || selectedDeletions.length === 0}
-                  className="secondary-button"
-                  style={{
-                    padding: '0.6rem 1.25rem',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    color: '#0f172a',
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    cursor: (processing || isAssemblingAudio || selectedDeletions.length === 0) ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    opacity: (processing || isAssemblingAudio || selectedDeletions.length === 0) ? 0.6 : 1,
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => !e.currentTarget.disabled && (e.currentTarget.style.background = '#f1f5f9')}
-                  onMouseOut={(e) => !e.currentTarget.disabled && (e.currentTarget.style.background = '#ffffff')}
-                >
-                  <span style={{ color: '#ef4444' }}>✗</span> Deselect All
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <button
-                  onClick={handleAssembleAudio}
-                  disabled={selectedDeletions.length === 0 || isAssemblingAudio || processing}
-                  className="confirm-button assemble-button"
-                  style={{ 
-                    padding: '0.75rem 1.5rem',
-                    fontSize: '1rem',
-                    fontWeight: '600',
-                    color: 'white',
-                    background: isAssemblingAudio ? '#f59e0b' : (selectedDeletions.length === 0 ? '#94a3b8' : '#22c55e'),
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: (selectedDeletions.length === 0 || isAssemblingAudio || processing) ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 4px 6px -1px rgba(34, 197, 94, 0.4), 0 2px 4px -1px rgba(34, 197, 94, 0.06)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => !e.currentTarget.disabled && isAssemblingAudio === false && (e.currentTarget.style.background = '#16a34a')}
-                  onMouseOut={(e) => !e.currentTarget.disabled && isAssemblingAudio === false && (e.currentTarget.style.background = '#22c55e')}
-                >
-                  {isAssemblingAudio ? (
-                    <>
-                      <span className="spinner"></span>
-                      Assembling Audio...
-                    </>
-                  ) : ((selectedAudioFile?.client_only || selectedAudioFile?.client_processed)
-                    ? `🎵 Assemble Audio (Remove ${selectedDeletions.length} segments)`
-                    : `🖥️ Assemble on Server (Remove ${selectedDeletions.length} segments)`)}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {selectedDeletions.length > 0 && assembledAudioBlob && assemblyInfo && (
-            <div className="assembled-audio-info-inline">
-              <span className="success-icon">✅</span>
-              <span className="info-text">Audio Ready: {clientAudioAssembly.formatDuration(assemblyInfo.assembledDuration)}</span>
-              <button
-                onClick={handleDownloadAssembledAudio}
-                className="download-button-inline"
-              >
-                📥 Download Audio
-              </button>
-            </div>
-          )}
         </div>
       )}
 
