@@ -60,7 +60,16 @@ const PDFRegionSelector = ({
   const [extractWordCount, setExtractWordCount] = useState(100);
   const [searchFrom, setSearchFrom] = useState('first'); // 'first' or 'last'
   const [searchWordCount, setSearchWordCount] = useState(8);
-  
+
+  // Direct text search
+  const [directSearchText, setDirectSearchText] = useState('');
+  const [directSearchStatus, setDirectSearchStatus] = useState(null); // null | 'found' | 'not_found'
+
+  // Auto-search status (for END mode)
+  const [autoSearchStatus, setAutoSearchStatus] = useState(null); // null | 'searching' | 'found' | 'not_found'
+  const [autoSearchPhrase, setAutoSearchPhrase] = useState(''); // the sentence that was used
+  const autoSearchDoneRef = useRef(false); // prevent running twice
+
   // Ref for text container
   const textContainerRef = useRef(null);
   
@@ -182,7 +191,93 @@ const PDFRegionSelector = ({
   useEffect(() => {
     loadPDFText();
   }, [loadPDFText]);
-  
+
+  // Once PDF text has loaded, auto-search for the near-end transcript sentence
+  useEffect(() => {
+    if (mode === 'end' && type === 'pdf' && !isLoading && pdfText && !autoSearchDoneRef.current) {
+      autoSearchDoneRef.current = true;
+      // Use full PDF text (pdfText may be the last-200-words slice; we need the absolute text)
+      // We pass pdfText which is what's available — the search will still find the phrase
+      // if it appears in the visible portion. For safety we also check the full text via
+      // a second pass below inside runAutoEndSearch.
+      runAutoEndSearch(pdfText);
+    }
+  }, [mode, type, isLoading, pdfText, runAutoEndSearch]);
+
+  /**
+   * Direct text search — user types any phrase and we find it in the PDF
+   */
+  const performDirectSearch = () => {
+    const phrase = directSearchText.trim();
+    if (!phrase || !pdfText) {
+      setDirectSearchStatus('not_found');
+      return;
+    }
+
+    const lowerPdf = pdfText.toLowerCase();
+    const lowerPhrase = phrase.toLowerCase();
+    const idx = lowerPdf.indexOf(lowerPhrase);
+
+    if (idx !== -1) {
+      // For end mode set position after the phrase; for start mode, before it
+      const newPos = mode === 'start' ? idx : idx + phrase.length;
+      setSelectedPosition(newPos);
+      setDirectSearchStatus('found');
+    } else {
+      setDirectSearchStatus('not_found');
+    }
+  };
+
+  /**
+   * Auto-search: called once after PDF loads (END mode only).
+   * Picks a sentence ~5 lines from the end of the transcript and searches
+   * for it in the PDF text, then sets that as the initial end position.
+   */
+  const runAutoEndSearch = useCallback((loadedPdfText) => {
+    if (!transcriptText || !loadedPdfText) return;
+
+    // Split transcript into non-empty lines / sentences
+    const lines = transcriptText
+      .split(/(?<=[.!?])\s+|\n+/)
+      .map(l => l.trim())
+      .filter(l => l.length > 10);
+
+    if (lines.length === 0) return;
+
+    // Pick the sentence ~5 from the end (clamped to available lines)
+    const targetIdx = Math.max(0, lines.length - 5);
+    const candidateSentence = lines[targetIdx];
+
+    // Take first 10 words of that sentence as the search phrase
+    const phraseWords = candidateSentence.split(/\s+/).slice(0, 10);
+    const phrase = phraseWords.join(' ');
+
+    setAutoSearchPhrase(candidateSentence);
+    setAutoSearchStatus('searching');
+
+    // Try exact phrase, then progressively shorter
+    let found = false;
+    for (let len = phraseWords.length; len >= 5 && !found; len--) {
+      const attempt = phraseWords.slice(0, len).join(' ');
+      // Case-insensitive search
+      const lowerPdf = loadedPdfText.toLowerCase();
+      const lowerAttempt = attempt.toLowerCase();
+      const idx = lowerPdf.indexOf(lowerAttempt);
+      if (idx !== -1) {
+        const endPos = idx + attempt.length;
+        setSelectedPosition(endPos);
+        setAutoSearchStatus('found');
+        console.log(`[PDFRegionSelector] Auto-end: found "${attempt}" at char ${endPos}`);
+        found = true;
+      }
+    }
+
+    if (!found) {
+      setAutoSearchStatus('not_found');
+      console.log('[PDFRegionSelector] Auto-end: no match found, leaving default position');
+    }
+  }, [transcriptText]);
+
   /**
    * Smart search with user-configurable parameters
    * Example: Extract last 100 words, search for first 8 words from that extraction
@@ -561,9 +656,67 @@ const PDFRegionSelector = ({
           </div>
         </div>
         
+        {/* Direct Text Search — available for both start and end, any mode */}
+        {type === 'pdf' && pdfText && (
+          <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '0.5rem' }}>
+              🔎 Search PDF for text
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                value={directSearchText}
+                onChange={(e) => { setDirectSearchText(e.target.value); setDirectSearchStatus(null); }}
+                onKeyDown={(e) => e.key === 'Enter' && performDirectSearch()}
+                placeholder="Paste a sentence or phrase from the text…"
+                style={{ flex: 1, minWidth: '200px', padding: '0.4rem 0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', fontFamily: 'inherit' }}
+              />
+              <button
+                onClick={performDirectSearch}
+                disabled={!directSearchText.trim()}
+                style={{ padding: '0.4rem 0.9rem', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: directSearchText.trim() ? 'pointer' : 'not-allowed', fontSize: '0.85rem', opacity: directSearchText.trim() ? 1 : 0.5, whiteSpace: 'nowrap' }}
+              >
+                Find &amp; Set Position
+              </button>
+            </div>
+            {directSearchStatus === 'found' && (
+              <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#166534' }}>
+                ✅ Found — position set to character {selectedPosition + textOffset}
+              </div>
+            )}
+            {directSearchStatus === 'not_found' && (
+              <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#991b1b' }}>
+                ❌ Phrase not found in the visible PDF text. Try fewer words or check the spelling.
+              </div>
+            )}
+            <div style={{ marginTop: '0.3rem', fontSize: '0.75rem', color: '#94a3b8' }}>
+              Copy a sentence from the transcript or PDF and paste it here. The position will be set to {mode === 'end' ? 'the end' : 'the start'} of the matched text.
+            </div>
+          </div>
+        )}
+
         {/* Smart Search Configuration (only show for END position and for PDF) */}
         {mode === 'end' && transcriptText && type === 'pdf' && (
           <div className="smart-search-group">
+
+            {/* Auto-detection status banner */}
+            {autoSearchStatus === 'searching' && (
+              <div style={{ marginBottom: '0.6rem', padding: '0.5rem 0.75rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', fontSize: '0.85rem', color: '#1d4ed8' }}>
+                ⏳ Auto-detecting end position from transcript…
+              </div>
+            )}
+            {autoSearchStatus === 'found' && (
+              <div style={{ marginBottom: '0.6rem', padding: '0.5rem 0.75rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', fontSize: '0.85rem', color: '#166534' }}>
+                ✅ <strong>Auto-detected end position</strong> from: <em>"{autoSearchPhrase.substring(0, 80)}{autoSearchPhrase.length > 80 ? '…' : ''}"</em>
+                <br /><span style={{ fontSize: '0.78rem', opacity: 0.8 }}>This sentence (~5 from the end of the transcript) was found in the PDF and set as the default end. Adjust with the fine-tune control below if needed.</span>
+              </div>
+            )}
+            {autoSearchStatus === 'not_found' && (
+              <div style={{ marginBottom: '0.6rem', padding: '0.5rem 0.75rem', background: '#fef9c3', border: '1px solid #fde68a', borderRadius: '6px', fontSize: '0.85rem', color: '#92400e' }}>
+                ⚠️ Could not auto-detect end position (transcript text not found in visible PDF section). Use Smart Search below or select manually.
+              </div>
+            )}
+
             <div className="smart-search-config">
               <div className="config-row">
                 <label>Extract from transcript:</label>

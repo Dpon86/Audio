@@ -80,7 +80,7 @@ def ai_detect_duplicates_task(
                 "Please ensure transcription includes segments."
             )
         
-        # Prepare transcript data in JSON format
+        # Prepare transcript data in JSON format (optimized - no word-level data)
         r.set(f"progress:{task_id}", 10)
         r.set(f"status:{task_id}", json.dumps({
             'status': 'processing',
@@ -93,7 +93,6 @@ def ai_detect_duplicates_task(
                 'filename': audio_file.filename,
                 'duration_seconds': audio_file.duration_seconds or 0,
                 'total_segments': segments.count(),
-                'transcription_method': 'whisper',
             },
             'segments': [],
             'detection_settings': {
@@ -103,28 +102,17 @@ def ai_detect_duplicates_task(
             }
         }
         
-        # Add segments with word-level timing
+        # Add segments (text + ID only - word-level timing not needed for duplicate detection)
+        # Word data is stored in DB and used later for timestamp refinement
         for segment in segments:
-            words_data = []
-            for word in segment.words.all().order_by('word_index'):
-                words_data.append({
-                    'word': word.word,
-                    'start': word.start_time,
-                    'end': word.end_time,
-                    'confidence': word.confidence or 0.9
-                })
-            
             transcript_data['segments'].append({
                 'segment_id': segment.id,          # DB primary key — used to look up segments from AI response
-                'segment_index': segment.segment_index,  # 0-based position in transcript (for reference only)
                 'text': segment.text,
                 'start_time': segment.start_time,
                 'end_time': segment.end_time,
-                'confidence': segment.confidence_score or 0.9,
-                'words': words_data
             })
         
-        logger.info(f"Prepared {len(transcript_data['segments'])} segments for AI processing")
+        logger.info(f"Prepared {len(transcript_data['segments'])} segments for AI processing (optimized, no word-level data)")
         
         # Initialize AI detector
         r.set(f"progress:{task_id}", 20)

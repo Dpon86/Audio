@@ -475,6 +475,8 @@ const TabEdit = () => {
       const buf = wavesurfer.getDecodedData();
       if (!buf) throw new Error('Audio buffer not available. Try clicking the waveform first to ensure it is fully loaded.');
       let adjusted = 0, skipped = 0;
+      // Track which segments were adjusted and their new boundaries
+      const adjustedBoundaries = new Map(); // segmentId → { start, end }
       regionsMapRef.current.forEach((region) => {
         // Use our own Set rather than region.data to identify deleted regions
         if (!deletedRegionIdsRef.current.has(region.id)) return;
@@ -483,9 +485,32 @@ const TabEdit = () => {
         if (isInSilence(buf, s) && isInSilence(buf, e)) { skipped++; return; }
         const ns = isInSilence(buf, s) ? s : findSilenceCenter(buf, s);
         const ne = isInSilence(buf, e) ? e : findSilenceCenter(buf, e);
-        if (ns < ne && ne - ns >= 0.1) { region.setOptions({ start: ns, end: ne }); adjusted++; }
+        if (ns < ne && ne - ns >= 0.1) {
+          region.setOptions({ start: ns, end: ne });
+          adjusted++;
+          // Store the new boundaries keyed by segment ID
+          const meta = regionMetaRef.current.get(region.id);
+          if (meta?.segmentId) {
+            adjustedBoundaries.set(meta.segmentId, { start: ns, end: ne });
+          }
+        }
         else { skipped++; }
       });
+      // Update the duplicates state with the new boundaries so they persist through re-renders
+      if (adjustedBoundaries.size > 0) {
+        setDuplicates(prevDuplicates => 
+          prevDuplicates.map(group => ({
+            ...group,
+            occurrences: (group.occurrences || []).map(occ => {
+              const adjusted = adjustedBoundaries.get(occ.id);
+              if (adjusted) {
+                return { ...occ, start_time: adjusted.start, end_time: adjusted.end };
+              }
+              return occ;
+            })
+          }))
+        );
+      }
       setAlignResult({ adjusted, skipped, total: deletedCount });
     } catch (err) {
       alert(`Align to silence failed: ${err.message}`);
