@@ -8,11 +8,13 @@ This package contains AI-powered features including:
 """
 
 from .anthropic_client import AnthropicClient
+from .deepseek_client import DeepSeekClient
 from .cost_calculator import CostCalculator
 from .duplicate_detector import DuplicateDetector
 
 __all__ = [
     'AnthropicClient',
+    'DeepSeekClient',
     'CostCalculator',
     'DuplicateDetector',
 ]

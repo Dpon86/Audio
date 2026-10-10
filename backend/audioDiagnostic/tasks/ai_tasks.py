@@ -121,10 +121,10 @@ def ai_detect_duplicates_task(
             'message': 'Calling AI service...'
         }))
         
-        detector = DuplicateDetector()
+        detector = DuplicateDetector(user=user)
         
-        # Check user cost limit
-        if not detector.client.check_user_cost_limit(user_id):
+        # Check user cost limit (skipped when the user supplied their own API key)
+        if not detector.client.using_own_key and not detector.client.check_user_cost_limit(user_id):
             raise ValueError(
                 f"User {user_id} has exceeded monthly AI cost limit. "
                 "Please contact support or wait until next month."
@@ -147,7 +147,7 @@ def ai_detect_duplicates_task(
             AIProcessingLog.objects.create(
                 user=user,
                 audio_file=audio_file,
-                ai_provider=detector.client.model.split('-')[0] if '-' in detector.client.model else 'anthropic',
+                ai_provider=detector.client.provider,
                 ai_model=detector.client.model,
                 task_type='duplicate_detection',
                 timestamp=timezone.now(),
@@ -196,7 +196,7 @@ def ai_detect_duplicates_task(
         detection_result = AIDuplicateDetectionResult.objects.create(
             audio_file=audio_file,
             user=user,
-            ai_provider='anthropic',
+            ai_provider=detector.client.provider,
             ai_model=ai_metadata.get('model', detector.client.model),
             processing_time_seconds=processing_time,
             input_tokens=usage.get('input_tokens', 0),
@@ -224,7 +224,7 @@ def ai_detect_duplicates_task(
             user=user,
             audio_file=audio_file,
             project=audio_file.project,
-            ai_provider='anthropic',
+            ai_provider=detector.client.provider,
             ai_model=ai_metadata.get('model', detector.client.model),
             task_type='duplicate_detection',
             timestamp=timezone.now(),
@@ -397,7 +397,7 @@ def ai_detect_duplicates_task(
                     user=user,
                     audio_file=audio_file,
                     project=audio_file.project,
-                    ai_provider='anthropic',
+                    ai_provider=detector.client.provider,
                     ai_model=expansion_metadata.get('model', detector.client.model),
                     task_type='paragraph_expansion',
                     timestamp=timezone.now(),
@@ -514,10 +514,10 @@ def ai_compare_pdf_task(self, audio_file_id, user_id, pdf_file_path=None):
         }))
         
         # Initialize AI detector
-        detector = DuplicateDetector()
+        detector = DuplicateDetector(user=user)
         
-        # Check user cost limit
-        if not detector.client.check_user_cost_limit(user_id):
+        # Check user cost limit (skipped when the user supplied their own API key)
+        if not detector.client.using_own_key and not detector.client.check_user_cost_limit(user_id):
             raise ValueError("User has exceeded monthly AI cost limit")
         
         # Call AI for PDF comparison
@@ -537,7 +537,7 @@ def ai_compare_pdf_task(self, audio_file_id, user_id, pdf_file_path=None):
                 user=user,
                 audio_file=audio_file,
                 project=project,
-                ai_provider='anthropic',
+                ai_provider=detector.client.provider,
                 ai_model=detector.client.model,
                 task_type='pdf_comparison',
                 timestamp=timezone.now(),
@@ -584,7 +584,7 @@ def ai_compare_pdf_task(self, audio_file_id, user_id, pdf_file_path=None):
             audio_file=audio_file,
             user=user,
             project=project,
-            ai_provider='anthropic',
+            ai_provider=detector.client.provider,
             ai_model=ai_metadata.get('model', detector.client.model),
             processing_time_seconds=processing_time,
             input_tokens=usage.get('input_tokens', 0),
@@ -614,7 +614,7 @@ def ai_compare_pdf_task(self, audio_file_id, user_id, pdf_file_path=None):
             user=user,
             audio_file=audio_file,
             project=project,
-            ai_provider='anthropic',
+            ai_provider=detector.client.provider,
             ai_model=ai_metadata.get('model', detector.client.model),
             task_type='pdf_comparison',
             timestamp=timezone.now(),
@@ -680,7 +680,7 @@ def estimate_ai_cost_task(audio_duration_seconds, task_type='duplicate_detection
     
     calculator = CostCalculator()
     estimate = calculator.estimate_cost_for_audio(
-        provider='anthropic',
+        provider=getattr(settings, 'AI_PROVIDER', 'anthropic'),
         model=ai_model,
         audio_duration_seconds=audio_duration_seconds,
         task_type=task_type

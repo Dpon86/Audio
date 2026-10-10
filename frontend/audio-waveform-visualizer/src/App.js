@@ -9,6 +9,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import LoginPage from "./components/Auth/LoginPage";
 import RegisterPage from "./components/Auth/RegisterPage";
 import ProfilePage from "./components/Auth/ProfilePage";
+import AISettingsPage from "./components/Auth/AISettingsPage";
 
 // Main application pages
 import FrontPage from "./screens/frontpage";
@@ -66,6 +67,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ProfilePage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/ai-settings" 
+              element={
+                <ProtectedRoute>
+                  <AISettingsPage />
                 </ProtectedRoute>
               } 
             />

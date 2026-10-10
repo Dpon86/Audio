@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.core.cache import cache
+from django.conf import settings
 from celery.result import AsyncResult
 import logging
 import json
@@ -90,20 +91,28 @@ def ai_detect_duplicates_view(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Estimate cost before starting
+        # Estimate cost before starting - reflects the user's configured provider (if any)
         duration = audio_file.duration_seconds or 0
+        from accounts.models import UserAPIKey
+        user_key = UserAPIKey.objects.filter(user=request.user, is_active=True).first()
+        provider = user_key.provider if user_key else getattr(settings, 'AI_PROVIDER', 'anthropic')
+        model = {
+            'deepseek': getattr(settings, 'DEEPSEEK_MODEL', 'deepseek-chat'),
+            'anthropic': getattr(settings, 'AI_MODEL', 'claude-3-5-sonnet-20241022'),
+        }.get(provider, getattr(settings, 'AI_MODEL', 'claude-3-5-sonnet-20241022'))
+
         calculator = CostCalculator()
         cost_estimate = calculator.estimate_cost_for_audio(
-            provider='anthropic',
-            model='claude-3-5-sonnet-20241022',
+            provider=provider,
+            model=model,
             audio_duration_seconds=duration,
             task='duplicate_detection'
         )
         
         # Check user monthly cost limit
         from ..services.ai import DuplicateDetector
-        detector = DuplicateDetector()
-        if not detector.client.check_user_cost_limit(request.user.id):
+        detector = DuplicateDetector(user=request.user)
+        if not detector.client.using_own_key and not detector.client.check_user_cost_limit(request.user.id):
             # Get current usage
             from datetime import datetime
             month_key = f"ai_cost_{request.user.id}_{datetime.now().strftime('%Y_%m')}"
@@ -269,10 +278,10 @@ def ai_compare_pdf_view(request):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Check user cost limit
+        # Check user cost limit (skipped when the user supplied their own API key)
         from ..services.ai import DuplicateDetector
-        detector = DuplicateDetector()
-        if not detector.client.check_user_cost_limit(request.user.id):
+        detector = DuplicateDetector(user=request.user)
+        if not detector.client.using_own_key and not detector.client.check_user_cost_limit(request.user.id):
             return Response({
                 'success': False,
                 'error': 'Monthly AI cost limit exceeded'

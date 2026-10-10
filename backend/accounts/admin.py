@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SubscriptionPlan, UserSubscription, UsageTracking, BillingHistory, UserProfile
+from .models import SubscriptionPlan, UserSubscription, UsageTracking, BillingHistory, UserProfile, UserAPIKey
 
 
 @admin.register(SubscriptionPlan)
@@ -59,3 +59,14 @@ class UserProfileAdmin(admin.ModelAdmin):
     search_fields = ('user__username', 'user__email', 'company_name')
     readonly_fields = ('created_at', 'updated_at')
     ordering = ('-created_at',)
+
+
+@admin.register(UserAPIKey)
+class UserAPIKeyAdmin(admin.ModelAdmin):
+    """Admin never exposes the encrypted key material - only a masked preview."""
+    list_display = ('user', 'provider', 'key_last_four', 'is_active', 'updated_at')
+    list_filter = ('provider', 'is_active')
+    search_fields = ('user__username', 'user__email')
+    readonly_fields = ('key_last_four', 'created_at', 'updated_at')
+    exclude = ('encrypted_key',)
+    ordering = ('-updated_at',)

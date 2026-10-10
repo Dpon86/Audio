@@ -71,8 +71,20 @@ export const getApiUrl = (endpoint) => {
  */
 export const getBaseUrl = () => API_BASE_URL;
 
+// Track whether a session-expired event has already been dispatched
+// to prevent multiple simultaneous 401s from triggering multiple redirects/toasts
+let sessionExpiredDispatched = false;
+
 /**
- * Common fetch wrapper with authentication
+ * Reset the session-expired guard — called after login/navigation away from login
+ */
+export const resetSessionExpiredGuard = () => {
+  sessionExpiredDispatched = false;
+};
+
+/**
+ * Common fetch wrapper with authentication.
+ * Automatically detects 401/403 responses and triggers session-expired logout.
  * @param {string} endpoint - API endpoint
  * @param {object} options - Fetch options
  * @returns {Promise} Fetch promise
@@ -92,6 +104,23 @@ export const apiFetch = async (endpoint, options = {}) => {
     headers,
     credentials: 'include',
   });
+
+  // Intercept 401 Unauthorized and 403 Forbidden — treat as session expired
+  if ((response.status === 401 || response.status === 403) && !sessionExpiredDispatched) {
+    // Skip interception for login/register endpoints (expected to return 401/403 on failed auth)
+    const isAuthEndpoint = 
+      endpoint.includes('/api/accounts/login/') ||
+      endpoint.includes('/api/accounts/register/') ||
+      endpoint.includes('/api/accounts/logout/');
+
+    if (!isAuthEndpoint) {
+      sessionExpiredDispatched = true;
+      // Dispatch a custom DOM event that AuthContext listens for
+      window.dispatchEvent(new CustomEvent('auth:session-expired', {
+        detail: { status: response.status }
+      }));
+    }
+  }
   
   return response;
 };
@@ -101,4 +130,5 @@ export default {
   getBaseUrl,
   resolveMediaUrl,
   apiFetch,
+  resetSessionExpiredGuard,
 };

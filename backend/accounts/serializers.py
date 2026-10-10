@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
-from .models import SubscriptionPlan, UserSubscription, UsageTracking, BillingHistory, UserProfile
+from .models import SubscriptionPlan, UserSubscription, UsageTracking, BillingHistory, UserProfile, UserAPIKey
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -171,3 +171,33 @@ class BillingHistorySerializer(serializers.ModelSerializer):
         currency_symbols = {'GBP': '£', 'USD': '$', 'EUR': '€'}
         symbol = currency_symbols.get(obj.currency, obj.currency)
         return f"{symbol}{obj.amount:.2f}"
+
+
+class UserAPIKeySerializer(serializers.ModelSerializer):
+    """
+    Serializer for saving a user's AI provider API key.
+
+    The raw key is write-only and is encrypted before being saved - it is
+    never included in any serialized response, only a masked preview
+    (`key_last_four`) is returned.
+    """
+    api_key = serializers.CharField(write_only=True, required=True, min_length=8, max_length=200, trim_whitespace=True)
+
+    class Meta:
+        model = UserAPIKey
+        fields = ('provider', 'api_key', 'key_last_four', 'is_active', 'updated_at')
+        read_only_fields = ('key_last_four', 'updated_at')
+
+    def create(self, validated_data):
+        raw_key = validated_data.pop('api_key')
+        user = self.context['request'].user
+        provider = validated_data.get('provider', 'deepseek')
+
+        instance, _ = UserAPIKey.objects.update_or_create(
+            user=user,
+            provider=provider,
+            defaults={'is_active': True},
+        )
+        instance.set_key(raw_key)
+        instance.save()
+        return instance

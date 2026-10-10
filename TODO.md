@@ -92,11 +92,11 @@
 
 ### AI Duplicate Detection (Remaining Setup)
 
-**T5 — Auto-Logout on Authentication Errors** *(~2–3 hours)*
-- If any API call returns a `401 Unauthorized` or `403 Forbidden` response, automatically log the user out (clear the httpOnly auth cookie via `POST /api/accounts/logout/`) and redirect to the login page
-- Centralise this in the API client / fetch wrapper so all requests benefit without per-call handling
-- Show a brief "Your session has expired. Please log in again." message before redirecting
-- Covers: expired tokens, invalidated sessions, cookie missing/tampered
+**T5 — Auto-Logout on Authentication Errors** ✅ *Completed July 23, 2026*
+- ~~If any API call returns a `401 Unauthorized` or `403 Forbidden` response, automatically log the user out (clear the httpOnly auth cookie via `POST /api/accounts/logout/`) and redirect to the login page~~
+- ~~Centralise this in the API client / fetch wrapper so all requests benefit without per-call handling~~
+- ~~Show a brief "Your session has expired. Please log in again." message before redirecting~~
+- ~~Covers: expired tokens, invalidated sessions, cookie missing/tampered~~
 
 ---
 
@@ -108,6 +108,12 @@
 - Add API keys to server `.env` (`ANTHROPIC_API_KEY`)
 - Test end-to-end: trigger AI analysis, verify `AIProcessingLog` rows created
 - Frontend: surface AI analysis results in Tab3/Tab4 UI
+
+**AI2 — DeepSeek provider + per-user encrypted API keys** ✅ *Completed Sept 20, 2026*
+- ~~Added `DeepSeekClient` (OpenAI-compatible) alongside `AnthropicClient`~~
+- ~~`UserAPIKey` model (accounts app) stores per-user provider keys encrypted at rest with Fernet (`AI_KEY_ENCRYPTION_KEY`); only ciphertext + last-4 chars persisted~~
+- ~~New AI Settings page (`/ai-settings`) lets users save/test/remove their own key; `DuplicateDetector` prefers the user's own key over the shared server key, and skips our internal cost-limit checks when they use their own key~~
+- ~~Endpoints: `GET/POST/DELETE /api/auth/ai-keys/`, `POST /api/auth/ai-keys/test/`~~
 
 ---
 

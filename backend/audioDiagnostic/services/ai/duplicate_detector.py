@@ -15,10 +15,36 @@ logger = logging.getLogger(__name__)
 class DuplicateDetector:
     """Service for detecting duplicates using AI"""
     
-    def __init__(self):
-        """Initialize detector with AI client"""
-        self.client = AnthropicClient()
+    def __init__(self, user=None):
+        """
+        Initialize detector with an AI client.
+
+        Args:
+            user: Optional Django User. If they have saved their own encrypted
+                AI provider API key (via the AI Settings page), it is used in
+                preference to the server-wide key so their own account is
+                billed instead of ours.
+        """
+        self.client = self._resolve_client(user)
         self.prompts = PromptTemplates()
+
+    @staticmethod
+    def _resolve_client(user):
+        """Prefer the user's own encrypted API key/provider over the server-wide default."""
+        if user is not None and getattr(user, 'is_authenticated', False):
+            from accounts.models import UserAPIKey
+            stored_key = UserAPIKey.objects.filter(user=user, is_active=True).first()
+            if stored_key:
+                raw_key = stored_key.get_key()
+                if stored_key.provider == 'deepseek':
+                    from .deepseek_client import DeepSeekClient
+                    return DeepSeekClient(api_key=raw_key)
+                if stored_key.provider == 'anthropic':
+                    return AnthropicClient(api_key=raw_key)
+                # Other providers (e.g. openai) aren't wrapped as a dedicated
+                # client yet - fall back to the server-wide default below.
+
+        return AnthropicClient()
     
     def detect_sentence_level_duplicates(
         self,

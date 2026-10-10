@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getApiUrl } from '../config/api';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { getApiUrl, apiFetch, resetSessionExpiredGuard } from '../config/api';
 
 const AuthContext = createContext();
 
@@ -41,7 +41,54 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = (userData, subscriptionData, authToken) => {
+  // Listen for session-expired events from apiFetch (triggered on 401/403 responses)
+  useEffect(() => {
+    const handleSessionExpired = async (event) => {
+      console.warn('[AuthContext] Session expired — auto-logging out (status:', event.detail?.status, ')');
+
+      // Clear local auth state
+      setUser(null);
+      setSubscription(null);
+      setToken(null);
+      setIsAuthenticated(false);
+      localStorage.removeItem('user');
+      localStorage.removeItem('subscription');
+
+      // Reset the guard so future session-expired events can fire again after relogin
+      resetSessionExpiredGuard();
+
+      // Best-effort: tell backend to clear the cookie
+      try {
+        await fetch(getApiUrl('/api/accounts/logout/'), {
+          method: 'POST',
+          credentials: 'include',
+        });
+      } catch (err) {
+        // Ignore — network may already be unavailable
+      }
+
+      // Show a brief toast notification before redirecting.
+      // Use react-toastify's imperative API (works outside React component tree).
+      try {
+        const { toast } = await import('react-toastify');
+        toast.warning('Your session has expired. Please log in again.', {
+          autoClose: 4000,
+          toastId: 'session-expired',
+        });
+      } catch (importErr) {
+        // react-toastify may not be available — fallback to console only
+        console.warn('[AuthContext] react-toastify not available for session-expired toast');
+      }
+
+      // Redirect to login page
+      window.location.href = '/login';
+    };
+
+    window.addEventListener('auth:session-expired', handleSessionExpired);
+    return () => window.removeEventListener('auth:session-expired', handleSessionExpired);
+  }, []);
+
+  const login = useCallback((userData, subscriptionData, authToken) => {
     setUser(userData);
     setSubscription(subscriptionData);
     // Keep token in memory as a truthy sentinel; never persist to localStorage
@@ -51,10 +98,12 @@ export const AuthProvider = ({ children }) => {
     if (subscriptionData) {
       localStorage.setItem('subscription', JSON.stringify(subscriptionData));
     }
+    // Reset the session-expired guard on successful login
+    resetSessionExpiredGuard();
     // Token is NOT stored in localStorage — auth is via httpOnly cookie only
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       // Ask the backend to delete the token and clear the cookie
       await fetch(getApiUrl('/api/accounts/logout/'), {
@@ -71,12 +120,14 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
     localStorage.removeItem('user');
     localStorage.removeItem('subscription');
-  };
+    // Reset the guard on explicit logout so it can fire again if needed
+    resetSessionExpiredGuard();
+  }, []);
 
-  const updateUser = (userData) => {
+  const updateUser = useCallback((userData) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
-  };
+  }, []);
 
   const value = {
     user,

@@ -85,6 +85,16 @@ const Header = () => {
                   <button 
                     onClick={() => {
                       setUserMenuOpen(false);
+                      navigate('/ai-settings');
+                    }}
+                    className="Hd-dropdown-item"
+                  >
+                    <i className="icon-settings"></i>
+                    AI Settings
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setUserMenuOpen(false);
                       navigate('/projects');
                     }}
                     className="Hd-dropdown-item"
@@ -175,6 +185,20 @@ const Menu = ({ isOpen, toggle, navigate, isAuthenticated }) => (
                 >
                   <i className="icon-user"></i>
                   Account Settings
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/ai-settings"
+                  onClick={e => {
+                    e.preventDefault();
+                    toggle();
+                    navigate('/ai-settings');
+                  }}
+                  className="Hd-nav-item"
+                >
+                  <i className="icon-settings"></i>
+                  AI Settings
                 </a>
               </li>
             </>

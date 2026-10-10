@@ -59,8 +59,24 @@ if not ANTHROPIC_API_KEY:
         "ANTHROPIC_API_KEY not configured. Set ANTHROPIC_API_KEY environment variable to enable AI duplicate detection."
     )
 
+# DeepSeek API Configuration (OpenAI-compatible Chat Completions API)
+DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
+DEEPSEEK_BASE_URL = os.getenv('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
+DEEPSEEK_MODEL = os.getenv('DEEPSEEK_MODEL', 'deepseek-chat')
+
+# Encryption key used to store user-supplied AI provider API keys at rest.
+# Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# Keep this secret and stable - rotating it invalidates all saved user API keys.
+AI_KEY_ENCRYPTION_KEY = os.getenv('AI_KEY_ENCRYPTION_KEY')
+if not AI_KEY_ENCRYPTION_KEY:
+    import warnings
+    warnings.warn(
+        "AI_KEY_ENCRYPTION_KEY not configured. Users will not be able to save "
+        "their own AI API keys until this is set."
+    )
+
 # AI Settings
-AI_PROVIDER = os.getenv('AI_PROVIDER', 'anthropic')  # 'anthropic' or 'openai'
+AI_PROVIDER = os.getenv('AI_PROVIDER', 'anthropic')  # 'anthropic', 'openai', or 'deepseek'
 AI_MODEL = os.getenv('AI_MODEL', 'claude-3-5-sonnet-20241022')
 AI_MAX_TOKENS = int(os.getenv('AI_MAX_TOKENS', '4096'))
 AI_COST_LIMIT_PER_USER_PER_MONTH = float(os.getenv('AI_COST_LIMIT_PER_USER_PER_MONTH', '50.00'))
@@ -72,6 +88,7 @@ AI_SETTINGS = {
     'COST_LIMIT_PER_USER_PER_MONTH': AI_COST_LIMIT_PER_USER_PER_MONTH,
     'ANTHROPIC_API_KEY': ANTHROPIC_API_KEY,
     'OPENAI_API_KEY': OPENAI_API_KEY,
+    'DEEPSEEK_API_KEY': DEEPSEEK_API_KEY,
 }
 
 # Read ALLOWED_HOSTS from environment variable
@@ -195,6 +212,7 @@ REST_FRAMEWORK = {
         'login_burst': '5/minute',    # Login: max 5 attempts per minute per IP
         'login_sustained': '20/hour', # Login: max 20 attempts per hour per IP
         'register': '3/hour',         # Registration: max 3 new accounts per hour per IP
+        'ai_key': '20/hour',          # AI API key save/test: max 20 per hour per user
     }
 }
 

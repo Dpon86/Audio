@@ -4,7 +4,8 @@ from .views import (
     UserRegistrationView, CustomAuthToken, UserProfileView,
     SubscriptionPlansView, UserSubscriptionView, UsageTrackingView,
     BillingHistoryView, create_checkout_session, cancel_subscription,
-    usage_limits_check, logout_view, data_export
+    usage_limits_check, logout_view, data_export,
+    UserAPIKeyView, test_ai_api_key_view
 )
 from .webhooks import stripe_webhook
 
@@ -26,6 +27,10 @@ urlpatterns = [
     path('billing/', BillingHistoryView.as_view(), name='billing_history'),
     path('usage-limits/', usage_limits_check, name='usage_limits'),
     path('data-export/', data_export, name='data_export'),
+
+    # AI provider API key management (encrypted at rest)
+    path('ai-keys/', UserAPIKeyView.as_view(), name='user_ai_keys'),
+    path('ai-keys/test/', test_ai_api_key_view, name='test_ai_api_key'),
     
     # Webhooks
     path('stripe-webhook/', stripe_webhook, name='stripe_webhook'),

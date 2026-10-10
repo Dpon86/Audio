@@ -176,6 +176,50 @@ class UserProfile(models.Model):
         return f"{self.user.username} profile"
 
 
+class UserAPIKey(models.Model):
+    """
+    A user-supplied AI provider API key (e.g. DeepSeek), encrypted at rest.
+
+    The plaintext key is never stored or logged - only Fernet ciphertext
+    (`encrypted_key`) and the last 4 characters (for a masked preview) are
+    persisted. Use `set_key()`/`get_key()` rather than touching
+    `encrypted_key` directly.
+    """
+    PROVIDER_CHOICES = [
+        ('deepseek', 'DeepSeek'),
+        ('anthropic', 'Anthropic Claude'),
+        ('openai', 'OpenAI'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ai_api_keys')
+    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES, default='deepseek')
+    encrypted_key = models.BinaryField()
+    key_last_four = models.CharField(max_length=4, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'provider')
+        verbose_name = 'User AI API Key'
+        verbose_name_plural = 'User AI API Keys'
+
+    def __str__(self):
+        return f"{self.user.username} - {self.provider} (****{self.key_last_four})"
+
+    def set_key(self, raw_key: str):
+        """Encrypt and store `raw_key`. Never persists the plaintext value."""
+        from .encryption import encrypt_api_key
+        raw_key = raw_key.strip()
+        self.encrypted_key = encrypt_api_key(raw_key)
+        self.key_last_four = raw_key[-4:] if len(raw_key) >= 4 else raw_key
+
+    def get_key(self) -> str:
+        """Decrypt and return the raw API key for making an outbound AI request."""
+        from .encryption import decrypt_api_key
+        return decrypt_api_key(self.encrypted_key)
+
+
 # Signal to create profile and free trial when user registers
 from django.db.models.signals import post_save
 from django.dispatch import receiver

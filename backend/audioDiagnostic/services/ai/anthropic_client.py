@@ -22,22 +22,33 @@ class AnthropicClient:
     - Error handling and logging
     """
     
-    def __init__(self):
-        """Initialize Anthropic client with API key from settings"""
-        api_key = getattr(settings, 'ANTHROPIC_API_KEY', None)
-        if not api_key:
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
+        """
+        Initialize Anthropic client.
+
+        Args:
+            api_key: Optional per-user decrypted API key. Falls back to the
+                server-wide ANTHROPIC_API_KEY setting when not supplied.
+            model: Optional model override.
+        """
+        resolved_key = api_key or getattr(settings, 'ANTHROPIC_API_KEY', None)
+        if not resolved_key:
             raise ValueError(
                 "ANTHROPIC_API_KEY not found in settings. "
                 "Please add it to your .env file."
             )
-        
-        self.client = Anthropic(api_key=api_key)
-        self.model = getattr(settings, 'AI_MODEL', 'claude-3-5-sonnet-20241022')
+
+        self.client = Anthropic(api_key=resolved_key)
+        self.model = model or getattr(settings, 'AI_MODEL', 'claude-3-5-sonnet-20241022')
         self.max_tokens = getattr(settings, 'AI_MAX_TOKENS', 4096)
         self.max_retries = 3
         self.base_delay = 1  # seconds
-        
-        logger.info(f"[AnthropicClient] Initialized with model='{self.model}', api_key_prefix='{api_key[:8]}...'")
+        self.provider = 'anthropic'
+        # True when using a key the user supplied themselves (rather than our
+        # server-wide key), so our internal cost limits shouldn't apply to them.
+        self.using_own_key = bool(api_key)
+
+        logger.info(f"[AnthropicClient] Initialized with model='{self.model}', api_key_prefix='{resolved_key[:8]}...'")
     
     def call_api(
         self,

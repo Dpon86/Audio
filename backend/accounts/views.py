@@ -1,7 +1,7 @@
 from rest_framework import status, generics, permissions
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from django.contrib.auth import authenticate
@@ -21,11 +21,11 @@ from accounts.authentication import ExpiringTokenAuthentication
 logger = logging.getLogger(__name__)
 security_logger = logging.getLogger('security')
 
-from .models import SubscriptionPlan, UserSubscription, UsageTracking, BillingHistory, UserProfile
+from .models import SubscriptionPlan, UserSubscription, UsageTracking, BillingHistory, UserProfile, UserAPIKey
 from .serializers import (
     UserRegistrationSerializer, UserProfileSerializer, 
     SubscriptionPlanSerializer, UserSubscriptionSerializer,
-    UsageTrackingSerializer, BillingHistorySerializer
+    UsageTrackingSerializer, BillingHistorySerializer, UserAPIKeySerializer
 )
 
 # Configure Stripe
@@ -471,3 +471,111 @@ def data_export(request):
     security_logger.info(f"data_export user_id={user.id} ip={request.META.get('REMOTE_ADDR', 'unknown')}")
 
     return Response(export)
+
+
+class AIKeyRateThrottle(UserRateThrottle):
+    """Limit how often AI API keys can be saved/tested to slow down brute-force/abuse attempts."""
+    scope = 'ai_key'
+
+
+class UserAPIKeyView(generics.GenericAPIView):
+    """
+    Manage the authenticated user's encrypted AI provider API key(s).
+
+    GET    /api/auth/ai-keys/            -> list configured providers (masked, no raw key ever returned)
+    POST   /api/auth/ai-keys/            -> save/replace the key for a provider (encrypted before storing)
+    DELETE /api/auth/ai-keys/?provider=x -> remove the key for a given provider
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [AIKeyRateThrottle]
+    serializer_class = UserAPIKeySerializer
+
+    def get(self, request):
+        keys = UserAPIKey.objects.filter(user=request.user)
+        data = [
+            {
+                'provider': key.provider,
+                'key_last_four': key.key_last_four,
+                'is_active': key.is_active,
+                'updated_at': key.updated_at,
+            }
+            for key in keys
+        ]
+        return Response({'keys': data})
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        instance = serializer.save()
+
+        security_logger.info(
+            f"ai_api_key_saved user_id={request.user.id} provider={instance.provider}"
+        )
+
+        return Response({
+            'success': True,
+            'provider': instance.provider,
+            'key_last_four': instance.key_last_four,
+            'message': 'API key saved securely.',
+        }, status=status.HTTP_201_CREATED)
+
+    def delete(self, request):
+        provider = request.query_params.get('provider')
+        if not provider:
+            return Response(
+                {'error': 'provider query parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        deleted_count, _ = UserAPIKey.objects.filter(user=request.user, provider=provider).delete()
+        if not deleted_count:
+            return Response({'error': 'No key found for that provider'}, status=status.HTTP_404_NOT_FOUND)
+
+        security_logger.info(f"ai_api_key_deleted user_id={request.user.id} provider={provider}")
+        return Response({'success': True, 'message': f'{provider} API key removed.'})
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+@throttle_classes([AIKeyRateThrottle])
+def test_ai_api_key_view(request):
+    """
+    Validate an AI provider API key without persisting it, by making a minimal,
+    low-cost request to the provider (listing available models).
+
+    POST /api/auth/ai-keys/test/
+    { "provider": "deepseek", "api_key": "sk-..." }
+    """
+    provider = request.data.get('provider', 'deepseek')
+    raw_key = (request.data.get('api_key') or '').strip()
+
+    if not raw_key:
+        return Response({'success': False, 'error': 'api_key is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        if provider == 'deepseek':
+            from openai import OpenAI
+            client = OpenAI(api_key=raw_key, base_url=getattr(settings, 'DEEPSEEK_BASE_URL', 'https://api.deepseek.com'))
+            client.models.list()
+        elif provider == 'openai':
+            from openai import OpenAI
+            client = OpenAI(api_key=raw_key)
+            client.models.list()
+        elif provider == 'anthropic':
+            from anthropic import Anthropic
+            client = Anthropic(api_key=raw_key)
+            client.models.list()
+        else:
+            return Response(
+                {'success': False, 'error': f'Unknown provider: {provider}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    except Exception as e:
+        # Never log the raw key - only the exception type/provider for diagnostics.
+        logger.warning(f"ai_api_key_test_failed user_id={request.user.id} provider={provider} error_type={type(e).__name__}")
+        return Response({
+            'success': False,
+            'error': 'The API key could not be verified. Please check it and try again.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({'success': True, 'message': f'{provider} API key is valid.'})

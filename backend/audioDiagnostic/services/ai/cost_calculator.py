@@ -40,6 +40,17 @@ class CostCalculator:
                 'input': 0.50,
                 'output': 1.50
             }
+        },
+        # Pricing approximate as of 2026 - verify current rates at https://api-docs.deepseek.com/quick_start/pricing
+        'deepseek': {
+            'deepseek-chat': {
+                'input': 0.27,
+                'output': 1.10
+            },
+            'deepseek-reasoner': {
+                'input': 0.55,
+                'output': 2.19
+            }
         }
     }
     

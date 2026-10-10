@@ -1,10 +1,10 @@
 # AI Duplicate Detection - Implementation TODO
 
-**Created:** March 21, 2026 | **Last Updated:** April 14, 2026
+**Created:** March 21, 2026 | **Last Updated:** September 20, 2026
 **Status:** 🟡 Partially Complete — see [`/TODO.md`](/TODO.md) item AI1 for current outstanding work.
 
-**What's done:** DB models (`AIDuplicateDetectionResult`, `AIPDFComparisonResult`, `AIProcessingLog`), AI service layer (`services/ai/`: `anthropic_client.py`, `duplicate_detector.py`, `prompt_templates.py`, `cost_calculator.py`)
-**What remains:** Wire up API endpoints, integrate with frontend Tab3/Tab4, set `ANTHROPIC_API_KEY` on server, end-to-end testing.
+**What's done:** DB models (`AIDuplicateDetectionResult`, `AIPDFComparisonResult`, `AIProcessingLog`), AI service layer (`services/ai/`: `anthropic_client.py`, `deepseek_client.py`, `duplicate_detector.py`, `prompt_templates.py`, `cost_calculator.py`). Per-user encrypted API keys (DeepSeek/Anthropic) via `accounts.UserAPIKey` + the `/ai-settings` frontend page — see `/TODO.md` item AI2.
+**What remains:** Wire up remaining API endpoints, integrate with frontend Tab3/Tab4, set `ANTHROPIC_API_KEY`/`DEEPSEEK_API_KEY` server-wide fallback, end-to-end testing.
 
 ---
 
