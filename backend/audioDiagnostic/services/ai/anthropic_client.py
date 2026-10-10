@@ -5,6 +5,7 @@ Anthropic Claude API Client for AI-powered duplicate detection
 import logging
 import time
 import json
+from .json_utils import parse_json_response
 from typing import Dict, Any, Optional
 from anthropic import Anthropic, AnthropicError, APIError, RateLimitError
 from django.conf import settings
@@ -182,34 +183,8 @@ class AnthropicClient:
         Raises:
             ValueError: If JSON cannot be parsed
         """
-        try:
-            # Try direct JSON parse first
-            return json.loads(response_content)
-        except json.JSONDecodeError:
-            # Try extracting from markdown code block
-            if "```json" in response_content:
-                # Extract content between ```json and ```
-                start = response_content.find("```json") + 7
-                end = response_content.find("```", start)
-                json_str = response_content[start:end].strip()
-                try:
-                    return json.loads(json_str)
-                except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse JSON from markdown block: {e}")
-                    raise ValueError(f"Invalid JSON in response: {e}")
-            elif "```" in response_content:
-                # Try generic code block
-                start = response_content.find("```") + 3
-                end = response_content.find("```", start)
-                json_str = response_content[start:end].strip()
-                try:
-                    return json.loads(json_str)
-                except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse JSON from code block: {e}")
-                    raise ValueError(f"Invalid JSON in response: {e}")
-            else:
-                raise ValueError("No JSON found in response")
-    
+        return parse_json_response(response_content)
+
     def check_user_cost_limit(self, user_id: int) -> bool:
         """
         Check if user has exceeded monthly cost limit

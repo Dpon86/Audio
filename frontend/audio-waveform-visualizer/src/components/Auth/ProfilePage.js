@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getApiUrl } from '../../config/api';
+import AIApiKeySection from './AIApiKeySection';
 import './Profile.css';
 
 const ProfilePage = () => {
@@ -295,6 +296,13 @@ const ProfilePage = () => {
             </button>
           </form>
         </div>
+
+        {/* AI Provider API Key Section */}
+        <div className="profile-section">
+          <h2>AI Provider API Key</h2>
+          <p>Connect your own AI provider (e.g. DeepSeek) so duplicate detection and PDF comparison run on your account instead of the shared server key.</p>
+        </div>
+        <AIApiKeySection />
       </div>
     </div>
   );

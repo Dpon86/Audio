@@ -10,6 +10,7 @@ mirrors `AnthropicClient` so it can be used as a drop-in replacement by
 import logging
 import time
 import json
+from .json_utils import parse_json_response
 from typing import Dict, Any, Optional
 from openai import OpenAI, APIError, APIConnectionError, RateLimitError
 from django.conf import settings
@@ -61,7 +62,8 @@ class DeepSeekClient:
         prompt: str,
         system_prompt: Optional[str] = None,
         max_tokens: Optional[int] = None,
-        temperature: float = 0.0
+        temperature: float = 0.0,
+        json_mode: bool = False
     ) -> Dict[str, Any]:
         """
         Call DeepSeek API with retry logic
@@ -90,11 +92,13 @@ class DeepSeekClient:
                 logger.debug(f"Calling DeepSeek API (attempt {attempt + 1}/{self.max_retries})")
                 logger.info(f"[DeepSeekClient] Sending request: model='{self.model}', max_tokens={max_tokens}")
 
+                extra = {"response_format": {"type": "json_object"}} if json_mode else {}
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
                     max_tokens=max_tokens,
                     temperature=temperature,
+                    **extra,
                 )
 
                 content = response.choices[0].message.content
@@ -164,29 +168,7 @@ class DeepSeekClient:
         Raises:
             ValueError: If JSON cannot be parsed
         """
-        try:
-            return json.loads(response_content)
-        except json.JSONDecodeError:
-            if "```json" in response_content:
-                start = response_content.find("```json") + 7
-                end = response_content.find("```", start)
-                json_str = response_content[start:end].strip()
-                try:
-                    return json.loads(json_str)
-                except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse JSON from markdown block: {e}")
-                    raise ValueError(f"Invalid JSON in response: {e}")
-            elif "```" in response_content:
-                start = response_content.find("```") + 3
-                end = response_content.find("```", start)
-                json_str = response_content[start:end].strip()
-                try:
-                    return json.loads(json_str)
-                except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse JSON from code block: {e}")
-                    raise ValueError(f"Invalid JSON in response: {e}")
-            else:
-                raise ValueError("No JSON found in response")
+        return parse_json_response(response_content)
 
     def check_user_cost_limit(self, user_id: int) -> bool:
         """
