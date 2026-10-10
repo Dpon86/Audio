@@ -9,6 +9,10 @@ from typing import Any, Dict
 logger = logging.getLogger(__name__)
 
 
+class TruncatedResponseError(ValueError):
+    """The AI reply was cut off by the output token limit."""
+
+
 def _balanced_object(text: str) -> str:
     """Return the first balanced top-level {...} in text, or '' if none/incomplete."""
     start = text.find('{')
@@ -81,7 +85,7 @@ def parse_json_response(response_content: str) -> Dict[str, Any]:
             "AI response looks like JSON but is incomplete (likely truncated at "
             f"max_tokens); length={len(text)}, tail={text[-200:]!r}"
         )
-        raise ValueError(
+        raise TruncatedResponseError(
             "AI response was cut off before the JSON was complete "
             "(output token limit reached)"
         )

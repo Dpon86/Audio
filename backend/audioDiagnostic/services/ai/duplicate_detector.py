@@ -6,6 +6,7 @@ import logging
 import json
 from typing import Dict, Any, List, Optional
 from .anthropic_client import AnthropicClient
+from .json_utils import TruncatedResponseError
 from .prompt_templates import PromptTemplates
 from .cost_calculator import CostCalculator
 
@@ -17,8 +18,9 @@ class DuplicateDetector:
 
     # Segments per AI call and overlap between calls; keeps each response within
     # the model's output limit while still catching re-takes that straddle a boundary.
-    CHUNK_SEGMENTS = 120
-    CHUNK_OVERLAP = 30
+    CHUNK_SEGMENTS = 80
+    CHUNK_OVERLAP = 20
+    MIN_SPLIT_SEGMENTS = 10
     DETECTION_MAX_TOKENS = 8192
     
     def __init__(self, user=None):
@@ -77,31 +79,82 @@ class DuplicateDetector:
         logger.info("Starting AI duplicate detection (sentence level)")
 
         segments = transcript_data.get('segments') or []
-        if len(segments) <= self.CHUNK_SEGMENTS:
-            return self._detect_chunk(
+        results = self._detect_window(
+            transcript_data, 0, len(segments), min_words, similarity_threshold, keep_occurrence
+        )
+        if len(results) == 1:
+            return results[0]
+        return self._merge_results(results)
+
+    def _detect_window(
+        self,
+        transcript_data: Dict[str, Any],
+        offset: int,
+        total: int,
+        min_words: int,
+        similarity_threshold: float,
+        keep_occurrence: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Analyse the transcript in overlapping windows (large transcripts exceed the
+        model's output limit in one call). A window whose reply is still cut off is
+        split in half and retried.
+        """
+        segments = transcript_data.get('segments') or []
+        if len(segments) > self.CHUNK_SEGMENTS:
+            step = self.CHUNK_SEGMENTS - self.CHUNK_OVERLAP
+            results = []
+            for start in range(0, len(segments), step):
+                results.extend(self._detect_window(
+                    self._with_segments(transcript_data, segments[start:start + self.CHUNK_SEGMENTS]),
+                    offset + start, total, min_words, similarity_threshold, keep_occurrence
+                ))
+                if start + self.CHUNK_SEGMENTS >= len(segments):
+                    break
+            return results
+
+        logger.info(
+            f"AI detection window: segments {offset}-{offset + len(segments) - 1} of {total}"
+        )
+        try:
+            return [self._detect_chunk(
                 transcript_data, min_words, similarity_threshold, keep_occurrence
+            )]
+        except TruncatedResponseError:
+            if len(segments) < self.MIN_SPLIT_SEGMENTS:
+                raise
+            half = len(segments) // 2
+            overlap = self.CHUNK_OVERLAP // 2
+            logger.warning(
+                f"Window {offset}-{offset + len(segments) - 1} reply was truncated; splitting"
+            )
+            return (
+                self._detect_window(
+                    self._with_segments(transcript_data, segments[:half + overlap]),
+                    offset, total, min_words, similarity_threshold, keep_occurrence
+                )
+                + self._detect_window(
+                    self._with_segments(transcript_data, segments[half:]),
+                    offset + half, total, min_words, similarity_threshold, keep_occurrence
+                )
             )
 
-        # Large transcripts exceed the model's output limit in one call, so analyse
-        # overlapping windows and merge the groups.
-        step = self.CHUNK_SEGMENTS - self.CHUNK_OVERLAP
+    @staticmethod
+    def _with_segments(transcript_data: Dict[str, Any], segments: List[Dict[str, Any]]) -> Dict[str, Any]:
+        data = dict(transcript_data)
+        data['segments'] = segments
+        return data
+
+    @staticmethod
+    def _merge_results(results: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Combine per-window results, dropping groups already found in an overlap."""
         merged_groups: List[Dict[str, Any]] = []
         seen_signatures = set()
         usage = {'input_tokens': 0, 'output_tokens': 0, 'total_tokens': 0}
         total_cost = 0.0
         model = None
 
-        for offset in range(0, len(segments), step):
-            window = segments[offset:offset + self.CHUNK_SEGMENTS]
-            chunk_data = dict(transcript_data)
-            chunk_data['segments'] = window
-            logger.info(
-                f"AI detection window: segments {offset}-{offset + len(window) - 1} "
-                f"of {len(segments)}"
-            )
-            result = self._detect_chunk(
-                chunk_data, min_words, similarity_threshold, keep_occurrence
-            )
+        for result in results:
             meta = result.get('ai_metadata', {})
             for key in usage:
                 usage[key] += meta.get('usage', {}).get(key, 0)
@@ -118,9 +171,6 @@ class DuplicateDetector:
                     continue
                 seen_signatures.add(signature)
                 merged_groups.append(group)
-
-            if offset + self.CHUNK_SEGMENTS >= len(segments):
-                break
 
         total_occurrences = 0
         to_delete = 0
